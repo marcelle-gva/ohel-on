@@ -1,19 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    agentFeedback: true,
-  },
-  cacheComponents: true,
-  partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
+  allowedDevOrigins: ['192.168.3.136'],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'rzvfghbmcfliqailseeh.supabase.co', // <-- URL do SEU projeto
+        port: '',
+        pathname: '/storage/v1/object/public/**',
       },
-    },
+    ],
   },
 };
 
