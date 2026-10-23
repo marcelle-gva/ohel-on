@@ -55,7 +55,7 @@ function PreCadastroForm() {
         sexo: formData.sexo,
         estado_civil: formData.estado_civil,
         cpf: formData.cpf,
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         telefone: formData.telefone,
         cep: formData.cep,
         logradouro: formData.logradouro,
@@ -147,7 +147,7 @@ function PreCadastroForm() {
                   <Input label="CPF" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="000.000.000-00" />
                   <Input label="Telefone / WhatsApp *" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="(00) 00000-0000" />
                   <div className="md:col-span-2">
-                    <Input label="E-mail" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" />
+                    <Input label="E-mail *" type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="seu@email.com" />
                   </div>
                 </div>
               </div>

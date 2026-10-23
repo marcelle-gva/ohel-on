@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { getPrivateFileUrl, uploadChurchFile } from "@/lib/private-storage";
 import { ArrowLeft, Save, Package, Upload, Loader2, MapPin, DollarSign } from "lucide-react";
 import Link from "next/link";
 
@@ -17,6 +18,7 @@ export default function NovoBemPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [notaFiscalPreviewUrl, setNotaFiscalPreviewUrl] = useState("");
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const [formData, setFormData] = useState({
@@ -61,12 +63,10 @@ export default function NovoBemPage() {
       const fileExt = file.name.split('.').pop();
       const fileName = `nf-${Date.now()}-${Math.random()}.${fileExt}`;
       
-      // Usando o bucket documentos que já criamos
-      const { error } = await supabase.storage.from('documentos').upload(fileName, file);
-      if (error) throw error;
-      
-      const { data } = supabase.storage.from('documentos').getPublicUrl(fileName);
-      setFormData({ ...formData, nota_fiscal_url: data.publicUrl });
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
+      setFormData({ ...formData, nota_fiscal_url: path });
+      setNotaFiscalPreviewUrl(await getPrivateFileUrl(supabase, "documentos", path));
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Não foi possível enviar o arquivo." });
     } finally {
@@ -203,7 +203,7 @@ export default function NovoBemPage() {
               {uploading ? <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Enviando...</> : <><Upload className="w-3.5 h-3.5 mr-2" /> Anexar Nota Fiscal</>}
             </Button>
             {formData.nota_fiscal_url && (
-              <a href={formData.nota_fiscal_url} target="_blank" className="text-xs text-ohel-blue hover:underline">
+              <a href={notaFiscalPreviewUrl} target="_blank" rel="noreferrer" className="text-xs text-ohel-blue hover:underline">
                 Ver arquivo anexado
               </a>
             )}

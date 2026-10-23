@@ -25,7 +25,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         }
 
         const authPath = await getPostAuthenticationPath(supabase);
-        if (authPath === "/mfa") {
+        if (authPath !== "/dashboard") {
           router.replace(authPath);
           return;
         }
@@ -41,8 +41,10 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           // REGRA DE OURO: Se for admin, libera TUDO.
           setPermissoes([
             'dashboard', 'membros', 'congregacoes', 'congregados',
-            'visitantes', 'eventos', 'financeiro', 'mural',
-            'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino'
+            'visitantes', 'oracoes', 'mural', 'escalas', 'reunioes',
+            'visitas', 'fichas', 'cartas', 'certificados', 'credenciais',
+            'eventos', 'financeiro', 'monitor-midia', 'monitor-oracoes',
+            'configuracoes', 'patrimonio', 'gabinete', 'ensino'
           ]);
         } else if (user?.grupo_id) {
           // Se não for admin, busca as permissões do grupo dele

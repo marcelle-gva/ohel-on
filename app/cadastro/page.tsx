@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { getPostAuthenticationPath } from "@/lib/auth";
 
 export default function Cadastro() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function Cadastro() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [loading, setLoading] = useState(false);
+  const [successDestination, setSuccessDestination] = useState("/");
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const handleCadastro = async (e: React.FormEvent) => {
@@ -39,31 +41,32 @@ export default function Cadastro() {
     setLoading(true);
 
     try {
-      // 1. Cria a Igreja (Tenant) e pega o ID gerado
-      const { data: igrejaData, error: igrejaError } = await supabase
-        .from('igrejas')
-        .insert([{ nome: nomeIgreja }])
-        .select()
-        .single();
+      const { data: signupToken, error: igrejaError } = await supabase.rpc(
+        "iniciar_cadastro_igreja",
+        { p_nome: nomeIgreja },
+      );
+      if (igrejaError) throw new Error("Erro ao iniciar o cadastro da igreja: " + igrejaError.message);
 
-      if (igrejaError) throw new Error("Erro ao criar igreja: " + igrejaError.message);
-
-      // 2. Cria o usuário no Auth passando os metadados (nome e igreja_id)
-      // O gatilho no banco usará esses dados para criar o perfil automaticamente
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             nome: nomeUsuario,
-            igreja_id: igrejaData.id
+            church_signup_token: signupToken,
           }
         }
       });
 
       if (authError) throw new Error("Erro ao criar login: " + authError.message);
 
-      setModal({ isOpen: true, type: "success", title: "Conta Criada", message: "Sua igreja foi cadastrada com sucesso! Redirecionando..." });
+      if (authData.session) {
+        setSuccessDestination(await getPostAuthenticationPath(supabase));
+        setModal({ isOpen: true, type: "success", title: "Conta Criada", message: "Sua igreja foi cadastrada com sucesso! Redirecionando..." });
+      } else {
+        setSuccessDestination("/");
+        setModal({ isOpen: true, type: "success", title: "Conta Criada", message: "Sua igreja foi cadastrada. Verifique seu e-mail para confirmar a conta e depois faça login." });
+      }
       
     } catch (err: any) {
       setModal({ isOpen: true, type: "error", title: "Erro no Cadastro", message: err.message });
@@ -74,7 +77,7 @@ export default function Cadastro() {
 
   const handleCloseModal = () => {
     setModal({ ...modal, isOpen: false });
-    if (modal.type === "success") router.push("/dashboard");
+    if (modal.type === "success") router.push(successDestination);
   };
 
   return (

@@ -24,6 +24,8 @@ export default function EditarMembroPage() {
   
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
   const [cargos, setCargos] = useState<{id: string, nome: string}[]>([]);
+  const [originalStatus, setOriginalStatus] = useState("Ativo");
+  const [canManageStatus, setCanManageStatus] = useState(false);
 
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -39,6 +41,18 @@ export default function EditarMembroPage() {
     const fetchDados = async () => {
       if (!id) return;
       try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        if (authUser) {
+          const { data: profile, error: profileError } = await supabase
+            .from("usuarios")
+            .select("role")
+            .eq("id", authUser.id)
+            .single();
+          if (profileError) throw profileError;
+          setCanManageStatus(profile.role === "admin");
+        }
+
         // Busca Congregações
         const { data: congs } = await supabase.from('congregacoes').select('id, nome').order('nome');
         if (congs) setCongregacoes(congs);
@@ -59,6 +73,7 @@ export default function EditarMembroPage() {
         if (error) throw error;
 
         if (data) {
+          setOriginalStatus(data.status || "Ativo");
           setFormData({
             nome: data.nome || "", data_nascimento: data.data_nascimento || "", sexo: data.sexo || "",
             estado_civil: data.estado_civil || "", cpf: data.cpf || "", telefone: data.telefone || "",
@@ -107,8 +122,9 @@ export default function EditarMembroPage() {
     setSaving(true);
     
     try {
+      const { status, ...memberFields } = formData;
       const payload = {
-        ...formData,
+        ...memberFields,
         congregacao_id: formData.congregacao_id || null,
         data_nascimento: formData.data_nascimento ? formData.data_nascimento : null,
         data_batismo: formData.data_batismo ? formData.data_batismo : null,
@@ -116,6 +132,15 @@ export default function EditarMembroPage() {
 
       const { error } = await supabase.from("membros").update(payload).eq("id", id);
       if (error) throw error;
+
+      if (status !== originalStatus) {
+        const { error: statusError } = await supabase.rpc("admin_update_member_status", {
+          p_membro_id: id,
+          p_status: status,
+        });
+        if (statusError) throw statusError;
+        setOriginalStatus(status);
+      }
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Membro atualizado com sucesso!" });
     } catch (error: any) {
@@ -228,7 +253,7 @@ export default function EditarMembroPage() {
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Status</label>
-                <select name="status" value={formData.status} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm">
+                <select name="status" value={formData.status} onChange={handleChange} disabled={!canManageStatus} className="input-ohel w-full px-4 py-3 rounded-lg text-sm disabled:opacity-60">
                   <option value="Ativo">Ativo</option><option value="Inativo">Inativo</option><option value="Transferido">Transferido</option><option value="Disciplinado">Disciplinado</option>
                 </select>
               </div>

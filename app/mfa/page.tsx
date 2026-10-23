@@ -30,8 +30,9 @@ export default function MfaChallengePage() {
           return;
         }
 
-        if (await getPostAuthenticationPath(supabase) !== "/mfa") {
-          router.replace("/dashboard");
+        const authPath = await getPostAuthenticationPath(supabase);
+        if (authPath !== "/mfa") {
+          router.replace(authPath);
           return;
         }
 

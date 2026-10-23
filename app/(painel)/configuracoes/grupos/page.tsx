@@ -14,6 +14,13 @@ const MODULOS = [
   { id: "congregacoes", nome: "Secretaria: Congregações" },
   { id: "congregados", nome: "Secretaria: Congregados" },
   { id: "visitantes", nome: "Secretaria: Visitantes" },
+  { id: "oracoes", nome: "Secretaria: Orações" },
+  { id: "reunioes", nome: "Secretaria: Reuniões" },
+  { id: "visitas", nome: "Secretaria: Visitas" },
+  { id: "fichas", nome: "Secretaria: Fichas" },
+  { id: "cartas", nome: "Secretaria: Cartas" },
+  { id: "certificados", nome: "Secretaria: Certificados" },
+  { id: "credenciais", nome: "Secretaria: Credenciais" },
   { id: "eventos", nome: "Eventos" },
   { id: "financeiro", nome: "Financeiro" },
   { id: "mural", nome: "Mural de Comunicações" },
@@ -32,6 +39,12 @@ const ACOES = [
 ];
 
 interface Permissao { modulo: string; acao: string; }
+interface UsuarioGrupo {
+  id: string;
+  nome: string;
+  email: string | null;
+  grupo_id: string | null;
+}
 interface Grupo {
   id: string;
   nome: string;
@@ -41,7 +54,7 @@ interface Grupo {
 
 export default function GruposPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
-  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioGrupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
@@ -58,10 +71,6 @@ export default function GruposPage() {
   const [descricao, setDescricao] = useState("");
   const [selectedPerms, setSelectedPerms] = useState<Permissao[]>([]);
   const [membrosSelecionados, setMembrosSelecionados] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetchDados();
-  }, []);
 
   const fetchDados = async () => {
     try {
@@ -92,6 +101,10 @@ export default function GruposPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    void fetchDados();
+  }, []);
 
   const openEditModal = (grupo: Grupo) => {
     setEditingGrupo(grupo);
@@ -136,32 +149,52 @@ export default function GruposPage() {
       let grupoId = editingGrupo?.id;
 
       if (editingGrupo) {
-        await supabase.from('grupos').update({ nome, descricao }).eq('id', grupoId);
+        const { error } = await supabase.from('grupos').update({ nome, descricao }).eq('id', grupoId);
+        if (error) throw error;
       } else {
-        const { data } = await supabase.from('grupos').insert([{ igreja_id: igrejaId, nome, descricao }]).select().single();
+        const { data, error } = await supabase.from('grupos').insert([{ igreja_id: igrejaId, nome, descricao }]).select().single();
+        if (error) throw error;
         grupoId = data?.id;
       }
 
       if (!grupoId) throw new Error("Erro ao obter ID do grupo.");
 
       // Atualiza Permissões
-      await supabase.from('grupos_permissoes').delete().eq('grupo_id', grupoId);
+      const { error: deletePermissionsError } = await supabase.from('grupos_permissoes').delete().eq('grupo_id', grupoId);
+      if (deletePermissionsError) throw deletePermissionsError;
       if (selectedPerms.length > 0) {
         const permsToInsert = selectedPerms.map(p => ({ grupo_id: grupoId, modulo: p.modulo, acao: p.acao }));
-        await supabase.from('grupos_permissoes').insert(permsToInsert);
+        const { error: insertPermissionsError } = await supabase.from('grupos_permissoes').insert(permsToInsert);
+        if (insertPermissionsError) throw insertPermissionsError;
       }
 
-      // Atualiza Membros (Remove todos do grupo antigo e adiciona os selecionados)
-      await supabase.from('usuarios').update({ grupo_id: null }).eq('grupo_id', grupoId);
-      if (membrosSelecionados.length > 0) {
-        await supabase.from('usuarios').update({ grupo_id: grupoId }).in('id', membrosSelecionados);
+      const selectedUsers = new Set(membrosSelecionados);
+      const usersToUnassign = usuarios.filter(user => user.grupo_id === grupoId && !selectedUsers.has(user.id));
+      for (const user of usersToUnassign) {
+        const { error } = await supabase.rpc("admin_set_user_group", {
+          p_usuario_id: user.id,
+          p_grupo_id: null,
+        });
+        if (error) throw error;
+      }
+      for (const userId of membrosSelecionados) {
+        const { error } = await supabase.rpc("admin_set_user_group", {
+          p_usuario_id: userId,
+          p_grupo_id: grupoId,
+        });
+        if (error) throw error;
       }
 
       setModalFeedback({ isOpen: true, type: "success", title: "Sucesso", message: "Grupo salvo com sucesso!" });
       setIsModalOpen(false);
       fetchDados();
-    } catch (error: any) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error) {
+      setModalFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Não foi possível salvar o grupo.",
+      });
     } finally {
       setSaving(false);
     }
@@ -170,12 +203,19 @@ export default function GruposPage() {
   const handleDeleteGrupo = async () => {
     if (!grupoToDelete) return;
     try {
-      await supabase.from('usuarios').update({ grupo_id: null }).eq('grupo_id', grupoToDelete);
-      await supabase.from('grupos').delete().eq('id', grupoToDelete);
+      for (const user of usuarios.filter(user => user.grupo_id === grupoToDelete)) {
+        const { error } = await supabase.rpc("admin_set_user_group", {
+          p_usuario_id: user.id,
+          p_grupo_id: null,
+        });
+        if (error) throw error;
+      }
+      const { error } = await supabase.from('grupos').delete().eq('id', grupoToDelete);
+      if (error) throw error;
       setGrupos(grupos.filter(p => p.id !== grupoToDelete));
       setGrupoToDelete(null);
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível excluir." });
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível excluir." });
     }
   };
 

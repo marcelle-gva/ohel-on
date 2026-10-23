@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { getPrivateFileUrl, uploadChurchFile } from "@/lib/private-storage";
 import { ArrowLeft, Save, FileText, Users, Paperclip, Info, Plus, Trash2, Upload, Loader2, Search, User, Video } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,6 +22,7 @@ export default function EditarReuniaoPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [igrejaId, setIgrejaId] = useState<string | null>(null);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
 
   const [dataReuniao, setDataReuniao] = useState("");
@@ -32,7 +34,7 @@ export default function EditarReuniaoPage() {
 
   const [participantes, setParticipantes] = useState<{nome: string, cargo: string}[]>([]);
   const [novoParticipante, setNovoParticipante] = useState({nome: "", cargo: ""});
-  const [anexos, setAnexos] = useState<{nome: string, url: string}[]>([]);
+  const [anexos, setAnexos] = useState<{nome: string, url: string, signedUrl?: string}[]>([]);
 
   // --- ESTADOS DA BUSCA DE MEMBROS ---
   const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +55,7 @@ export default function EditarReuniaoPage() {
         if (error) throw error;
 
         if (data) {
+          setIgrejaId(data.igreja_id);
           setFormData({
             titulo: data.titulo || "", 
             local: data.local || "", 
@@ -83,7 +86,11 @@ export default function EditarReuniaoPage() {
           }
 
           if (data.anexos && Array.isArray(data.anexos)) {
-            setAnexos(data.anexos);
+            const attachments = await Promise.all(data.anexos.map(async (anexo: { nome: string; url: string }) => ({
+              ...anexo,
+              signedUrl: await getPrivateFileUrl(supabase, "documentos", anexo.url),
+            })));
+            setAnexos(attachments);
           }
         }
       } catch (error) {
@@ -151,11 +158,10 @@ export default function EditarReuniaoPage() {
       setUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-      const { error } = await supabase.storage.from('documentos').upload(fileName, file);
-      if (error) throw error;
-      
-      const { data } = await supabase.storage.from('documentos').getPublicUrl(fileName);
-      setAnexos([...anexos, { nome: file.name, url: data.publicUrl }]);
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
+      const signedUrl = await getPrivateFileUrl(supabase, "documentos", path);
+      setAnexos([...anexos, { nome: file.name, url: path, signedUrl }]);
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Falha ao enviar anexo." });
     } finally {
@@ -190,7 +196,7 @@ export default function EditarReuniaoPage() {
         ata: formData.ata,
         observacoes_internas: formData.observacoes_internas,
         participantes: participantesTexto,
-        anexos: anexos
+        anexos: anexos.map(({ nome, url }) => ({ nome, url }))
       }).eq("id", id);
 
       if (error) throw error;
@@ -402,7 +408,7 @@ export default function EditarReuniaoPage() {
                     <div key={index} className="flex items-center justify-between bg-ohel-bg border border-gray-800 p-4 rounded-lg">
                       <div className="flex items-center gap-3 overflow-hidden">
                         <FileText className="w-6 h-6 text-ohel-blue shrink-0" />
-                        <a href={anexo.url} target="_blank" className="text-sm text-white truncate hover:underline">{anexo.nome}</a>
+                        <a href={anexo.signedUrl} target="_blank" rel="noreferrer" className="text-sm text-white truncate hover:underline">{anexo.nome}</a>
                       </div>
                       <button type="button" onClick={() => removeAnexo(index)} className="text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>

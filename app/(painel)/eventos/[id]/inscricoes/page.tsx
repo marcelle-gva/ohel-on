@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { uploadChurchFile } from "@/lib/private-storage";
 import { ArrowLeft, Search, Plus, Trash2, AlertTriangle, Users, CheckCircle, QrCode, ShoppingBag, X, Upload, Loader2, DollarSign } from "lucide-react";
 import QRCode from "react-qr-code";
 
@@ -171,10 +172,11 @@ export default function GerenciarEventoPage() {
       setUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `comprovante-${pedidoId}-${Date.now()}.${fileExt}`;
-      await supabase.storage.from('comprovantes').upload(fileName, file);
-      const { data } = supabase.storage.from('comprovantes').getPublicUrl(fileName);
-      await supabase.from('eventos_pedidos').update({ comprovante_url: data.publicUrl }).eq('id', pedidoId);
-      setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, comprovante_url: data.publicUrl } : p));
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const path = await uploadChurchFile(supabase, "comprovantes", igrejaId, file, fileName);
+      const { error } = await supabase.from('eventos_pedidos').update({ comprovante_url: path }).eq('id', pedidoId);
+      if (error) throw error;
+      setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, comprovante_url: path } : p));
       setModalFeedback({ isOpen: true, type: "success", title: "Comprovante Anexado", message: "A imagem foi salva no pedido." });
     } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar o comprovante." }); } finally { setUploading(false); }
   };

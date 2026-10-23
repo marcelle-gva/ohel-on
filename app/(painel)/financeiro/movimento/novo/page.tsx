@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { uploadChurchFile } from "@/lib/private-storage";
 import { ArrowLeft, Save, Plus, Minus, Search, Upload, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 
@@ -83,10 +84,9 @@ export default function NovaTransacaoPage() {
       setUploading(true);
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-      const { error } = await supabase.storage.from('documentos').upload(fileName, file);
-      if (error) throw error;
-      const { data } = supabase.storage.from('documentos').getPublicUrl(fileName);
-      setFormData({ ...formData, comprovante_url: data.publicUrl });
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
+      setFormData({ ...formData, comprovante_url: path });
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar comprovante." });
     } finally {

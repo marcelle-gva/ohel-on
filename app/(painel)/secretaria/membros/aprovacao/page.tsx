@@ -11,6 +11,7 @@ interface PreCadastro {
   id: string;
   nome: string;
   telefone: string;
+  email: string | null;
   congregacao_id: string | null;
 }
 
@@ -27,7 +28,7 @@ export default function AprovacaoPage() {
     try {
       const { data, error } = await supabase
         .from("membros")
-        .select("id, nome, telefone, congregacao_id")
+        .select("id, nome, telefone, email, congregacao_id")
         .eq("status", "Pré-Cadastro")
         .order("nome");
       
@@ -42,11 +43,11 @@ export default function AprovacaoPage() {
 
   const handleAprovar = async (id: string) => {
     try {
-      const { error } = await supabase.from("membros").update({ status: "Ativo" }).eq("id", id);
+      const { error } = await supabase.rpc("aprovar_pre_cadastro", { p_membro_id: id });
       if (error) throw error;
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
-      setModal({ isOpen: true, type: "success", title: "Aprovado", message: "O pré-cadastro foi aprovado e o membro já está ativo no sistema." });
+      setModal({ isOpen: true, type: "success", title: "Aprovado", message: "O pré-cadastro foi aprovado. Uma conta Google confirmada com o mesmo e-mail foi vinculada automaticamente." });
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível aprovar." });
     }
@@ -54,7 +55,7 @@ export default function AprovacaoPage() {
 
   const handleRecusar = async (id: string) => {
     try {
-      const { error } = await supabase.from("membros").delete().eq("id", id);
+      const { error } = await supabase.rpc("rejeitar_pre_cadastro", { p_membro_id: id });
       if (error) throw error;
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
@@ -83,14 +84,15 @@ export default function AprovacaoPage() {
             <tr className="bg-ohel-surface/80 border-b border-gray-800 text-xs uppercase tracking-wider text-gray-400">
               <th className="p-4 font-medium">Ações</th>
               <th className="p-4 font-medium">Nome</th>
+              <th className="p-4 font-medium">E-mail</th>
               <th className="p-4 font-medium">Telefone</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
             {loading ? (
-              <tr><td colSpan={3} className="p-8 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={4} className="p-8 text-center text-gray-400">Carregando...</td></tr>
             ) : preCadastros.length === 0 ? (
-              <tr><td colSpan={3} className="p-8 text-center text-gray-400">Nenhum pré-cadastro pendente no momento.</td></tr>
+              <tr><td colSpan={4} className="p-8 text-center text-gray-400">Nenhum pré-cadastro pendente no momento.</td></tr>
             ) : (
               preCadastros.map((p) => (
                 <tr key={p.id} className="hover:bg-white/[0.02]">
@@ -103,6 +105,7 @@ export default function AprovacaoPage() {
                     </button>
                   </td>
                   <td className="p-4 text-white font-medium">{p.nome}</td>
+                  <td className="p-4 text-gray-300">{p.email || "—"}</td>
                   <td className="p-4 text-gray-300">{p.telefone}</td>
                 </tr>
               ))

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
+import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Search, Plus, Edit, Trash2, AlertTriangle, MessageCircle, QrCode, User, CheckSquare, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
@@ -36,6 +37,7 @@ export default function MembrosPage() {
 
   // Estado do Toast (Notificação)
   const [toast, setToast] = useState(false);
+  const [deleteFeedback, setDeleteFeedback] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   useEffect(() => {
     const init = async () => {
@@ -73,11 +75,12 @@ export default function MembrosPage() {
     if (!membroToDelete) return;
     setIsDeleting(true);
     try {
-      await supabase.from("membros").delete().eq("id", membroToDelete);
+      const { error } = await supabase.from("membros").delete().eq("id", membroToDelete);
+      if (error) throw error;
       setMembros(membros.filter((m) => m.id !== membroToDelete));
       setMembroToDelete(null);
     } catch (error: any) {
-      console.error("Erro ao excluir:", error);
+      setDeleteFeedback({ isOpen: true, type: "error", title: "Erro ao excluir", message: error.message });
     } finally {
       setIsDeleting(false);
     }
@@ -104,6 +107,13 @@ export default function MembrosPage() {
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto relative">
+      <FeedbackModal
+        isOpen={deleteFeedback.isOpen}
+        onClose={() => setDeleteFeedback({ ...deleteFeedback, isOpen: false })}
+        type={deleteFeedback.type}
+        title={deleteFeedback.title}
+        message={deleteFeedback.message}
+      />
       
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
