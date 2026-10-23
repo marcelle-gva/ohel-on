@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -14,13 +14,44 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
   const router = useRouter();
-  
+  const oauthCallbackStarted = useRef(false);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthCallbackPending, setOauthCallbackPending] = useState(false);
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
+
+  useEffect(() => {
+    if (oauthCallbackStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code) return;
+    const timeoutId = window.setTimeout(() => {
+      oauthCallbackStarted.current = true;
+      setOauthCallbackPending(true);
+      void (async () => {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          router.replace(await getPostAuthenticationPath(supabase));
+        } catch (error) {
+          console.error("Falha ao concluir o login com Google:", error);
+          window.history.replaceState(null, "", window.location.pathname);
+          setModal({
+            isOpen: true,
+            type: "error",
+            title: "Falha na autenticação",
+            message: "Não foi possível concluir o login com Google. Tente novamente.",
+          });
+          setOauthCallbackPending(false);
+        }
+      })();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +103,17 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (oauthCallbackPending) {
+    return (
+      <main className="w-full h-screen flex items-center justify-center bg-ohel-glow p-4">
+        <Card className="w-full max-w-[400px] flex flex-col items-center px-8 py-8 border-gray-800 text-center">
+          <Logo className="h-[100px] w-[200px] mb-4" />
+          <p className="text-sm text-gray-400">Validando sua autenticação...</p>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full h-screen flex items-center justify-center bg-ohel-glow p-4">
