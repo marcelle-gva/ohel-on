@@ -89,7 +89,7 @@ export default function Login() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://ohel-on.vercel.app/auth/callback',
+          redirectTo: new URL('/auth/callback', window.location.origin).toString(),
           skipBrowserRedirect: true,
           queryParams: { prompt: 'select_account' },
         },
