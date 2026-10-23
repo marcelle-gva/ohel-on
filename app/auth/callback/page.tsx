@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
 import { getPostAuthenticationPath } from "@/lib/auth";
-import { supabaseCallback } from "@/lib/supabase-callback";
+import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -27,10 +27,10 @@ export default function AuthCallbackPage() {
       }
 
       try {
-        const { error } = await supabaseCallback.auth.exchangeCodeForSession(code);
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
 
-        router.replace(await getPostAuthenticationPath(supabaseCallback));
+        router.replace(await getPostAuthenticationPath(supabase));
       } catch (error) {
         console.error("Falha ao concluir o login com Google:", error);
         setErrorMessage("Não foi possível concluir o login com Google. Tente novamente.");
