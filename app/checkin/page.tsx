@@ -6,36 +6,42 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
 import { CheckCircle2, MapPin, Loader2, AlertTriangle, Clock } from "lucide-react";
-import Image from "next/image";
 
-// Função matemática para calcular a distância em metros (Fórmula de Haversine)
-function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // Raio da Terra em metros
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
-
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c; // Retorna a distância em metros
+interface MembroCheckin {
+  id: string;
+  igreja_id: string;
+  nome: string;
 }
 
 export default function CheckinMembroPage() {
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState(false);
-  const [membro, setMembro] = useState<any>(null);
-  const [igreja, setIgreja] = useState<any>(null);
+  const [membro, setMembro] = useState<MembroCheckin | null>(null);
   
   const [status, setStatus] = useState<"inicial" | "sucesso" | "erro" | "fora_horario">("inicial");
   const [mensagem, setMensagem] = useState("");
   const [eventoCheckin, setEventoCheckin] = useState("");
+  const [metodo, setMetodo] = useState<"GPS" | "QR Code">("GPS");
+  const [qrToken, setQrToken] = useState("");
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const query = new URLSearchParams(window.location.search);
+      setMetodo(query.get("metodo") === "qr" ? "QR Code" : "GPS");
+      setQrToken(query.get("token") ?? "");
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     const carregarDados = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        setStatus("erro");
+        setMensagem("Não foi possível validar sua sessão. Entre novamente no aplicativo.");
+        setLoading(false);
+        return;
+      }
       if (!session) {
         setStatus("erro");
         setMensagem("Você precisa estar logado no aplicativo para fazer o check-in.");
@@ -44,7 +50,17 @@ export default function CheckinMembroPage() {
       }
 
       // Busca os dados do membro
-      const { data: membroData } = await supabase.from('membros').select('*, igrejas(*)').eq('email', session.user.email).maybeSingle();
+      const { data: membroData, error: membroError } = await supabase
+        .from('membros')
+        .select('id, igreja_id, nome')
+        .eq('email', session.user.email)
+        .maybeSingle();
+      if (membroError) {
+        setStatus("erro");
+        setMensagem("Não foi possível carregar seu cadastro. Tente novamente.");
+        setLoading(false);
+        return;
+      }
       
       if (!membroData) {
         setStatus("erro");
@@ -54,113 +70,98 @@ export default function CheckinMembroPage() {
       }
       
       setMembro(membroData);
-      setIgreja(membroData.igrejas);
       setLoading(false);
     };
-    carregarDados();
+    const timeoutId = window.setTimeout(() => {
+      void carregarDados();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
+  const salvarCheckin = async (coordenadas?: Pick<GeolocationCoordinates, "latitude" | "longitude">) => {
+    const membroAtual = membro;
+    if (!membroAtual) {
+      setStatus("erro");
+      setMensagem("Não foi possível validar seu cadastro de membro.");
+      return;
+    }
+
+    setProcessando(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!sessionData.session?.access_token) throw new Error("Sua sessão expirou. Entre novamente.");
+      const response = await fetch("/api/checkin/confirm", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          memberId: membroAtual.id,
+          method: metodo,
+          token: metodo === "QR Code" ? qrToken : undefined,
+          latitude: coordenadas?.latitude,
+          longitude: coordenadas?.longitude,
+        }),
+      });
+      const result = await response.json() as {
+        error?: string;
+        eventName?: string;
+        status?: "Normal" | "Fora de Horário";
+      };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível registrar o check-in.");
+      if (!result.status) throw new Error("O servidor não confirmou o status do check-in.");
+
+      setEventoCheckin(result.eventName ?? "Fora de Horário");
+      setStatus(result.status === "Normal" ? "sucesso" : "fora_horario");
+      setMensagem(result.status === "Normal"
+        ? `Check-in registrado com sucesso por ${metodo}.`
+        : "Não há evento acontecendo neste horário. Seu check-in foi registrado.");
+    } catch (error) {
+      console.error("Falha ao registrar check-in:", error);
+      setStatus("erro");
+      setMensagem(error instanceof Error
+        ? `Não foi possível registrar o check-in: ${error.message}`
+        : "Não foi possível registrar o check-in. Tente novamente.");
+    } finally {
+      setProcessando(false);
+    }
+  };
+
   const realizarCheckin = () => {
+    if (metodo === "QR Code") {
+      if (!qrToken) {
+        setStatus("erro");
+        setMensagem("QR Code inválido ou expirado. Escaneie o código atualizado na recepção.");
+        return;
+      }
+      void salvarCheckin();
+      return;
+    }
+
     setProcessando(true);
     setMensagem("Obtendo sua localização...");
 
     if (!navigator.geolocation) {
       setStatus("erro");
-      setMensagem("Seu dispositivo não suporta geolocalização. Por favor, use o QR Code na recepção.");
+      setMensagem("Seu dispositivo não suporta geolocalização. Use o QR Code na recepção.");
       setProcessando(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          
-          // 1. Busca a configuração dos eventos e a hora do servidor
-          const { data: configs } = await supabase.from('config_checkin').select('*').eq('igreja_id', membro.igreja_id);
-          
-          // Pega a hora atual do servidor para evitar fraudes
-          const { data: serverTime } = await supabase.rpc('get_server_time'); 
-          const agora = new Date(serverTime || new Date());
-          const horaAtual = agora.getHours() * 60 + agora.getMinutes(); // Hora em minutos
-
-          let eventoAtual = null;
-          let statusCheckin = "Normal";
-          let obs = "";
-
-          // 2. Verifica qual evento está acontecendo agora
-          if (configs) {
-            for (const conf of configs) {
-              const [hIni, mIni] = conf.horario_inicio.split(':').map(Number);
-              const [hFim, mFim] = conf.horario_fim.split(':').map(Number);
-              const minIni = hIni * 60 + mIni;
-              const minFim = hFim * 60 + mFim;
-
-              if (horaAtual >= minIni && horaAtual <= minFim) {
-                eventoAtual = conf;
-                
-                // Validação de Elegibilidade para Louvor
-                if (conf.nome_evento.includes('Louvor') && !membro.departamento?.toLowerCase().includes('louvor')) {
-                  obs = "Tentou check-in no louvor sem estar no ministério.";
-                }
-                break;
-              }
-            }
-          }
-
-          // 3. Define o status se for fora do horário
-          if (!eventoAtual) {
-            statusCheckin = "Fora de Horário";
-            setEventoCheckin("Fora de Horário");
-            setStatus("fora_horario");
-            setMensagem("Não há eventos acontecendo neste horário, mas seu check-in foi registrado e o Pastor será notificado.");
-          } else {
-            setEventoCheckin(eventoAtual.nome_evento);
-            setStatus("sucesso");
-            setMensagem(`Check-in realizado com sucesso no ${eventoAtual.nome_evento}!`);
-          }
-
-          // 4. Calcula a distância (apenas para registrar no banco se estava perto)
-          const confDistancia = configs?.[0]; // Pega as coordenações da igreja
-          let distancia = -1;
-          if (confDistancia) {
-            distancia = calcularDistancia(latitude, longitude, confDistancia.latitude_igreja, confDistancia.longitude_igreja);
-            
-            // Se estiver muito longe, avisa
-            if (distancia > confDistancia.raio_metros && statusCheckin === "Normal") {
-               obs += ` (Fora do raio de ${confDistancia.raio_metros}m. Distância: ${distancia.toFixed(0)}m)`;
-            }
-          }
-
-          // 5. Salva no banco
-          await supabase.from('checkins').insert([{
-            igreja_id: membro.igreja_id,
-            membro_id: membro.id,
-            tipo_evento: eventoAtual ? eventoAtual.nome_evento : "Geral",
-            metodo: 'GPS',
-            latitude,
-            longitude,
-            status: statusCheckin,
-            observacao: obs
-          }]);
-
-        } catch (error) {
-          setStatus("erro");
-          setMensagem("Erro ao processar o check-in. Tente novamente.");
-        } finally {
-          setProcessando(false);
-        }
+      position => {
+        void salvarCheckin(position.coords);
       },
-      (error) => {
+      error => {
         setProcessando(false);
         setStatus("erro");
-        if (error.code === error.PERMISSION_DENIED) {
-          setMensagem("Você negou a localização. Vá até a recepção e escaneie o QR Code para fazer o check-in.");
-        } else {
-          setMensagem("Não foi possível obter sua localização.");
-        }
+        setMensagem(error.code === error.PERMISSION_DENIED
+          ? "Você negou a localização. Escaneie o QR Code na recepção para fazer o check-in."
+          : "Não foi possível obter sua localização.");
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
 
@@ -180,9 +181,15 @@ export default function CheckinMembroPage() {
               <MapPin className="w-10 h-10 text-ohel-blue" />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">Bem-vindo, {membro?.nome.split(' ')[0]}!</h2>
-            <p className="text-xs text-gray-400 mb-6">Para registrar sua presença, clique no botão abaixo.</p>
+            <p className="text-xs text-gray-400 mb-6">
+              {metodo === "QR Code"
+                ? "Confirme para registrar sua presença usando o QR Code da igreja."
+                : "Para registrar sua presença por GPS, clique no botão abaixo."}
+            </p>
             <Button onClick={realizarCheckin} disabled={processando} className="w-full py-3 bg-ohel-blue hover:bg-blue-600 text-white font-bold">
-              {processando ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processando...</> : "Fazer Check-in"}
+              {processando
+                ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processando...</>
+                : metodo === "QR Code" ? "Fazer Check-in por QR Code" : "Fazer Check-in por GPS"}
             </Button>
           </>
         )}

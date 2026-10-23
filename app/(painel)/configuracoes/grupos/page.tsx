@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, Shield, Plus, Trash2, Edit, Check, X, Users, UserPlus, Lock } from "lucide-react";
+import { ArrowLeft, Shield, Plus, Trash2, Edit, Check, X, Users } from "lucide-react";
 
 const MODULOS = [
   { id: "dashboard", nome: "Dashboard" },
@@ -23,6 +23,12 @@ const MODULOS = [
   { id: "credenciais", nome: "Secretaria: Credenciais" },
   { id: "eventos", nome: "Eventos" },
   { id: "financeiro", nome: "Financeiro" },
+  { id: "patrimonio", nome: "Patrimônio" },
+  { id: "gabinete", nome: "Gabinete Pastoral" },
+  { id: "ensino", nome: "Ensino (EBD)" },
+  { id: "infantil", nome: "Departamento Infantil" },
+  { id: "comunicacoes", nome: "Comunicações e WhatsApp" },
+  { id: "relatorios", nome: "Gerador de Relatórios" },
   { id: "mural", nome: "Mural de Comunicações" },
   { id: "monitor-midia", nome: "Monitor de Mídia (Acesso)" },
   { id: "monitor-oracoes", nome: "Monitor: Aprovar Orações" },

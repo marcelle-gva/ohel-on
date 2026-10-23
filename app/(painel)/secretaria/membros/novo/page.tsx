@@ -22,6 +22,8 @@ export default function NovoMembroPage() {
   
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
   const [cargos, setCargos] = useState<{id: string, nome: string}[]>([]);
+  const [departamentos, setDepartamentos] = useState<{id: string, nome: string}[]>([]);
+  const [departamentosSelecionados, setDepartamentosSelecionados] = useState<string[]>([]);
 
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -29,6 +31,7 @@ export default function NovoMembroPage() {
     nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", telefone: "", email: "",
     cep: "", logradouro: "", numero: "", bairro: "", cidade: "", uf: "",
     data_batismo: "", cargo: "Membro", status: "Ativo",
+    whatsapp_opt_in: false,
     congregacao_id: "",
     foto_url: ""
   });
@@ -37,31 +40,37 @@ export default function NovoMembroPage() {
     const initPage = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
-      }
-      
-      // Busca Congregações
-      const { data: congs } = await supabase.from('congregacoes').select('id, nome').order('nome');
-      if (congs) setCongregacoes(congs);
+        const { data: user, error: userError } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+        if (userError) throw userError;
+        if (!user?.igreja_id) throw new Error("Igreja do usuário não identificada.");
+        setIgrejaId(user.igreja_id);
 
-      // Busca Cargos cadastrados nas Configurações
-      const { data: crgs } = await supabase.from('cargos').select('id, nome').order('nome');
-      if (crgs && crgs.length > 0) {
-        setCargos(crgs);
-        // Se o cargo padrão "Membro" não existir na lista, define o primeiro como padrão
-        if (!crgs.find(c => c.nome === "Membro")) {
-          setFormData(prev => ({ ...prev, cargo: crgs[0].nome }));
-        }
-      } else {
-        // Fallback caso a tabela esteja vazia
-        setCargos([
-          { id: '1', nome: 'Membro' }, { id: '2', nome: 'Diácono' }, 
-          { id: '3', nome: 'Presbítero' }, { id: '4', nome: 'Evangelista' }, { id: '5', nome: 'Pastor' }
+        const [{ data: congs, error: congregacoesError }, { data: crgs, error: cargosError }, { data: depts, error: departamentosError }] = await Promise.all([
+          supabase.from('congregacoes').select('id, nome').eq('igreja_id', user.igreja_id).order('nome'),
+          supabase.from('cargos').select('id, nome').eq('igreja_id', user.igreja_id).order('nome'),
+          supabase.from('departamentos').select('id, nome').eq('igreja_id', user.igreja_id).order('nome'),
         ]);
+        if (congregacoesError) throw congregacoesError;
+        if (cargosError) throw cargosError;
+        if (departamentosError) throw departamentosError;
+        setCongregacoes(congs ?? []);
+        setDepartamentos(depts ?? []);
+        if (crgs?.length) {
+          setCargos(crgs);
+          if (!crgs.some(cargo => cargo.nome === "Membro")) {
+            setFormData(prev => ({ ...prev, cargo: crgs[0].nome }));
+          }
+        } else {
+          setCargos([
+            { id: 'membro', nome: 'Membro' }, { id: 'diacono', nome: 'Diácono' },
+            { id: 'presbitero', nome: 'Presbítero' }, { id: 'evangelista', nome: 'Evangelista' }, { id: 'pastor', nome: 'Pastor' }
+          ]);
+        }
       }
     };
-    initPage();
+    void initPage().catch(error => {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível carregar os cadastros." });
+    });
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -80,8 +89,8 @@ export default function NovoMembroPage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setFormData({ ...formData, foto_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar foto." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Erro ao enviar foto." });
     } finally {
       setUploading(false);
     }
@@ -101,12 +110,22 @@ export default function NovoMembroPage() {
         data_batismo: formData.data_batismo || null,
       };
 
-      const { error } = await supabase.from("membros").insert([payload]);
+      const { data: membro, error } = await supabase.from("membros").insert([{
+        ...payload,
+        whatsapp_opt_in_at: formData.whatsapp_opt_in ? new Date().toISOString() : null,
+      }]).select("id").single();
       if (error) throw error;
+      if (departamentosSelecionados.length) {
+        const { error: departmentsError } = await supabase.rpc("save_member_departments", {
+          p_membro_id: membro.id,
+          p_departamento_ids: departamentosSelecionados,
+        });
+        if (departmentsError) throw new Error(`Membro salvo, mas os departamentos não foram vinculados: ${departmentsError.message}`);
+      }
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Membro cadastrado com sucesso!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Cadastrar", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao Cadastrar", message: error instanceof Error ? error.message : "Não foi possível cadastrar o membro." });
     } finally {
       setLoading(false);
     }
@@ -232,6 +251,38 @@ export default function NovoMembroPage() {
                   <option value="Disciplinado">Disciplinado</option>
                 </select>
               </div>
+              <div className="md:col-span-2 rounded-xl border border-gray-800 bg-ohel-bg/50 p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ohel-silver">Departamentos</p>
+                {departamentos.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {departamentos.map(departamento => (
+                      <label key={departamento.id} className="flex items-center gap-2 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={departamentosSelecionados.includes(departamento.id)}
+                          onChange={event => setDepartamentosSelecionados(current =>
+                            event.target.checked
+                              ? [...current, departamento.id]
+                              : current.filter(id => id !== departamento.id)
+                          )}
+                          className="h-4 w-4 accent-sky-500"
+                        />
+                        {departamento.nome}
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-gray-500">Cadastre departamentos em Configurações para vinculá-los.</p>}
+              </div>
+              <label className="md:col-span-2 flex items-start gap-3 rounded-xl border border-gray-800 bg-ohel-bg/50 p-4 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  name="whatsapp_opt_in"
+                  checked={formData.whatsapp_opt_in}
+                  onChange={event => setFormData(current => ({ ...current, whatsapp_opt_in: event.target.checked }))}
+                  className="mt-0.5 h-4 w-4 accent-emerald-500"
+                />
+                <span>Autorizou receber mensagens da igreja pelo WhatsApp. Marque somente com consentimento explícito.</span>
+              </label>
             </div>
           )}
 

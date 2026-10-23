@@ -24,7 +24,10 @@ export default function EditarMembroPage() {
   
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
   const [cargos, setCargos] = useState<{id: string, nome: string}[]>([]);
+  const [departamentos, setDepartamentos] = useState<{id: string, nome: string}[]>([]);
+  const [departamentosSelecionados, setDepartamentosSelecionados] = useState<string[]>([]);
   const [originalStatus, setOriginalStatus] = useState("Ativo");
+  const [originalWhatsappOptIn, setOriginalWhatsappOptIn] = useState(false);
   const [canManageStatus, setCanManageStatus] = useState(false);
 
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
@@ -33,6 +36,7 @@ export default function EditarMembroPage() {
     nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", telefone: "", email: "",
     cep: "", logradouro: "", numero: "", bairro: "", cidade: "", uf: "",
     data_batismo: "", cargo: "Membro", status: "Ativo",
+    whatsapp_opt_in: false,
     congregacao_id: "",
     foto_url: ""
   });
@@ -41,39 +45,57 @@ export default function EditarMembroPage() {
     const fetchDados = async () => {
       if (!id) return;
       try {
+        let availableDepartments: { id: string; nome: string }[] = [];
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         if (authError) throw authError;
         if (authUser) {
           const { data: profile, error: profileError } = await supabase
             .from("usuarios")
-            .select("role")
+            .select("igreja_id, role")
             .eq("id", authUser.id)
             .single();
           if (profileError) throw profileError;
           setCanManageStatus(profile.role === "admin");
-        }
+          if (!profile.igreja_id) throw new Error("Igreja do usuário não identificada.");
 
-        // Busca Congregações
-        const { data: congs } = await supabase.from('congregacoes').select('id, nome').order('nome');
-        if (congs) setCongregacoes(congs);
-
-        // Busca Cargos
-        const { data: crgs } = await supabase.from('cargos').select('id, nome').order('nome');
-        if (crgs && crgs.length > 0) {
-          setCargos(crgs);
-        } else {
-          setCargos([
-            { id: '1', nome: 'Membro' }, { id: '2', nome: 'Diácono' }, 
-            { id: '3', nome: 'Presbítero' }, { id: '4', nome: 'Evangelista' }, { id: '5', nome: 'Pastor' }
+          const [{ data: congs, error: congregacoesError }, { data: crgs, error: cargosError }, { data: depts, error: departamentosError }] = await Promise.all([
+            supabase.from('congregacoes').select('id, nome').eq('igreja_id', profile.igreja_id).order('nome'),
+            supabase.from('cargos').select('id, nome').eq('igreja_id', profile.igreja_id).order('nome'),
+            supabase.from('departamentos').select('id, nome').eq('igreja_id', profile.igreja_id).order('nome'),
           ]);
+          if (congregacoesError) throw congregacoesError;
+          if (cargosError) throw cargosError;
+          if (departamentosError) throw departamentosError;
+          setCongregacoes(congs ?? []);
+          setDepartamentos(depts ?? []);
+          availableDepartments = depts ?? [];
+          setCargos(crgs?.length ? crgs : [
+            { id: 'membro', nome: 'Membro' }, { id: 'diacono', nome: 'Diácono' },
+            { id: 'presbitero', nome: 'Presbítero' }, { id: 'evangelista', nome: 'Evangelista' }, { id: 'pastor', nome: 'Pastor' }
+          ]);
+        } else {
+          throw new Error("Sessão não autenticada.");
         }
 
         // Busca dados do Membro
         const { data, error } = await supabase.from('membros').select('*').eq('id', id).single();
         if (error) throw error;
+        const { data: departmentLinks, error: departmentLinksError } = await supabase
+          .from("departamentos_membros")
+          .select("departamento_id, departamento")
+          .eq("membro_id", id);
+        if (departmentLinksError) throw departmentLinksError;
+        setDepartamentosSelecionados(
+          (departmentLinks ?? [])
+            .map(link => link.departamento_id ?? availableDepartments.find(
+              department => department.nome.trim().toLocaleLowerCase() === link.departamento?.trim().toLocaleLowerCase()
+            )?.id)
+            .filter((departmentId): departmentId is string => Boolean(departmentId))
+        );
 
         if (data) {
           setOriginalStatus(data.status || "Ativo");
+          setOriginalWhatsappOptIn(Boolean(data.whatsapp_opt_in));
           setFormData({
             nome: data.nome || "", data_nascimento: data.data_nascimento || "", sexo: data.sexo || "",
             estado_civil: data.estado_civil || "", cpf: data.cpf || "", telefone: data.telefone || "",
@@ -81,12 +103,13 @@ export default function EditarMembroPage() {
             numero: data.numero || "", bairro: data.bairro || "", cidade: data.cidade || "",
             uf: data.uf || "", data_batismo: data.data_batismo || "", cargo: data.cargo || "Membro",
             status: data.status || "Ativo",
+            whatsapp_opt_in: Boolean(data.whatsapp_opt_in),
             congregacao_id: data.congregacao_id || "",
             foto_url: data.foto_url || ""
           });
         }
       } catch (error) {
-        setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar os dados do membro." });
+        setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Erro ao carregar os dados do membro." });
       } finally {
         setLoading(false);
       }
@@ -110,8 +133,8 @@ export default function EditarMembroPage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setFormData({ ...formData, foto_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar foto." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Erro ao enviar foto." });
     } finally {
       setUploading(false);
     }
@@ -128,10 +151,18 @@ export default function EditarMembroPage() {
         congregacao_id: formData.congregacao_id || null,
         data_nascimento: formData.data_nascimento ? formData.data_nascimento : null,
         data_batismo: formData.data_batismo ? formData.data_batismo : null,
+        ...(formData.whatsapp_opt_in !== originalWhatsappOptIn
+          ? { whatsapp_opt_in_at: formData.whatsapp_opt_in ? new Date().toISOString() : null }
+          : {}),
       };
 
       const { error } = await supabase.from("membros").update(payload).eq("id", id);
       if (error) throw error;
+      const { error: departmentsError } = await supabase.rpc("save_member_departments", {
+        p_membro_id: id,
+        p_departamento_ids: departamentosSelecionados,
+      });
+      if (departmentsError) throw new Error(`Dados do membro foram salvos, mas os departamentos não foram atualizados: ${departmentsError.message}`);
 
       if (status !== originalStatus) {
         const { error: statusError } = await supabase.rpc("admin_update_member_status", {
@@ -143,8 +174,8 @@ export default function EditarMembroPage() {
       }
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Membro atualizado com sucesso!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error instanceof Error ? error.message : "Não foi possível atualizar o membro." });
     } finally {
       setSaving(false);
     }
@@ -257,6 +288,38 @@ export default function EditarMembroPage() {
                   <option value="Ativo">Ativo</option><option value="Inativo">Inativo</option><option value="Transferido">Transferido</option><option value="Disciplinado">Disciplinado</option>
                 </select>
               </div>
+              <div className="md:col-span-2 rounded-xl border border-gray-800 bg-ohel-bg/50 p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ohel-silver">Departamentos</p>
+                {departamentos.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {departamentos.map(departamento => (
+                      <label key={departamento.id} className="flex items-center gap-2 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={departamentosSelecionados.includes(departamento.id)}
+                          onChange={event => setDepartamentosSelecionados(current =>
+                            event.target.checked
+                              ? [...current, departamento.id]
+                              : current.filter(departmentId => departmentId !== departamento.id)
+                          )}
+                          className="h-4 w-4 accent-sky-500"
+                        />
+                        {departamento.nome}
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-gray-500">Cadastre departamentos em Configurações para vinculá-los.</p>}
+              </div>
+              <label className="md:col-span-2 flex items-start gap-3 rounded-xl border border-gray-800 bg-ohel-bg/50 p-4 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  name="whatsapp_opt_in"
+                  checked={formData.whatsapp_opt_in}
+                  onChange={event => setFormData(current => ({ ...current, whatsapp_opt_in: event.target.checked }))}
+                  className="mt-0.5 h-4 w-4 accent-emerald-500"
+                />
+                <span>Autorizou receber mensagens da igreja pelo WhatsApp. Marque somente com consentimento explícito.</span>
+              </label>
             </div>
           )}
 

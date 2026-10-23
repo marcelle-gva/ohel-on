@@ -6,9 +6,14 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus } from "lucide-react";
+import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Plus, Trash2, Users, UserPlus, Wallet, Package } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
+interface IgrejaOpcao {
+  id: string;
+  nome: string;
+}
 
 export default function ConfiguracoesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,6 +21,7 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   // Dados da Igreja
@@ -24,8 +30,8 @@ export default function ConfiguracoesPage() {
   });
 
   // Departamentos e Cargos
-  const [departamentos, setDepartamentos] = useState<any[]>([]);
-  const [cargos, setCargos] = useState<any[]>([]);
+  const [departamentos, setDepartamentos] = useState<IgrejaOpcao[]>([]);
+  const [cargos, setCargos] = useState<IgrejaOpcao[]>([]);
   const [novoDepto, setNovoDepto] = useState("");
   const [novoCargo, setNovoCargo] = useState("");
 
@@ -33,9 +39,10 @@ export default function ConfiguracoesPage() {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+        const { data: user } = await supabase.from('usuarios').select('igreja_id, role').eq('id', session.user.id).maybeSingle();
         if (user) {
           setIgrejaId(user.igreja_id);
+          setIsAdmin(user.role === "admin");
           
           const { data: igreja } = await supabase.from('igrejas').select('*').eq('id', user.igreja_id).single();
           if (igreja) {
@@ -75,8 +82,9 @@ export default function ConfiguracoesPage() {
       const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
       setFormData({ ...formData, logo_url: data.publicUrl });
       setModal({ isOpen: true, type: "success", title: "Logo Enviada", message: "Não esqueça de clicar em Salvar Configurações!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Verifique se o bucket 'logos' está público." });
+    } catch (error: unknown) {
+      console.error("Falha ao enviar logo:", error);
+      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: error instanceof Error ? error.message : "Não foi possível enviar a logo." });
     } finally {
       setUploading(false);
     }
@@ -94,35 +102,65 @@ export default function ConfiguracoesPage() {
 
       if (error) throw error;
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Configurações salvas!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error: unknown) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível salvar as configurações." });
     } finally {
       setSaving(false);
     }
   };
 
   const handleAddDepto = async () => {
-    if (!novoDepto || !igrejaId) return;
-    const { data } = await supabase.from('departamentos').insert([{ igreja_id: igrejaId, nome: novoDepto }]).select().single();
-    if (data) setDepartamentos([...departamentos, data]);
-    setNovoDepto("");
+    const nome = novoDepto.trim();
+    if (!nome || !igrejaId) return;
+    try {
+      const { data, error } = await supabase.from('departamentos').insert([{ igreja_id: igrejaId, nome }]).select('id, nome').single();
+      if (error) throw error;
+      setDepartamentos(current => [...current, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovoDepto("");
+    } catch (error: unknown) {
+      console.error("Falha ao adicionar departamento:", error);
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível adicionar o departamento." });
+    }
   };
 
   const handleDeleteDepto = async (id: string) => {
-    await supabase.from('departamentos').delete().eq('id', id);
-    setDepartamentos(departamentos.filter(d => d.id !== id));
+    if (!igrejaId) return;
+    try {
+      const { data, error } = await supabase.from('departamentos').delete().eq('igreja_id', igrejaId).eq('id', id).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Departamento não encontrado ou sem permissão para excluir.");
+      setDepartamentos(current => current.filter(d => d.id !== id));
+    } catch (error: unknown) {
+      console.error("Falha ao excluir departamento:", error);
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível excluir o departamento." });
+    }
   };
 
   const handleAddCargo = async () => {
-    if (!novoCargo || !igrejaId) return;
-    const { data } = await supabase.from('cargos').insert([{ igreja_id: igrejaId, nome: novoCargo }]).select().single();
-    if (data) setCargos([...cargos, data]);
-    setNovoCargo("");
+    const nome = novoCargo.trim();
+    if (!nome || !igrejaId) return;
+    try {
+      const { data, error } = await supabase.from('cargos').insert([{ igreja_id: igrejaId, nome }]).select('id, nome').single();
+      if (error) throw error;
+      setCargos(current => [...current, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovoCargo("");
+    } catch (error: unknown) {
+      console.error("Falha ao adicionar cargo:", error);
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível adicionar o cargo." });
+    }
   };
 
   const handleDeleteCargo = async (id: string) => {
-    await supabase.from('cargos').delete().eq('id', id);
-    setCargos(cargos.filter(c => c.id !== id));
+    if (!igrejaId) return;
+    try {
+      const { data, error } = await supabase.from('cargos').delete().eq('igreja_id', igrejaId).eq('id', id).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Cargo não encontrado ou sem permissão para excluir.");
+      setCargos(current => current.filter(c => c.id !== id));
+    } catch (error: unknown) {
+      console.error("Falha ao excluir cargo:", error);
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível excluir o cargo." });
+    }
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando configurações...</div>;
@@ -237,6 +275,38 @@ export default function ConfiguracoesPage() {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <Link
+              href="/configuracoes/cadastros-financeiros"
+              className="flex items-center justify-between bg-ohel-surface border border-gray-800 hover:border-ohel-blue p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-ohel-blue transition-colors">Cadastros Financeiros</p>
+                  <p className="text-[11px] text-gray-400">Categorias e formas de pagamento.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
+            </Link>
+
+            <Link
+              href="/configuracoes/cadastros-patrimonio"
+              className="flex items-center justify-between bg-ohel-surface border border-gray-800 hover:border-ohel-blue p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-ohel-blue transition-colors">Cadastros do Patrimônio</p>
+                  <p className="text-[11px] text-gray-400">Tipos de bens e localizações.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
+            </Link>
             
             {/* Check-in */}
             <Link 
@@ -272,6 +342,8 @@ export default function ConfiguracoesPage() {
               <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
             </Link>
 
+            {isAdmin && (
+              <>
             {/* GRUPOS E PERMISSÕES */}
             <Link 
               href="/configuracoes/grupos" 
@@ -306,6 +378,8 @@ export default function ConfiguracoesPage() {
               <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
             </Link>
 
+              </>
+            )}
           </div>
         </div>
 

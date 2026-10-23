@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { GenerateEventImage } from "@/components/eventos/GenerateEventImage";
 import { ArrowLeft, Save, Calendar, MapPin, Upload, Loader2, Image as ImageIcon, Megaphone, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -55,7 +56,7 @@ export default function EditarEventoPage() {
           });
         }
       } catch (error) {
-        setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar os dados do evento." });
+        setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Erro ao carregar os dados do evento." });
       } finally {
         setLoading(false);
       }
@@ -79,8 +80,8 @@ export default function EditarEventoPage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('cartazes').getPublicUrl(fileName);
       setFormData({ ...formData, cartaz_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Não foi possível enviar a imagem do cartaz." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: error instanceof Error ? error.message : "Não foi possível enviar a imagem do cartaz." });
     } finally {
       setUploading(false);
     }
@@ -103,8 +104,8 @@ export default function EditarEventoPage() {
       const { error } = await supabase.from("eventos").update(payload).eq("id", id);
       if (error) throw error;
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Evento atualizado com sucesso!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error instanceof Error ? error.message : "Não foi possível atualizar o evento." });
     } finally {
       setSaving(false);
     }
@@ -214,6 +215,7 @@ export default function EditarEventoPage() {
                   {uploading && <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20"><Loader2 className="w-6 h-6 text-ohel-blue animate-spin" /></div>}
                 </div>
                 <input type="file" accept="image/*, application/pdf" ref={fileInputRef} onChange={handleUploadCartaz} className="hidden" />
+                <GenerateEventImage eventName={formData.nome} onImageReady={url => setFormData(current => ({ ...current, cartaz_url: url }))} />
               </div>
 
               <div className="border-t border-gray-800 pt-5 mt-2">

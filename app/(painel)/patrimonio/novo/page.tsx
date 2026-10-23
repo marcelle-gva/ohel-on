@@ -18,6 +18,9 @@ export default function NovoBemPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [tiposBens, setTiposBens] = useState<{ id: string; nome: string }[]>([]);
+  const [localizacoes, setLocalizacoes] = useState<{ id: string; nome: string }[]>([]);
+  const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
   const [notaFiscalPreviewUrl, setNotaFiscalPreviewUrl] = useState("");
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -35,20 +38,31 @@ export default function NovoBemPage() {
     nota_fiscal_url: ""
   });
 
-  const tiposBens = [
-    "Som / Áudio", "Instrumentos Musicais", "Informática / TI", 
-    "Móveis e Utensílios", "Veículos", "Imóvel", "Outros"
-  ];
-
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
+        const { data: user, error: userError } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+        if (userError) throw userError;
+        if (!user?.igreja_id) throw new Error("Igreja do usuário não identificada.");
+        setIgrejaId(user.igreja_id);
+        const [{ data: types, error: typesError }, { data: places, error: placesError }, { data: departments, error: departmentsError }] = await Promise.all([
+          supabase.from("patrimonio_tipos").select("id, nome").eq("igreja_id", user.igreja_id).order("nome"),
+          supabase.from("patrimonio_localizacoes").select("id, nome").eq("igreja_id", user.igreja_id).order("nome"),
+          supabase.from("departamentos").select("id, nome").eq("igreja_id", user.igreja_id).order("nome"),
+        ]);
+        if (typesError) throw typesError;
+        if (placesError) throw placesError;
+        if (departmentsError) throw departmentsError;
+        setTiposBens(types ?? []);
+        setLocalizacoes(places ?? []);
+        setDepartamentos(departments ?? []);
+        if (types?.length) setFormData(current => ({ ...current, tipo: types[0].nome }));
       }
     };
-    init();
+    void init().catch(error => {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível carregar as tabelas mestras." });
+    });
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -67,8 +81,8 @@ export default function NovoBemPage() {
       const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
       setFormData({ ...formData, nota_fiscal_url: path });
       setNotaFiscalPreviewUrl(await getPrivateFileUrl(supabase, "documentos", path));
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Não foi possível enviar o arquivo." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: error instanceof Error ? error.message : "Não foi possível enviar o arquivo." });
     } finally {
       setUploading(false);
     }
@@ -102,8 +116,8 @@ export default function NovoBemPage() {
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Bem cadastrado no patrimônio!" });
       setTimeout(() => router.push("/patrimonio"), 1500);
 
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Cadastrar", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao Cadastrar", message: error instanceof Error ? error.message : "Não foi possível cadastrar o bem." });
       setLoading(false);
     }
   };
@@ -144,8 +158,9 @@ export default function NovoBemPage() {
             
             <div className="md:col-span-2 flex flex-col gap-1.5">
               <label className="text-[10px] font-semibold text-ohel-silver uppercase">Tipo de Bem *</label>
-              <select name="tipo" value={formData.tipo} onChange={handleChange} className="input-ohel w-full px-3 py-2 rounded-md text-xs">
-                {tiposBens.map(t => <option key={t} value={t}>{t}</option>)}
+              <select name="tipo" value={formData.tipo} onChange={handleChange} required className="input-ohel w-full px-3 py-2 rounded-md text-xs">
+                <option value="">Selecione o tipo...</option>
+                {tiposBens.map(type => <option key={type.id} value={type.nome}>{type.nome}</option>)}
               </select>
             </div>
             
@@ -170,10 +185,18 @@ export default function NovoBemPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
-              <Input label="Localização Física" name="localizacao" placeholder="Ex: Templo Principal, Sala 2..." value={formData.localizacao} onChange={handleChange} className="py-2 text-xs" />
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase text-ohel-silver">Localização Física</label>
+              <select name="localizacao" value={formData.localizacao} onChange={handleChange} className="input-ohel w-full rounded-md px-3 py-2 text-xs">
+                <option value="">Selecione uma localização...</option>
+                {localizacoes.map(place => <option key={place.id} value={place.nome}>{place.nome}</option>)}
+              </select>
             </div>
             <div className="md:col-span-2">
-              <Input label="Departamento Responsável" name="departamento" placeholder="Ex: Louvor, Mídia, Infantil..." value={formData.departamento} onChange={handleChange} className="py-2 text-xs" />
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase text-ohel-silver">Departamento Responsável</label>
+              <select name="departamento" value={formData.departamento} onChange={handleChange} className="input-ohel w-full rounded-md px-3 py-2 text-xs">
+                <option value="">Selecione um departamento...</option>
+                {departamentos.map(department => <option key={department.id} value={department.nome}>{department.nome}</option>)}
+              </select>
             </div>
             
             <Input label="Quantidade *" type="number" min="1" name="quantidade" value={formData.quantidade} onChange={handleChange} required className="py-2 text-xs" />

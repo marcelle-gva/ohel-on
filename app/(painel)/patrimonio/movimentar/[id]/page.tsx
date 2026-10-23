@@ -7,8 +7,16 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, Save, ArrowRightLeft, Package, MapPin, User, Calendar } from "lucide-react";
+import { ArrowLeft, Save, ArrowRightLeft, Package, User, Calendar } from "lucide-react";
 import Link from "next/link";
+
+type Bem = {
+  id: string;
+  igreja_id: string;
+  descricao: string;
+  status: string;
+  localizacao: string | null;
+};
 
 export default function MovimentarBemPage() {
   const router = useRouter();
@@ -17,7 +25,8 @@ export default function MovimentarBemPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [bem, setBem] = useState<any>(null);
+  const [bem, setBem] = useState<Bem | null>(null);
+  const [localizacoes, setLocalizacoes] = useState<{ id: string; nome: string }[]>([]);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const [formData, setFormData] = useState({
@@ -32,8 +41,15 @@ export default function MovimentarBemPage() {
     const fetchBem = async () => {
       if (!id) return;
       const { data, error } = await supabase.from('patrimonio_bens').select('*').eq('id', id).single();
-      if (data) setBem(data);
-      if (error) setModal({ isOpen: true, type: "error", title: "Erro", message: "Bem não encontrado." });
+      if (error) {
+        setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+      } else {
+        setBem(data);
+        const { data: places, error: placesError } = await supabase.from("patrimonio_localizacoes")
+          .select("id, nome").eq("igreja_id", data.igreja_id).order("nome");
+        if (placesError) setModal({ isOpen: true, type: "error", title: "Erro", message: placesError.message });
+        else setLocalizacoes(places ?? []);
+      }
       setLoading(false);
     };
     fetchBem();
@@ -45,6 +61,10 @@ export default function MovimentarBemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!bem) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Bem não encontrado." });
+      return;
+    }
     setSaving(true);
 
     try {
@@ -80,8 +100,8 @@ export default function MovimentarBemPage() {
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Movimentação registrada e status atualizado!" });
       setTimeout(() => router.push("/patrimonio"), 1500);
 
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível registrar a movimentação." });
       setSaving(false);
     }
   };
@@ -141,9 +161,13 @@ export default function MovimentarBemPage() {
           </div>
 
           {formData.tipo_movimentacao === 'Transferência' && (
-            <div className="relative">
-              <MapPin className="w-3.5 h-3.5 absolute left-3 top-8 text-gray-500" />
-              <Input label="Novo Local de Destino *" name="local_destino" placeholder="Ex: Sala 3, Templo Principal" value={formData.local_destino} onChange={handleChange} required className="py-2 text-xs pl-9" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-ohel-silver">Novo Local de Destino *</label>
+              <select name="local_destino" value={formData.local_destino} onChange={handleChange} required className="input-ohel w-full rounded-md px-3 py-2 text-xs">
+                <option value="">Selecione um local cadastrado</option>
+                {localizacoes.map(place => <option key={place.id} value={place.nome}>{place.nome}</option>)}
+              </select>
+              {!localizacoes.length && <Link href="/configuracoes/cadastros-patrimonio" className="text-[11px] text-ohel-blue hover:underline">Cadastre os locais nas tabelas mestras.</Link>}
             </div>
           )}
 

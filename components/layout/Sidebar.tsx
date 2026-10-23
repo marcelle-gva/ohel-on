@@ -3,21 +3,38 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay } from "lucide-react";
+import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay, Baby, MessageCircle, FileBarChart, Building2 } from "lucide-react";
 import { Logo } from "../brand/Logo";
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
   permissoes: string[];
+  isAdmin: boolean;
 }
 
-export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
+const getMenuForPath = (path: string) => {
+  const sections = [
+    ["Secretaria", "/secretaria"],
+    ["Financeiro", "/financeiro"],
+    ["Patrimônio", "/patrimonio"],
+    ["Gabinete Pastoral", "/gabinete"],
+    ["Ensino (EBD)", "/ensino"],
+    ["Departamento Infantil", "/infantil"],
+    ["Comunicações", "/comunicacoes"],
+    ["Eventos", "/eventos"],
+    ["Configurações", "/configuracoes"],
+  ] as const;
+  return sections.find(([, prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[0] ?? null;
+};
+
+export function Sidebar({ isOpen, setIsOpen, permissoes, isAdmin }: SidebarProps) {
   const pathname = usePathname();
-  const [openMenu, setOpenMenu] = useState<string | null>("Secretaria");
+  const [menuOverride, setMenuOverride] = useState<{ pathname: string; menu: string | null } | null>(null);
+  const openMenu = menuOverride?.pathname === pathname ? menuOverride.menu : getMenuForPath(pathname);
 
   const toggleMenu = (name: string) => {
-    setOpenMenu(openMenu === name ? null : name);
+    setMenuOverride({ pathname, menu: openMenu === name ? null : name });
   };
 
   // Função auxiliar para verificar se tem permissão
@@ -48,19 +65,95 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
         { name: "Credenciais", href: "/secretaria/credenciais", modulo: "credenciais" },
       ]
     },
-    { name: "Financeiro", href: "/financeiro", icon: Wallet, modulo: "financeiro" },
-    { name: "Patrimônio", href: "/patrimonio", icon: Package, modulo: "patrimonio" },
-    { name: "Gabinete Pastoral", href: "/gabinete", icon: Church, modulo: "gabinete" },
-    { name: "Ensino (EBD)", href: "/ensino", icon: BookOpen, modulo: "ensino" },
-    { name: "Eventos", href: "/eventos", icon: Calendar, modulo: "eventos" },
-    { name: "Configurações", href: "/configuracoes", icon: Settings, modulo: "configuracoes" },
+    {
+      name: "Financeiro", href: "/financeiro", icon: Wallet, modulo: "financeiro",
+      subItems: [
+        { name: "Visão Geral", href: "/financeiro", modulo: "financeiro" },
+        { name: "Movimento Financeiro", href: "/financeiro/movimento", modulo: "financeiro" },
+        { name: "Importar OFX", href: "/financeiro/movimento/importar", modulo: "financeiro" },
+        { name: "Caixas e Bancos", href: "/financeiro/caixas", modulo: "financeiro" },
+        { name: "Contas a Pagar", href: "/financeiro/contas-pagar", modulo: "financeiro" },
+        { name: "Fornecedores", href: "/financeiro/fornecedores", modulo: "financeiro" },
+        { name: "Relatórios", href: "/financeiro/relatorios", modulo: "financeiro" },
+      ],
+    },
+    {
+      name: "Patrimônio", icon: Package, modulo: "patrimonio",
+      subItems: [
+        { name: "Visão Geral", href: "/patrimonio", modulo: "patrimonio" },
+        { name: "Novo Bem", href: "/patrimonio/novo", modulo: "patrimonio" },
+        { name: "Inventário", href: "/patrimonio/inventario", modulo: "patrimonio" },
+        { name: "Movimentações", href: "/patrimonio/movimentacoes", modulo: "patrimonio" },
+      ],
+    },
+    {
+      name: "Gabinete Pastoral", icon: Church, modulo: "gabinete",
+      subItems: [
+        { name: "Visão Geral", href: "/gabinete", modulo: "gabinete" },
+        { name: "Atendimentos", href: "/gabinete/atendimentos", modulo: "gabinete" },
+        { name: "Novo Atendimento", href: "/gabinete/atendimentos/novo", modulo: "gabinete" },
+        { name: "Acompanhamento Emocional", href: "/gabinete/emocional", modulo: "gabinete" },
+        { name: "Comunicações", href: "/gabinete/comunicacoes", modulo: "gabinete" },
+        { name: "Nova Comunicação", href: "/gabinete/comunicacoes/nova", modulo: "gabinete" },
+        { name: "Banco de Sermões", href: "/gabinete/sermoes", modulo: "gabinete" },
+        { name: "Novo Sermão", href: "/gabinete/sermoes/novo", modulo: "gabinete" },
+      ],
+    },
+    {
+      name: "Ensino (EBD)", icon: BookOpen, modulo: "ensino",
+      subItems: [
+        { name: "Visão Geral", href: "/ensino", modulo: "ensino" },
+        { name: "Classes", href: "/ensino/classes", modulo: "ensino" },
+        { name: "Nova Classe", href: "/ensino/classes/nova", modulo: "ensino" },
+        { name: "Matrículas", href: "/ensino/matriculas", modulo: "ensino" },
+        { name: "Diário de Classe", href: "/ensino/diario", modulo: "ensino" },
+        { name: "Certificados", href: "/ensino/certificados", modulo: "ensino" },
+      ],
+    },
+    {
+      name: "Departamento Infantil", icon: Baby, modulo: "infantil",
+      subItems: [
+        { name: "Painel Kids", href: "/infantil", modulo: "infantil" },
+      ],
+    },
+    {
+      name: "Comunicações", icon: MessageCircle, modulo: "comunicacoes",
+      subItems: [
+        { name: "Central de Comunicações", href: "/comunicacoes", modulo: "comunicacoes" },
+      ],
+    },
+    { name: "Gerador de Relatórios", href: "/relatorios", icon: FileBarChart, modulo: "relatorios" },
+    { name: "Administração da Plataforma", href: "/plataforma", icon: Building2, modulo: "plataforma", adminOnly: true },
+    {
+      name: "Eventos", icon: Calendar, modulo: "eventos",
+      subItems: [
+        { name: "Visão Geral", href: "/eventos", modulo: "eventos" },
+        { name: "Novo Evento", href: "/eventos/novo", modulo: "eventos" },
+        { name: "Inscrições", href: "/eventos/inscricoes", modulo: "eventos" },
+      ],
+    },
+    {
+      name: "Configurações", href: "/configuracoes", icon: Settings, modulo: "configuracoes",
+      subItems: [
+        { name: "Visão Geral", href: "/configuracoes", modulo: "configuracoes" },
+        { name: "Cadastros Financeiros", href: "/configuracoes/cadastros-financeiros", modulo: "configuracoes" },
+        { name: "Cadastros do Patrimônio", href: "/configuracoes/cadastros-patrimonio", modulo: "configuracoes" },
+        { name: "Grupos e Permissões", href: "/configuracoes/grupos", modulo: "configuracoes", adminOnly: true },
+        { name: "Usuários", href: "/configuracoes/usuarios", modulo: "configuracoes", adminOnly: true },
+        { name: "Segurança da Conta", href: "/configuracoes/seguranca", modulo: "configuracoes" },
+        { name: "Check-in", href: "/configuracoes/checkin", modulo: "configuracoes" },
+        { name: "QR Code de Check-in", href: "/configuracoes/checkin/qrcode", modulo: "configuracoes" },
+        { name: "Instância WhatsApp", href: "/configuracoes/comunicacoes", modulo: "configuracoes", adminOnly: true },
+      ],
+    },
   ];
 
   // Filtra os menus principais
   const menusFiltrados = menuItems.filter(item => {
+    if ("adminOnly" in item && item.adminOnly && !isAdmin) return false;
     // Se for a Secretaria (que tem submenus), verifica se tem permissão em PELO MENOS UM submenu
     if (item.subItems) {
-      return item.subItems.some(sub => temPermissao(sub.modulo));
+      return item.subItems.some(sub => temPermissao(sub.modulo) && (!("adminOnly" in sub) || !sub.adminOnly || isAdmin));
     }
     return temPermissao(item.modulo);
   });
@@ -117,13 +210,16 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
 
                     {openMenu === item.name && (
                       <div className="ml-9 mt-1 flex flex-col gap-1 border-l border-gray-700/50 pl-2">
-                        {item.subItems.filter(sub => temPermissao(sub.modulo)).map((sub) => {
+                        {item.subItems.filter(sub => temPermissao(sub.modulo) && (!("adminOnly" in sub) || !sub.adminOnly || isAdmin)).map((sub) => {
                           const isSubActive = pathname === sub.href;
                           return (
                             <Link
                               key={sub.name}
                               href={sub.href}
-                              onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
+                              onClick={() => {
+                                setMenuOverride({ pathname, menu: item.name });
+                                if (window.innerWidth < 768) setIsOpen(false);
+                              }}
                               className={`py-2 px-3 rounded-lg text-sm transition-all ${
                                 isSubActive ? "text-ohel-blue bg-ohel-blue/10" : "text-gray-400 hover:text-white hover:bg-white/5"
                               }`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getPostAuthenticationPath } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -10,8 +10,11 @@ import { Menu } from "lucide-react";
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [permissoes, setPermissoes] = useState<string[]>([]);
 
   useEffect(() => {
@@ -31,28 +34,38 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         }
 
         // Busca o grupo e a role (admin, pastor, membro) do usuário
-        const { data: user } = await supabase
+        const { data: user, error: userError } = await supabase
           .from('usuarios')
           .select('grupo_id, role')
           .eq('id', session.user.id)
           .single();
+        if (userError) throw userError;
+        const { data: platformAdmin, error: platformAdminError } = await supabase.rpc('is_platform_admin');
+        if (platformAdminError) throw platformAdminError;
+        const hasPlatformAccess = platformAdmin === true;
+        const hasAdminAccess = user.role === 'admin' || hasPlatformAccess;
+        setIsPlatformAdmin(hasPlatformAccess);
+        setIsAdmin(hasAdminAccess);
 
-        if (user?.role === 'admin') {
+        if (hasAdminAccess) {
           // REGRA DE OURO: Se for admin, libera TUDO.
           setPermissoes([
             'dashboard', 'membros', 'congregacoes', 'congregados',
             'visitantes', 'oracoes', 'mural', 'escalas', 'reunioes',
             'visitas', 'fichas', 'cartas', 'certificados', 'credenciais',
             'eventos', 'financeiro', 'monitor-midia', 'monitor-oracoes',
-            'configuracoes', 'patrimonio', 'gabinete', 'ensino'
+            'configuracoes', 'patrimonio', 'gabinete', 'ensino',
+            'infantil', 'comunicacoes', 'relatorios',
+            ...(hasPlatformAccess ? ['plataforma'] : [])
           ]);
-        } else if (user?.grupo_id) {
+        } else if (user.grupo_id) {
           // Se não for admin, busca as permissões do grupo dele
-          const { data: perms } = await supabase
+          const { data: perms, error: permissionsError } = await supabase
             .from('grupos_permissoes')
             .select('modulo')
             .eq('grupo_id', user.grupo_id)
             .eq('acao', 'ler');
+          if (permissionsError) throw permissionsError;
 
           if (perms) {
             setPermissoes(perms.map(p => p.modulo));
@@ -71,7 +84,23 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
     checkUser();
   }, [router]);
 
-  if (loading) {
+  const adminOnlyRoute = pathname.startsWith("/configuracoes/grupos")
+    || pathname.startsWith("/configuracoes/usuarios");
+  const platformAdminRoute = pathname.startsWith("/plataforma");
+
+  useEffect(() => {
+    if (!loading && adminOnlyRoute && !isAdmin) {
+      router.replace("/configuracoes");
+    }
+  }, [adminOnlyRoute, isAdmin, loading, router]);
+
+  useEffect(() => {
+    if (!loading && platformAdminRoute && !isPlatformAdmin) {
+      router.replace("/dashboard");
+    }
+  }, [isPlatformAdmin, loading, platformAdminRoute, router]);
+
+  if (loading || (adminOnlyRoute && !isAdmin) || (platformAdminRoute && !isPlatformAdmin)) {
     return (
       <div className="w-full h-screen bg-ohel-bg flex items-center justify-center text-white">
         Carregando sistema...
@@ -81,7 +110,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex h-screen w-full bg-ohel-bg overflow-hidden">
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} permissoes={permissoes} />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} permissoes={permissoes} isAdmin={isAdmin} />
 
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">
         <div className="md:hidden absolute top-4 left-4 z-50">
