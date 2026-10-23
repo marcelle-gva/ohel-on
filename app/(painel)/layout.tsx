@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getPostAuthenticationPath } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Menu } from "lucide-react";
@@ -15,44 +16,55 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        router.push("/");
-        return;
-      }
-
-      // Busca o grupo e a role (admin, pastor, membro) do usuário
-      const { data: user } = await supabase
-        .from('usuarios')
-        .select('grupo_id, role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (user?.role === 'admin') {
-        // REGRA DE OURO: Se for admin, libera TUDO.
-        setPermissoes([
-          'dashboard', 'membros', 'congregacoes', 'congregados', 
-          'visitantes', 'eventos', 'financeiro', 'mural', 
-          'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino'
-        ]);
-      } else if (user?.grupo_id) {
-        // Se não for admin, busca as permissões do grupo dele
-        const { data: perms } = await supabase
-          .from('grupos_permissoes')
-          .select('modulo')
-          .eq('grupo_id', user.grupo_id)
-          .eq('acao', 'ler');
-        
-        if (perms) {
-          setPermissoes(perms.map(p => p.modulo));
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) {
+          router.replace("/");
+          return;
         }
-      } else {
-        // Se não for admin e não tiver grupo, só vê o básico
-        setPermissoes(['dashboard', 'monitor-midia']);
-      }
 
-      setLoading(false);
+        const authPath = await getPostAuthenticationPath(supabase);
+        if (authPath === "/mfa") {
+          router.replace(authPath);
+          return;
+        }
+
+        // Busca o grupo e a role (admin, pastor, membro) do usuário
+        const { data: user } = await supabase
+          .from('usuarios')
+          .select('grupo_id, role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (user?.role === 'admin') {
+          // REGRA DE OURO: Se for admin, libera TUDO.
+          setPermissoes([
+            'dashboard', 'membros', 'congregacoes', 'congregados',
+            'visitantes', 'eventos', 'financeiro', 'mural',
+            'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino'
+          ]);
+        } else if (user?.grupo_id) {
+          // Se não for admin, busca as permissões do grupo dele
+          const { data: perms } = await supabase
+            .from('grupos_permissoes')
+            .select('modulo')
+            .eq('grupo_id', user.grupo_id)
+            .eq('acao', 'ler');
+
+          if (perms) {
+            setPermissoes(perms.map(p => p.modulo));
+          }
+        } else {
+          // Se não for admin e não tiver grupo, só vê o básico
+          setPermissoes(['dashboard', 'monitor-midia']);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Falha ao validar a sessão:", error);
+        router.replace("/");
+      }
     };
     checkUser();
   }, [router]);

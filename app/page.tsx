@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { getPostAuthenticationPath } from "@/lib/auth";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,6 +26,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
+    let authenticated = false;
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -32,17 +34,19 @@ export default function Login() {
       });
 
       if (error) throw error;
-      
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      
-      if (factors && factors.totp.length > 0) {
-        router.push("/mfa");
-      } else {
-        router.push("/dashboard");
-      }
+      authenticated = true;
+      router.replace(await getPostAuthenticationPath(supabase));
 
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Falha no Login", message: "E-mail ou senha incorretos." });
+    } catch (error) {
+      console.error("Falha no login:", error);
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: authenticated ? "Falha na verificação" : "Falha no Login",
+        message: authenticated
+          ? "Não foi possível verificar o nível de segurança da conta. Tente novamente."
+          : "E-mail ou senha incorretos.",
+      });
     } finally {
       setLoading(false);
     }
@@ -58,7 +62,7 @@ export default function Login() {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro no Google", message: "Não foi possível conectar com o Google." });
       setLoading(false);
     }

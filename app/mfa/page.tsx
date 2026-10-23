@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Logo } from "@/components/brand/Logo";
+import { getPostAuthenticationPath } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
@@ -16,18 +16,40 @@ export default function MfaChallengePage() {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [setupError, setSetupError] = useState("");
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   useEffect(() => {
     const getFactor = async () => {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      if (factors && factors.totp.length > 0) {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) {
+          router.replace("/");
+          return;
+        }
+
+        if (await getPostAuthenticationPath(supabase) !== "/mfa") {
+          router.replace("/dashboard");
+          return;
+        }
+
+        const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+        if (factorsError) throw factorsError;
+
+        if (factors.totp.length === 0) {
+          setSetupError("Sua conta exige uma verificação MFA que ainda não é compatível com esta tela. Entre em contato com o administrador.");
+          return;
+        }
+
         setFactorId(factors.totp[0].id);
-      } else {
-        router.push("/dashboard");
+      } catch (error) {
+        console.error("Falha ao preparar a verificação MFA:", error);
+        setSetupError("Não foi possível validar sua sessão. Tente entrar novamente.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     getFactor();
   }, [router]);
@@ -49,8 +71,14 @@ export default function MfaChallengePage() {
       
       if (verifyError) throw verifyError;
 
-      router.push("/dashboard");
-    } catch (error: any) {
+      const destination = await getPostAuthenticationPath(supabase);
+      if (destination !== "/dashboard") {
+        throw new Error("A verificação MFA ainda não foi concluída.");
+      }
+
+      router.replace(destination);
+    } catch (error) {
+      console.error("Falha ao verificar o fator MFA:", error);
       setModal({ isOpen: true, type: "error", title: "Código Inválido", message: "O código digitado está incorreto ou expirou. Tente novamente." });
       setCode("");
     } finally {
@@ -82,6 +110,14 @@ export default function MfaChallengePage() {
           Abra seu aplicativo autenticador e insira o código de 6 dígitos gerado para a conta OHEL ON.
         </p>
 
+        {setupError ? (
+          <>
+            <p className="text-sm text-red-400">{setupError}</p>
+            <Button type="button" variant="secondary" className="w-full mt-4" onClick={handleLogout}>
+              Voltar ao login
+            </Button>
+          </>
+        ) : (
         <form onSubmit={handleVerify} className="w-full flex flex-col gap-5">
           
           <div className="flex flex-col gap-2">
@@ -104,10 +140,11 @@ export default function MfaChallengePage() {
             )}
           </Button>
         </form>
+        )}
 
-        <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition-colors mt-6">
+        {!setupError && <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition-colors mt-6">
           <LogOut className="w-3.5 h-3.5" /> Sair desta conta
-        </button>
+        </button>}
 
       </Card>
     </main>
