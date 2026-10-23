@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { CheckCircle, XCircle, ArrowLeft } from "lucide-react";
@@ -20,11 +20,7 @@ export default function AprovacaoPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
-  useEffect(() => {
-    fetchPreCadastros();
-  }, []);
-
-  const fetchPreCadastros = async () => {
+  const fetchPreCadastros = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("membros")
@@ -35,11 +31,21 @@ export default function AprovacaoPage() {
       if (error) throw error;
       setPreCadastros(data || []);
     } catch (error) {
-      console.error(error);
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Não foi possível carregar os pré-cadastros.",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void fetchPreCadastros(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchPreCadastros]);
 
   const handleAprovar = async (id: string) => {
     try {
@@ -49,7 +55,12 @@ export default function AprovacaoPage() {
       setPreCadastros(preCadastros.filter(p => p.id !== id));
       setModal({ isOpen: true, type: "success", title: "Aprovado", message: "O pré-cadastro foi aprovado. Uma conta Google confirmada com o mesmo e-mail foi vinculada automaticamente." });
     } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível aprovar." });
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Não foi possível aprovar.",
+      });
     }
   };
 
@@ -60,7 +71,12 @@ export default function AprovacaoPage() {
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
     } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível recusar." });
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Não foi possível recusar.",
+      });
     }
   };
 

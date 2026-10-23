@@ -12,6 +12,13 @@ import { ArrowLeft, Save, FileText, Users, Paperclip, Info, Plus, Trash2, Upload
 import Link from "next/link";
 import Image from "next/image";
 
+type MemberOption = {
+  id: string;
+  nome: string;
+  cargo: string | null;
+  foto_url: string | null;
+};
+
 export default function EditarReuniaoPage() {
   const router = useRouter();
   const params = useParams();
@@ -38,7 +45,7 @@ export default function EditarReuniaoPage() {
 
   // --- ESTADOS DA BUSCA DE MEMBROS ---
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<MemberOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -73,7 +80,7 @@ export default function EditarReuniaoPage() {
                 setDataReuniao(dateObj.toISOString().split('T')[0]);
                 setHoraReuniao(dateObj.toTimeString().slice(0, 5));
               }
-            } catch (e) { console.error("Data inválida"); }
+            } catch {}
           }
 
           if (data.participantes) {
@@ -94,7 +101,12 @@ export default function EditarReuniaoPage() {
           }
         }
       } catch (error) {
-        setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar a reunião." });
+        setModal({
+          isOpen: true,
+          type: "error",
+          title: "Erro",
+          message: error instanceof Error ? error.message : "Erro ao carregar a reunião.",
+        });
       } finally {
         setLoading(false);
       }
@@ -133,7 +145,7 @@ export default function EditarReuniaoPage() {
     setIsSearching(false);
   };
 
-  const selectMembro = (membro: any) => {
+  const selectMembro = (membro: MemberOption) => {
     const cargoMembro = membro.cargo || "Membro";
     setNovoParticipante({ nome: membro.nome, cargo: cargoMembro });
     setSearchTerm(membro.nome);
@@ -162,7 +174,7 @@ export default function EditarReuniaoPage() {
       const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
       const signedUrl = await getPrivateFileUrl(supabase, "documentos", path);
       setAnexos([...anexos, { nome: file.name, url: path, signedUrl }]);
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Falha ao enviar anexo." });
     } finally {
       setUploading(false);
@@ -204,8 +216,13 @@ export default function EditarReuniaoPage() {
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Reunião atualizada com sucesso!" });
       setTimeout(() => router.push("/secretaria/reunioes"), 1500);
 
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error.message });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro ao Atualizar",
+        message: error instanceof Error ? error.message : "Não foi possível atualizar a reunião.",
+      });
       setSaving(false);
     }
   };

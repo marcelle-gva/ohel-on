@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -14,11 +14,21 @@ import QRCode from "react-qr-code";
 
 interface Inscricao { id: string; nome: string; telefone: string; status: string; created_at: string; }
 interface Variacao { id: string; nome: string; preco: number; }
-interface Produto { id: string; nome: string; preco: number; variacoes: Variacao[]; }
+interface Produto { id: string; nome: string; variacoes: Variacao[]; }
+interface Evento { id: string; nome: string; status: string; }
 interface Pedido {
   id: string; nome_comprador: string; telefone: string; quantidade: number; status: string; created_at: string;
+  comprovante_url?: string | null;
   eventos_produtos: { nome: string } | null;
   eventos_produtos_variacoes: { nome: string; preco: number } | null;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
+}
+
+function createReceiptFilename(orderId: string, extension?: string) {
+  return `comprovante-${orderId}-${crypto.randomUUID()}${extension ? `.${extension}` : ""}`;
 }
 
 export default function GerenciarEventoPage() {
@@ -27,7 +37,7 @@ export default function GerenciarEventoPage() {
   const eventoId = params.id as string;
 
   const [activeTab, setActiveTab] = useState("inscricoes");
-  const [evento, setEvento] = useState<any>(null);
+  const [evento, setEvento] = useState<Evento | null>(null);
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -60,9 +70,7 @@ export default function GerenciarEventoPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => { fetchDados(); }, [eventoId]);
-
-  const fetchDados = async () => {
+  const fetchDados = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -89,7 +97,12 @@ export default function GerenciarEventoPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventoId]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void fetchDados(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchDados]);
 
   const handleAddInscricao = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +115,7 @@ export default function GerenciarEventoPage() {
       setIsAddInscritoModalOpen(false);
       setNovaInscricao({ nome: "", telefone: "" });
       setModalFeedback({ isOpen: true, type: "success", title: "Sucesso", message: "Inscrição realizada!" });
-    } catch (error: any) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error.message }); } finally { setSaving(false); }
+    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) }); } finally { setSaving(false); }
   };
 
   const handleAddProduto = async (e: React.FormEvent) => {
@@ -136,7 +149,7 @@ export default function GerenciarEventoPage() {
       setNovasVariacoes([{ nome: "", preco: "" }]);
       setModalFeedback({ isOpen: true, type: "success", title: "Sucesso", message: "Produto e tamanhos cadastrados!" });
       fetchDados(); // Recarrega a lista
-    } catch (error: any) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error.message }); } finally { setSaving(false); }
+    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) }); } finally { setSaving(false); }
   };
 
   const handleProdutoChange = (produtoId: string) => {
@@ -162,7 +175,7 @@ export default function GerenciarEventoPage() {
       setNovoPedido({ produto_id: "", variacao_id: "", nome_comprador: "", telefone: "", quantidade: "1" });
       setVariacoesDoPedido([]);
       setModalFeedback({ isOpen: true, type: "success", title: "Pedido Lançado", message: "O pedido foi registrado como Pendente." });
-    } catch (error: any) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error.message }); } finally { setSaving(false); }
+    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) }); } finally { setSaving(false); }
   };
 
   const handleUploadComprovante = async (e: React.ChangeEvent<HTMLInputElement>, pedidoId: string) => {
@@ -171,22 +184,31 @@ export default function GerenciarEventoPage() {
     try {
       setUploading(true);
       const fileExt = file.name.split('.').pop();
-      const fileName = `comprovante-${pedidoId}-${Date.now()}.${fileExt}`;
+      const fileName = createReceiptFilename(pedidoId, fileExt);
       if (!igrejaId) throw new Error("Igreja não identificada.");
       const path = await uploadChurchFile(supabase, "comprovantes", igrejaId, file, fileName);
       const { error } = await supabase.from('eventos_pedidos').update({ comprovante_url: path }).eq('id', pedidoId);
       if (error) throw error;
       setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, comprovante_url: path } : p));
       setModalFeedback({ isOpen: true, type: "success", title: "Comprovante Anexado", message: "A imagem foi salva no pedido." });
-    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar o comprovante." }); } finally { setUploading(false); }
+    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) }); } finally { setUploading(false); }
   };
 
   const handleMarcarPago = async (pedidoId: string) => {
     try {
-      await supabase.from('eventos_pedidos').update({ status: 'Pago' }).eq('id', pedidoId);
+      const { data, error } = await supabase
+        .from("eventos_pedidos")
+        .update({ status: "Pago" })
+        .eq("id", pedidoId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("O banco não confirmou a atualização do pedido.");
       setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, status: 'Pago' } : p));
       setModalFeedback({ isOpen: true, type: "success", title: "Pagamento Confirmado", message: "O status do pedido foi alterado para Pago." });
-    } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Erro ao atualizar o status." }); }
+    } catch (error) {
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) });
+    }
   };
 
   const confirmDelete = async () => {
@@ -194,12 +216,16 @@ export default function GerenciarEventoPage() {
     setIsDeleting(true);
     try {
       const table = itemToDelete.type === 'inscricao' ? 'inscricoes_eventos' : itemToDelete.type === 'produto' ? 'eventos_produtos' : 'eventos_pedidos';
-      await supabase.from(table).delete().eq('id', itemToDelete.id);
+      const { data, error } = await supabase.from(table).delete().eq("id", itemToDelete.id).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("O banco não confirmou a exclusão.");
       if (itemToDelete.type === 'inscricao') setInscricoes(inscricoes.filter(i => i.id !== itemToDelete.id));
       if (itemToDelete.type === 'produto') setProdutos(produtos.filter(p => p.id !== itemToDelete.id));
       if (itemToDelete.type === 'pedido') setPedidos(pedidos.filter(p => p.id !== itemToDelete.id));
       setItemToDelete(null);
-    } catch (error) { console.error(error); } finally { setIsDeleting(false); }
+    } catch (error) {
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro ao excluir", message: getErrorMessage(error) });
+    } finally { setIsDeleting(false); }
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando...</div>;

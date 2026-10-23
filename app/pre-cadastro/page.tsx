@@ -81,7 +81,7 @@ function PreCadastroForm() {
       });
       setConsentAccepted(false);
       setActiveTab("pessoais");
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seus dados. Tente novamente." });
     } finally {
       setLoading(false);

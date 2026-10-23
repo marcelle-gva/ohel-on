@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Search, Plus, Edit, Trash2, AlertTriangle, MessageCircle, QrCode, User, CheckSquare, CheckCircle } from "lucide-react";
+import { Search, Plus, Edit, Trash2, AlertTriangle, QrCode, User, CheckSquare, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
 
@@ -39,19 +39,7 @@ export default function MembrosPage() {
   const [toast, setToast] = useState(false);
   const [deleteFeedback, setDeleteFeedback] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
-      }
-      fetchDados();
-    };
-    init();
-  }, []);
-
-  const fetchDados = async () => {
+  const fetchDados = useCallback(async () => {
     try {
       setLoading(true);
       const { data: dataCong } = await supabase.from("congregacoes").select("id, nome");
@@ -69,7 +57,19 @@ export default function MembrosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: user } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
+        if (user) setIgrejaId(user.igreja_id);
+      }
+      await fetchDados();
+    };
+    void init();
+  }, [fetchDados]);
 
   const handleDelete = async () => {
     if (!membroToDelete) return;
@@ -79,8 +79,13 @@ export default function MembrosPage() {
       if (error) throw error;
       setMembros(membros.filter((m) => m.id !== membroToDelete));
       setMembroToDelete(null);
-    } catch (error: any) {
-      setDeleteFeedback({ isOpen: true, type: "error", title: "Erro ao excluir", message: error.message });
+    } catch (error) {
+      setDeleteFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Erro ao excluir",
+        message: error instanceof Error ? error.message : "Não foi possível excluir o membro.",
+      });
     } finally {
       setIsDeleting(false);
     }

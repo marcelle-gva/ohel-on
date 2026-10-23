@@ -8,8 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { uploadChurchFile } from "@/lib/private-storage";
-import { ArrowLeft, Save, Plus, Minus, Search, Upload, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Save, Plus, Minus, Search, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
+
+type IdentifiedName = { id: string; nome: string };
+type FinanceCategory = IdentifiedName & { tipo: "Receita" | "Despesa" };
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
+}
 
 export default function NovaTransacaoPage() {
   const router = useRouter();
@@ -19,11 +26,11 @@ export default function NovaTransacaoPage() {
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   // Listas
-  const [caixas, setCaixas] = useState<any[]>([]);
-  const [categorias, setCategorias] = useState<any[]>([]);
-  const [formas, setFormas] = useState<any[]>([]);
-  const [congregacoes, setCongregacoes] = useState<any[]>([]);
-  const [membros, setMembros] = useState<any[]>([]);
+  const [caixas, setCaixas] = useState<IdentifiedName[]>([]);
+  const [categorias, setCategorias] = useState<FinanceCategory[]>([]);
+  const [formas, setFormas] = useState<IdentifiedName[]>([]);
+  const [congregacoes, setCongregacoes] = useState<IdentifiedName[]>([]);
+  const [membros, setMembros] = useState<IdentifiedName[]>([]);
 
   const [tipo, setTipo] = useState<"Receita" | "Despesa">("Receita");
 
@@ -88,7 +95,7 @@ export default function NovaTransacaoPage() {
       const path = await uploadChurchFile(supabase, "documentos", igrejaId, file, fileName);
       setFormData({ ...formData, comprovante_url: path });
     } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar comprovante." });
+      setModal({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) });
     } finally {
       setUploading(false);
     }
@@ -148,8 +155,8 @@ export default function NovaTransacaoPage() {
       if (error) throw error;
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Transação registrada!" });
       setTimeout(() => router.push("/financeiro/movimento"), 1500);
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: getErrorMessage(error) });
       setLoading(false);
     }
   };

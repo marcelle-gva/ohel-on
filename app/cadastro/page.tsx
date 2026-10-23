@@ -68,8 +68,13 @@ export default function Cadastro() {
         setModal({ isOpen: true, type: "success", title: "Conta Criada", message: "Sua igreja foi cadastrada. Verifique seu e-mail para confirmar a conta e depois faça login." });
       }
       
-    } catch (err: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro no Cadastro", message: err.message });
+    } catch (err) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro no Cadastro",
+        message: err instanceof Error ? err.message : "Não foi possível criar a conta.",
+      });
     } finally {
       setLoading(false);
     }
