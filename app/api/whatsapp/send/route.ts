@@ -4,7 +4,7 @@ import { decryptSecret } from "@/lib/server/secret-encryption";
 export const dynamic = "force-dynamic";
 
 type RecipientType = "membro" | "responsavel_kids";
-type Recipient = { id: string; type: RecipientType; name: string; phone: string | null };
+type Recipient = { id: string; type: RecipientType; name: string; phone: string | null; text?: string };
 type SendRequest = {
   recipients?: unknown;
   type?: unknown;
@@ -18,12 +18,16 @@ type MetaResponse = {
   error?: { message?: string };
 };
 
-function normalizeRecipient(value: unknown): { id: string; type: RecipientType } | null {
+function normalizeRecipient(value: unknown): { id: string; type: RecipientType; text?: string } | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
   if (typeof candidate.id !== "string") return null;
   if (candidate.type !== "membro" && candidate.type !== "responsavel_kids") return null;
-  return { id: candidate.id, type: candidate.type };
+  return {
+    id: candidate.id,
+    type: candidate.type,
+    ...(candidate.type === "responsavel_kids" && typeof candidate.text === "string" ? { text: candidate.text } : {}),
+  };
 }
 
 function formatPhone(phone: string | null) {
@@ -46,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     const recipients = Array.isArray(body.recipients)
-      ? body.recipients.map(normalizeRecipient).filter((recipient): recipient is { id: string; type: RecipientType } => Boolean(recipient))
+      ? body.recipients.map(normalizeRecipient).filter((recipient): recipient is { id: string; type: RecipientType; text?: string } => Boolean(recipient))
       : [];
     const uniqueRecipients = [...new Map(recipients.map(recipient => [`${recipient.type}:${recipient.id}`, recipient])).values()];
     if (!uniqueRecipients.length || uniqueRecipients.length > 100) {
@@ -60,8 +64,12 @@ export async function POST(request: Request) {
     const templateParameters = Array.isArray(body.templateParameters)
       ? body.templateParameters.filter((value): value is string => typeof value === "string").map(value => value.trim())
       : [];
-    if (type === "texto" && (!text || text.length > 4096)) {
-      throw new ApiError(400, "A mensagem de texto deve ter entre 1 e 4.096 caracteres.");
+    if (type === "texto" && (text.length > 4096 || uniqueRecipients.some(recipient => {
+      const personalizedText = recipient.text?.trim();
+      const effectiveText = personalizedText || text;
+      return !effectiveText || effectiveText.length > 4096;
+    }))) {
+      throw new ApiError(400, "Cada mensagem de texto deve ter entre 1 e 4.096 caracteres.");
     }
     if (type === "modelo" && !/^[a-zA-Z0-9_]{1,512}$/.test(templateName)) {
       throw new ApiError(400, "Informe o nome exato de um modelo aprovado pela Meta.");
@@ -72,6 +80,9 @@ export async function POST(request: Request) {
 
     const memberIds = uniqueRecipients.filter(recipient => recipient.type === "membro").map(recipient => recipient.id);
     const childIds = uniqueRecipients.filter(recipient => recipient.type === "responsavel_kids").map(recipient => recipient.id);
+    const childMessages = new Map(uniqueRecipients
+      .filter(recipient => recipient.type === "responsavel_kids" && recipient.text)
+      .map(recipient => [recipient.id, recipient.text]));
     if (childIds.length) await requireModulePermission(context, "infantil", ["ler"]);
 
     const { data: config, error: configError } = await context.admin
@@ -101,6 +112,7 @@ export async function POST(request: Request) {
         .from("criancas")
         .select("id, nome, responsavel_nome, responsavel_telefone, responsavel_whatsapp_opt_in")
         .eq("igreja_id", context.churchId)
+        .eq("status", "Ativo")
         .eq("responsavel_whatsapp_opt_in", true)
         .in("id", childIds);
       if (error) throw new ApiError(500, "Não foi possível validar os responsáveis Kids.");
@@ -112,6 +124,7 @@ export async function POST(request: Request) {
         type: "responsavel_kids" as const,
         name: child.responsavel_nome || child.nome,
         phone: child.responsavel_telefone,
+        text: childMessages.get(child.id),
       })));
     }
 
@@ -122,14 +135,21 @@ export async function POST(request: Request) {
     const loggingErrors: string[] = [];
 
     for (const recipient of recipientsToSend) {
+      const recipientText = recipient.type === "responsavel_kids" && "text" in recipient
+        ? recipient.text?.trim() ?? text
+        : text;
       const phone = formatPhone(recipient.phone);
       let providerMessageId: string | null = null;
-      let failure: string | null = phone ? null : "Telefone ausente ou inválido; atualize o cadastro.";
+      let failure: string | null = !phone
+        ? "Telefone ausente ou inválido; atualize o cadastro."
+        : type === "texto" && (!recipientText || recipientText.length > 4096)
+          ? "A mensagem deve ter entre 1 e 4.096 caracteres."
+          : null;
 
-      if (phone) {
+      if (phone && !failure) {
         try {
           const payload = type === "texto"
-            ? { messaging_product: "whatsapp", recipient_type: "individual", to: phone, type: "text", text: { preview_url: false, body: text } }
+            ? { messaging_product: "whatsapp", recipient_type: "individual", to: phone, type: "text", text: { preview_url: false, body: recipientText } }
             : {
               messaging_product: "whatsapp",
               recipient_type: "individual",
@@ -168,7 +188,7 @@ export async function POST(request: Request) {
         destinatario_crianca_id: recipient.type === "responsavel_kids" ? recipient.id : null,
         destinatario_telefone: phone ?? recipient.phone ?? "",
         tipo: type,
-        conteudo: type === "texto" ? text : templateName,
+        conteudo: type === "texto" ? recipientText : templateName,
         nome_modelo: type === "modelo" ? templateName : null,
         idioma_modelo: type === "modelo" ? language : null,
         status,

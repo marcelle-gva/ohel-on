@@ -18,15 +18,79 @@ interface PrayerApprovalAudit {
   created_at: string;
 }
 
+interface Visitante {
+  id: string;
+  nome: string;
+  telefone: string | null;
+}
+
+interface Louvor {
+  id: string;
+  titulo: string;
+  tom: string | null;
+  ministro: string | null;
+  palavra_vinculada: string | null;
+}
+
+interface Aviso {
+  id: string;
+  titulo: string;
+  conteudo: string;
+}
+
+interface PedidoOracao {
+  id: string;
+  nome_solicitante: string;
+  descricao: string;
+  status: string;
+  visibilidade: string | null;
+  created_at: string;
+}
+
+interface Escalado {
+  membros: { nome: string }[] | null;
+  funcoes_escala: { nome: string }[] | null;
+}
+
+interface Escala {
+  id: string;
+  nome: string;
+  data: string;
+  escalados: Escalado[] | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isLouvor(value: unknown): value is Louvor {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.titulo === 'string'
+    && (typeof value.tom === 'string' || value.tom === null)
+    && (typeof value.ministro === 'string' || value.ministro === null)
+    && (typeof value.palavra_vinculada === 'string' || value.palavra_vinculada === null);
+}
+
+function isPedidoOracao(value: unknown): value is PedidoOracao {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.nome_solicitante === 'string'
+    && typeof value.descricao === 'string'
+    && typeof value.status === 'string'
+    && (typeof value.visibilidade === 'string' || value.visibilidade === null)
+    && typeof value.created_at === 'string';
+}
+
 export default function MonitorMidiaPage() {
   const [loading, setLoading] = useState(true);
   
-  const [visitantesHoje, setVisitantesHoje] = useState<any[]>([]);
-  const [louvoresHoje, setLouvoresHoje] = useState<any[]>([]);
-  const [muralRecente, setMuralRecente] = useState<any[]>([]);
-  const [oracoesSemana, setOracoesSemana] = useState<any[]>([]);
-  const [oracoesPendentes, setOracoesPendentes] = useState<any[]>([]);
-  const [escalasProximas, setEscalasProximas] = useState<any[]>([]);
+  const [visitantesHoje, setVisitantesHoje] = useState<Visitante[]>([]);
+  const [louvoresHoje, setLouvoresHoje] = useState<Louvor[]>([]);
+  const [muralRecente, setMuralRecente] = useState<Aviso[]>([]);
+  const [oracoesSemana, setOracoesSemana] = useState<PedidoOracao[]>([]);
+  const [oracoesPendentes, setOracoesPendentes] = useState<PedidoOracao[]>([]);
+  const [escalasProximas, setEscalasProximas] = useState<Escala[]>([]);
 
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
@@ -63,7 +127,7 @@ export default function MonitorMidiaPage() {
   const hoje = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    let channel: any;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const init = async () => {
       try {
@@ -140,27 +204,29 @@ export default function MonitorMidiaPage() {
                 .limit(3)
             ]);
 
-            setVisitantesHoje(visitasRes.data || []);
-            setLouvoresHoje(louvoresRes.data || []);
-            setMuralRecente(muralRes.data || []);
-            setOracoesSemana(oracoesRes.data || []);
-            setOracoesPendentes(pendentesRes.data || []);
-            setEscalasProximas(escalasRes.data || []);
+            setVisitantesHoje((visitasRes.data || []) as Visitante[]);
+            setLouvoresHoje((louvoresRes.data || []) as Louvor[]);
+            setMuralRecente((muralRes.data || []) as Aviso[]);
+            setOracoesSemana((oracoesRes.data || []) as PedidoOracao[]);
+            setOracoesPendentes((pendentesRes.data || []) as PedidoOracao[]);
+            setEscalasProximas((escalasRes.data || []) as Escala[]);
 
             const channelName = `realtime-monitor-${Date.now()}-${Math.random()}`;
             channel = supabase
               .channel(channelName)
               .on('postgres_changes', { event: '*', schema: 'public', table: 'louvores', filter: `data=eq.${hoje}` }, (payload) => {
-                if (payload.eventType === 'INSERT') setLouvoresHoje((prev) => prev.some(l => l.id === payload.new.id) ? prev : [...prev, payload.new]);
+                const newLouvor = payload.new;
+                if (payload.eventType === 'INSERT' && isLouvor(newLouvor)) setLouvoresHoje((prev) => prev.some(l => l.id === newLouvor.id) ? prev : [...prev, newLouvor]);
                 else if (payload.eventType === 'DELETE') setLouvoresHoje((prev) => prev.filter(l => l.id !== payload.old.id));
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao' }, (payload) => {
-                if (payload.eventType === 'INSERT' && payload.new.status === 'Pendente') {
-                  setOracoesPendentes((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
-                } else if (payload.eventType === 'UPDATE' && payload.new.status !== 'Pendente') {
-                  setOracoesPendentes((prev) => prev.filter(o => o.id !== payload.new.id));
-                  if (payload.new.status === 'Aprovado' && payload.new.visibilidade === 'Público') {
-                    setOracoesSemana((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
+                const newPedido = payload.new;
+                if (payload.eventType === 'INSERT' && isPedidoOracao(newPedido) && newPedido.status === 'Pendente') {
+                  setOracoesPendentes((prev) => prev.some(o => o.id === newPedido.id) ? prev : [newPedido, ...prev]);
+                } else if (payload.eventType === 'UPDATE' && isPedidoOracao(newPedido) && newPedido.status !== 'Pendente') {
+                  setOracoesPendentes((prev) => prev.filter(o => o.id !== newPedido.id));
+                  if (newPedido.status === 'Aprovado' && newPedido.visibilidade === 'Público') {
+                    setOracoesSemana((prev) => prev.some(o => o.id === newPedido.id) ? prev : [newPedido, ...prev]);
                   }
                 }
               })
@@ -405,7 +471,7 @@ export default function MonitorMidiaPage() {
                   </p>
                   <p className="text-gray-200 text-xs mb-3 blessing-text">Sinta-se em casa e abrace o seu irmão.</p>
                   <p className="text-purple-300 italic text-[11px] blessing-verse">
-                    "Portanto, acolham-se uns aos outros..." (Rm 15:7)
+                    &ldquo;Portanto, acolham-se uns aos outros...&rdquo; (Rm 15:7)
                   </p>
                 </div>
               </div>
@@ -433,7 +499,7 @@ export default function MonitorMidiaPage() {
                   </p>
                   <p className="text-gray-200 text-xs mb-3 blessing-text">Deus tem feito coisas lindas na casa do Pai.</p>
                   <p className="text-teal-300 italic text-[11px] blessing-verse">
-                    "Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)
+                    &ldquo;Alegrei-me quando me disseram: Vamos à casa do Senhor.&rdquo; (Salmos 122:1)
                   </p>
                 </div>
               </div>
@@ -526,7 +592,7 @@ export default function MonitorMidiaPage() {
                   </p>
                   <p className="text-gray-200 text-xs mb-3 blessing-text">Adore ao Senhor com todo o seu coração.</p>
                   <p className="text-blue-300 italic text-[11px] blessing-verse">
-                    "Cantem ao Senhor um novo cântico; cantem ao Senhor, todos os habitantes da terra!" (Salmos 96:1)
+                    &ldquo;Cantem ao Senhor um novo cântico; cantem ao Senhor, todos os habitantes da terra!&rdquo; (Salmos 96:1)
                   </p>
                 </div>
               </div>
@@ -552,9 +618,9 @@ export default function MonitorMidiaPage() {
                         <span className="text-gray-400 truncate">{escala.nome}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {escala.escalados?.map((esc: any, idx: number) => (
+                        {escala.escalados?.map((esc, idx) => (
                           <span key={idx} className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 px-2 py-1 rounded text-[10px]">
-                            {esc.membros?.nome || 'Membro'} {esc.funcoes_escala?.nome ? `(${esc.funcoes_escala.nome})` : ''}
+                            {esc.membros?.[0]?.nome || 'Membro'} {esc.funcoes_escala?.[0]?.nome ? `(${esc.funcoes_escala[0].nome})` : ''}
                           </span>
                         ))}
                       </div>
@@ -579,7 +645,7 @@ export default function MonitorMidiaPage() {
                   </p>
                   <p className="text-gray-200 text-xs mb-3 blessing-text">Sirva ao Senhor com alegria e dedicação.</p>
                   <p className="text-yellow-300 italic text-[11px] blessing-verse">
-                    "Sirvam ao Senhor com alegria; apresentem-se diante dele com cânticos de júbilo." (Salmos 100:2)
+                    &ldquo;Sirvam ao Senhor com alegria; apresentem-se diante dele com cânticos de júbilo.&rdquo; (Salmos 100:2)
                   </p>
                 </div>
               </div>
@@ -631,7 +697,7 @@ export default function MonitorMidiaPage() {
                   </p>
                   <p className="text-gray-200 text-xs mb-3 blessing-text">A oração do justo é poderosa e eficaz.</p>
                   <p className="text-red-300 italic text-[11px] blessing-verse">
-                    "Confessem os seus pecados uns aos outros e orem uns pelos outros..." (Tiago 5:16)
+                    &ldquo;Confessem os seus pecados uns aos outros e orem uns pelos outros...&rdquo; (Tiago 5:16)
                   </p>
                 </div>
               </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { Baby, Check, Clock3, Loader2, Plus, Search, Users, X } from "lucide-react";
+import { Baby, CalendarDays, Check, Clock3, Loader2, MessageCircle, Plus, Search, Send, Users, X } from "lucide-react";
 
 type Crianca = {
   id: string;
@@ -35,15 +36,50 @@ type Checkin = {
   checkin_at: string;
 };
 
-type Tab = "criancas" | "salas" | "checkin";
+type DiaCheckin = {
+  crianca_id: string;
+  sala_id: string | null;
+};
+
+type ComunicacaoMode = "todos" | "sala" | "dia" | "individual";
+type Tab = "criancas" | "salas" | "checkin" | "comunicacoes";
+
+function localDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localDateRange(dateValue: string) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const start = new Date(year, month - 1, day);
+  const end = new Date(year, month - 1, day + 1);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function personalizarMensagem(message: string, child: Crianca) {
+  return message
+    .replaceAll("{responsavel}", child.responsavel_nome)
+    .replaceAll("{crianca}", child.nome);
+}
 
 export default function InfantilPage() {
   const [tab, setTab] = useState<Tab>("criancas");
+  const [comunicacaoMode, setComunicacaoMode] = useState<ComunicacaoMode>("todos");
   const [churchId, setChurchId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [canSendCommunications, setCanSendCommunications] = useState(false);
   const [children, setChildren] = useState<Crianca[]>([]);
   const [rooms, setRooms] = useState<Sala[]>([]);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
+  const [dayCheckins, setDayCheckins] = useState<DiaCheckin[]>([]);
+  const [dayCheckinsLoading, setDayCheckinsLoading] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => localDateValue(new Date()));
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [message, setMessage] = useState("Olá, {responsavel}! Lembramos que a paz do Senhor esteja com sua família. Seguimos à disposição sobre a criança {crianca}.");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,16 +110,21 @@ export default function InfantilPage() {
       .single();
     if (userError) throw userError;
     if (!user.igreja_id) throw new Error("Não foi possível identificar a igreja.");
+    let canReadKids = user.role === "admin";
+    let canSendWhatsApp = user.role === "admin";
     if (user.role !== "admin" && user.grupo_id) {
-      const { data: permission, error: permissionError } = await supabase
+      const { data: permissions, error: permissionError } = await supabase
         .from("grupos_permissoes")
-        .select("id")
+        .select("modulo, acao")
         .eq("grupo_id", user.grupo_id)
-        .eq("modulo", "infantil")
-        .eq("acao", "ler")
-        .maybeSingle();
+        .in("modulo", ["infantil", "comunicacoes"])
+        .in("acao", ["ler", "criar", "editar"]);
       if (permissionError) throw permissionError;
-      if (!permission) throw new Error("Seu grupo não tem acesso ao Departamento Infantil.");
+      canReadKids = Boolean(permissions?.some(permission => permission.modulo === "infantil" && permission.acao === "ler"));
+      canSendWhatsApp = Boolean(permissions?.some(permission =>
+        permission.modulo === "comunicacoes" && ["criar", "editar"].includes(permission.acao),
+      ));
+      if (!canReadKids) throw new Error("Seu grupo não tem acesso ao Departamento Infantil.");
     }
     const [{ data: childRows, error: childrenError }, { data: roomRows, error: roomsError }, { data: checkinRows, error: checkinsError }] =
       await Promise.all([
@@ -96,9 +137,15 @@ export default function InfantilPage() {
     if (checkinsError) throw checkinsError;
     setChurchId(user.igreja_id);
     setUserId(authData.user.id);
+    setCanSendCommunications(canSendWhatsApp);
     setChildren((childRows ?? []) as Crianca[]);
     setRooms((roomRows ?? []) as Sala[]);
     setCheckins((checkinRows ?? []) as Checkin[]);
+    setSelectedRoomId(current => current || (roomRows ?? []).find(room => room.ativa)?.id || "");
+    setSelectedChildIds((childRows ?? [])
+      .filter(child => child.status === "Ativo" && child.responsavel_whatsapp_opt_in && child.responsavel_telefone?.trim())
+      .slice(0, 100)
+      .map(child => child.id));
   };
 
   useEffect(() => {
@@ -121,6 +168,193 @@ export default function InfantilPage() {
   const childrenById = useMemo(() => new Map(children.map(child => [child.id, child])), [children]);
   const roomsById = useMemo(() => new Map(rooms.map(room => [room.id, room])), [rooms]);
   const filteredChildren = children.filter(child => child.nome.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  const eligibleCommunicationChildren = useMemo(
+    () => children.filter(child => child.status === "Ativo" && child.responsavel_whatsapp_opt_in && child.responsavel_telefone.trim()),
+    [children],
+  );
+  const dayCheckinChildIds = useMemo(() => new Set(dayCheckins.map(checkin => checkin.crianca_id)), [dayCheckins]);
+  const communicationChildren = useMemo(() => {
+    if (comunicacaoMode === "sala") {
+      return eligibleCommunicationChildren.filter(child => child.sala_id === selectedRoomId);
+    }
+    if (comunicacaoMode === "dia") {
+      return eligibleCommunicationChildren.filter(child => dayCheckinChildIds.has(child.id));
+    }
+    if (comunicacaoMode === "individual") return eligibleCommunicationChildren;
+    return eligibleCommunicationChildren;
+  }, [comunicacaoMode, dayCheckinChildIds, eligibleCommunicationChildren, selectedRoomId]);
+  const selectedCommunicationChildren = useMemo(
+    () => communicationChildren.filter(child => selectedChildIds.includes(child.id)),
+    [communicationChildren, selectedChildIds],
+  );
+
+  useEffect(() => {
+    if (comunicacaoMode !== "dia" || !churchId) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const { start, end } = localDateRange(selectedDate);
+      setDayCheckinsLoading(true);
+      void (async () => {
+        try {
+          const { data, error: checkinsError } = await supabase.from("checkins_infantis")
+            .select("crianca_id, sala_id")
+            .eq("igreja_id", churchId)
+            .gte("checkin_at", start)
+            .lt("checkin_at", end);
+          if (cancelled) return;
+          if (checkinsError) {
+            setError("Não foi possível carregar os check-ins desse dia.");
+            setDayCheckins([]);
+            return;
+          }
+          setDayCheckins((data ?? []) as DiaCheckin[]);
+          const checkedInIds = new Set((data ?? []).map(checkin => checkin.crianca_id));
+          setSelectedChildIds(eligibleCommunicationChildren
+            .filter(child => checkedInIds.has(child.id))
+            .slice(0, 100)
+            .map(child => child.id));
+        } catch (checkinError) {
+          console.error("Falha ao carregar check-ins para segmentação Kids:", checkinError);
+          if (!cancelled) setError("Não foi possível carregar os check-ins desse dia.");
+        } finally {
+          if (!cancelled) setDayCheckinsLoading(false);
+        }
+      })();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [churchId, comunicacaoMode, eligibleCommunicationChildren, selectedDate]);
+
+  const setCommunicationMode = (mode: ComunicacaoMode) => {
+    setComunicacaoMode(mode);
+    setError("");
+    setNotice("");
+    if (mode === "todos") {
+      setSelectedChildIds(eligibleCommunicationChildren.slice(0, 100).map(child => child.id));
+    } else if (mode === "sala") {
+      const roomId = selectedRoomId || rooms.find(room => room.ativa)?.id || "";
+      setSelectedRoomId(roomId);
+      setSelectedChildIds(eligibleCommunicationChildren.filter(child => child.sala_id === roomId).slice(0, 100).map(child => child.id));
+    } else if (mode === "individual") {
+      setSelectedChildIds([]);
+    } else {
+      setSelectedChildIds([]);
+      setDayCheckins([]);
+    }
+  };
+
+  const selectCommunicationRoom = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setSelectedChildIds(eligibleCommunicationChildren.filter(child => child.sala_id === roomId).slice(0, 100).map(child => child.id));
+  };
+
+  const selectCommunicationDate = (date: string) => {
+    setSelectedDate(date);
+    setDayCheckins([]);
+    setSelectedChildIds([]);
+  };
+
+  const toggleCommunicationChild = (childId: string) => {
+    setSelectedChildIds(current => current.includes(childId)
+      ? current.filter(id => id !== childId)
+      : current.length >= 100 ? current : [...current, childId]);
+  };
+
+  const toggleAllCommunicationChildren = () => {
+    const visibleIds = communicationChildren.map(child => child.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedChildIds.includes(id));
+    setSelectedChildIds(current => allSelected
+      ? current.filter(id => !visibleIds.includes(id))
+      : [...new Set([...current, ...visibleIds])].slice(0, 100));
+  };
+
+  const sendKidsMessage = async () => {
+    if (!canSendCommunications) {
+      setError("Seu grupo precisa da permissão de criar ou editar em Comunicações para enviar mensagens.");
+      return;
+    }
+    if (!selectedCommunicationChildren.length) {
+      setError("Selecione ao menos um responsável com consentimento WhatsApp.");
+      return;
+    }
+    if (!message.trim()) {
+      setError("Escreva a mensagem antes de enviar.");
+      return;
+    }
+    if (message.length > 4096) {
+      setError("A mensagem ultrapassa o limite de 4.096 caracteres do WhatsApp.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Enviar uma mensagem personalizada para ${selectedCommunicationChildren.length} responsável(is)? O texto livre só pode ser enviado dentro da janela de atendimento de 24 horas da Meta.`,
+    );
+    if (!confirmed) return;
+
+    setSendingMessage(true);
+    setError("");
+    setNotice("");
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sua sessão expirou. Entre novamente.");
+
+      const personalizedRecipients = selectedCommunicationChildren.map(child => ({
+        child,
+        text: personalizarMensagem(message.trim(), child),
+      }));
+      const tooLong = personalizedRecipients
+        .filter(recipient => recipient.text.length > 4096)
+        .map(({ child }) => `${child.responsavel_nome} (${child.nome}): a mensagem excede 4.096 caracteres.`);
+      const validRecipients = personalizedRecipients.filter(recipient => recipient.text.length <= 4096);
+      if (!validRecipients.length) {
+        setError(`Nenhuma mensagem foi enviada. ${tooLong.join(" · ")}`);
+        return;
+      }
+
+      const response = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: validRecipients.map(({ child, text }) => ({
+            id: child.id,
+            type: "responsavel_kids",
+            text,
+          })),
+          type: "texto",
+        }),
+      });
+      const result = await response.json() as {
+        error?: string;
+        message?: string;
+        accepted?: number;
+        failed?: number;
+        results?: Array<{ name: string; error?: string }>;
+        historyIncompleteFor?: string[];
+      };
+      if (!response.ok && response.status !== 207) throw new Error(result.error ?? "Não foi possível enviar as mensagens.");
+
+      const failures = [
+        ...tooLong,
+        ...(result.results ?? []).filter(item => item.error).map(item => `${item.name}: ${item.error}`),
+      ];
+      if (result.historyIncompleteFor?.length) {
+        failures.push("O histórico de uma ou mais mensagens não foi confirmado; verifique antes de tentar novamente.");
+      }
+      if (failures.length) {
+        setError(`${result.accepted ?? 0} mensagem(ns) aceita(s) pela Meta; ${failures.length} falha(s): ${failures.join(" · ")}`);
+      } else {
+        setNotice(`${result.accepted ?? 0} mensagem(ns) aceita(s) pela Meta. ${result.message ?? "A entrega final depende da confirmação da Meta."}`);
+        setSelectedChildIds([]);
+      }
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "Não foi possível enviar as mensagens.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   const handleAddChild = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -141,6 +375,9 @@ export default function InfantilPage() {
       }).select("*").single();
       if (insertError) throw insertError;
       setChildren(current => [...current, data as Crianca].sort((a, b) => a.nome.localeCompare(b.nome)));
+      if (comunicacaoMode === "todos" && data.status === "Ativo" && data.responsavel_whatsapp_opt_in && data.responsavel_telefone?.trim()) {
+        setSelectedChildIds(current => current.length < 100 ? [...current, data.id] : current);
+      }
       setChildForm({ nome: "", data_nascimento: "", sala_id: "", responsavel_nome: "", responsavel_telefone: "", alergias: "", responsavel_whatsapp_opt_in: false });
       setNotice("Cadastro infantil salvo.");
     } catch (saveError) {
@@ -252,6 +489,7 @@ export default function InfantilPage() {
           <button type="button" className={tabClass("criancas")} onClick={() => setTab("criancas")}><Baby className="h-4 w-4" /> Crianças</button>
           <button type="button" className={tabClass("salas")} onClick={() => setTab("salas")}><Users className="h-4 w-4" /> Salas</button>
           <button type="button" className={tabClass("checkin")} onClick={() => setTab("checkin")}><Check className="h-4 w-4" /> Check-in e saída</button>
+          <button type="button" className={tabClass("comunicacoes")} onClick={() => setTab("comunicacoes")}><MessageCircle className="h-4 w-4" /> Comunicações</button>
         </nav>
       </Card>
 
@@ -328,6 +566,169 @@ export default function InfantilPage() {
                   })}
                   {!checkins.length && <p className="py-8 text-center text-sm text-gray-500">Nenhuma criança está aguardando retirada.</p>}
                 </div>
+              </Card>
+            </section>
+          )}
+
+          {tab === "comunicacoes" && (
+            <section className="grid items-start gap-4 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
+              <Card className="flex flex-col gap-5 border-gray-800 bg-gray-900/70 p-5 sm:p-6">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-emerald-400" />
+                  <div>
+                    <h2 className="font-semibold text-white">Comunicação com responsáveis</h2>
+                    <p className="mt-1 text-xs text-gray-500">Mensagens personalizadas pelo WhatsApp.</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Destinatários (modo de envio)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ["todos", "Todos os responsáveis"],
+                      ["sala", "Por sala"],
+                      ["dia", "Por dia / culto"],
+                      ["individual", "Individual"],
+                    ] as const).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={comunicacaoMode === mode}
+                        onClick={() => setCommunicationMode(mode)}
+                        className={`min-h-10 rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                          comunicacaoMode === mode
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                            : "border-gray-800 text-gray-400 hover:border-gray-600 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {comunicacaoMode === "sala" && (
+                  <label className="flex flex-col gap-2 text-xs text-gray-400">
+                    Sala
+                    <select
+                      value={selectedRoomId}
+                      onChange={event => selectCommunicationRoom(event.target.value)}
+                      className="input-ohel w-full rounded-lg px-3 py-2.5 text-sm"
+                    >
+                      <option value="">Selecione uma sala</option>
+                      {rooms.filter(room => room.ativa).map(room => (
+                        <option key={room.id} value={room.id}>{room.nome}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {comunicacaoMode === "dia" && (
+                  <label className="flex flex-col gap-2 text-xs text-gray-400">
+                    Dia do check-in
+                    <span className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-emerald-300" />
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={event => selectCommunicationDate(event.target.value)}
+                        className="input-ohel min-w-0 flex-1 rounded-lg px-3 py-2.5 text-sm text-white"
+                      />
+                    </span>
+                    <span className="text-[10px] text-gray-500">A seleção usa os check-ins registrados nessa data. O cadastro atual não separa cultos por horário.</span>
+                  </label>
+                )}
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label htmlFor="kids-whatsapp-message" className="text-xs font-medium text-gray-300">Mensagem WhatsApp</label>
+                    <span className="text-right text-[10px] text-emerald-300">Variáveis: {"{responsavel}"}, {"{crianca}"}</span>
+                  </div>
+                  <textarea
+                    id="kids-whatsapp-message"
+                    value={message}
+                    onChange={event => setMessage(event.target.value)}
+                    maxLength={4096}
+                    className="input-ohel min-h-32 w-full rounded-xl px-3 py-3 text-sm leading-6"
+                    placeholder="Olá, {responsavel}! Uma mensagem sobre {crianca}…"
+                  />
+                  <p className="mt-1 text-right text-[10px] text-gray-500">{message.length}/4.096</p>
+                </div>
+
+                {!canSendCommunications && (
+                  <p role="status" className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+                    Seu grupo precisa da permissão de criar ou editar em Comunicações para enviar mensagens.
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-3 border-t border-gray-800 pt-4">
+                  <p className="text-[10px] leading-4 text-gray-500">
+                    Só aparecem responsáveis ativos com consentimento WhatsApp registrado. Limite de 100 por envio; texto livre depende da janela de atendimento de 24 horas da Meta.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void sendKidsMessage()}
+                    disabled={sendingMessage || !canSendCommunications || selectedCommunicationChildren.length === 0 || !message.trim()}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {sendingMessage ? "Enviando…" : `Enviar WhatsApp (${selectedCommunicationChildren.length} selecionado${selectedCommunicationChildren.length === 1 ? "" : "s"})`}
+                  </button>
+                  <Link href="/configuracoes/comunicacoes" className="text-center text-[11px] text-emerald-300 hover:text-emerald-200">
+                    Configurações do WhatsApp
+                  </Link>
+                </div>
+              </Card>
+
+              <Card className="overflow-hidden border-gray-800 bg-gray-900/70 p-0">
+                <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-4 py-4 sm:px-5">
+                  <div>
+                    <h2 className="font-semibold text-white">Lista de destinatários ({selectedCommunicationChildren.length})</h2>
+                    <p className="mt-1 text-xs text-gray-500">Marque ou desmarque os responsáveis que receberão a mensagem.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleAllCommunicationChildren}
+                    disabled={!communicationChildren.length || dayCheckinsLoading}
+                    className="shrink-0 text-xs font-medium text-emerald-300 hover:text-emerald-200 disabled:opacity-40"
+                  >
+                    {communicationChildren.length > 0 && communicationChildren.every(child => selectedChildIds.includes(child.id)) ? "Desmarcar todos" : "Selecionar todos"}
+                  </button>
+                </div>
+
+                {dayCheckinsLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-400"><Loader2 className="h-4 w-4 animate-spin" />Carregando check-ins…</div>
+                ) : (
+                  <div className="max-h-[560px] divide-y divide-gray-800 overflow-y-auto">
+                    {communicationChildren.map(child => (
+                      <label key={child.id} className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-gray-800/50 sm:px-5 ${selectedChildIds.includes(child.id) ? "bg-emerald-500/[0.04]" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedChildIds.includes(child.id)}
+                          onChange={() => toggleCommunicationChild(child.id)}
+                          className="h-4 w-4 shrink-0 accent-emerald-500"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-gray-100">{child.nome}</span>
+                          <span className="mt-1 block truncate text-xs text-gray-400">
+                            Responsável: <span className="text-gray-300">{child.responsavel_nome}</span>
+                            {" · "}{roomsById.get(child.sala_id ?? "")?.nome ?? "Sem sala"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right text-[11px] text-emerald-300">{child.responsavel_telefone}</span>
+                      </label>
+                    ))}
+                    {!communicationChildren.length && (
+                      <p className="px-5 py-12 text-center text-sm text-gray-500">
+                        {comunicacaoMode === "sala" && !selectedRoomId
+                          ? "Selecione uma sala para listar os responsáveis."
+                          : comunicacaoMode === "dia"
+                            ? "Nenhuma criança com consentimento e check-in nesta data."
+                            : "Nenhum responsável ativo com telefone e consentimento WhatsApp registrados."}
+                      </p>
+                    )}
+                  </div>
+                )}
               </Card>
             </section>
           )}

@@ -13,6 +13,7 @@ Não inclua valores de chaves neste arquivo, no Git ou em mensagens.
 - [x] O painel emocional conta as emoções registradas e mostra erros de consulta.
 - [x] O pré-cadastro tem navegação explícita entre etapas e botão de envio acessível na etapa final.
 - [x] O corpo da página permite rolagem e o painel usa altura dinâmica e rolagem interna com `min-height: 0`.
+- [x] A área Kids tem uma aba de WhatsApp com seleção por todos, sala, data de check-in ou criança individual, personalização por responsável/criança e verificação de opt-in no servidor.
 - [x] TypeScript, lint direcionado e build de produção passaram localmente; o build foi feito com valores fictícios de Supabase.
 - [x] A navegação das três etapas e a mensagem para falha ao carregar congregações foram verificadas no navegador local.
 
@@ -71,6 +72,7 @@ O WhatsApp de cartas envia texto, não PDF. O fluxo atual exige consentimento, a
 - [ ] Criar ou editar um modelo, testar variáveis, cabeçalho/rodapé personalizados, prévia, impressão e envio.
 - [ ] Testar uma igreja sem e-mail, um membro sem consentimento WhatsApp e uma falha de provedor; o sistema deve mostrar que não enviou.
 - [ ] Abrir o QR de pré-cadastro em Android, preencher as três etapas com teclado aberto, aceitar o consentimento e confirmar que o cadastro pendente aparece na secretaria; não testar com dados reais sem autorização.
+- [ ] Testar comunicações Kids com um destinatário controlado que tenha opt-in, verificar envio e histórico na Meta, e confirmar que responsáveis sem consentimento, crianças inativas e usuários sem permissão não recebem mensagens.
 - [ ] Testar rolagem em páginas longas do painel em Android, incluindo menu lateral, cabeçalho fixo e cards no final da página.
 - [ ] No painel emocional, testar os períodos **Mês** e **Tudo** e confirmar que aparecem registros reais da igreja correta.
 - [ ] Se o PIN/auditoria de orações fizer parte da mesma liberação, confirmar a migration de orações, configurar PIN de cada liderança autorizada e testar aprovação por líder e admin, incluindo o registro de auditoria.

@@ -133,21 +133,21 @@ function PreCadastroForm() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] bg-ohel-glow py-5 px-3 sm:px-4 md:py-8 flex flex-col items-center justify-start">
+    <div className="flex min-h-[100svh] w-full flex-col items-center justify-start bg-ohel-glow px-3 py-4 sm:px-4 sm:py-5 md:py-8">
       
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
-      <div className="mb-4 scale-75">
+      <div className="mb-3 shrink-0 scale-75 sm:mb-4">
         <Logo />
       </div>
 
-      <div className="w-full max-w-2xl mb-6 text-center">
+      <div className="mb-5 w-full max-w-2xl shrink-0 text-center sm:mb-6">
         <h1 className="text-xl font-bold text-white tracking-tight">Bem-vindo à Igreja</h1>
         <p className="text-gray-400 text-xs mt-1">Preencha seus dados para nos conhecermos melhor.</p>
       </div>
 
       {/* Card Principal (Agora com max-w-2xl e sem altura mínima) */}
-      <Card className="w-full max-w-2xl p-0 overflow-visible border-gray-800 shadow-2xl flex flex-col">
+      <Card className="flex w-full max-w-2xl flex-col overflow-hidden border-gray-800 p-0 shadow-2xl">
         
         {/* Menu de Abas */}
         <div className="flex border-b border-gray-800 bg-ohel-surface/50 overflow-x-auto shrink-0">
@@ -274,7 +274,7 @@ function PreCadastroForm() {
             )}
           </div>
 
-          <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-gray-800 bg-ohel-surface/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-6">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-800 bg-ohel-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 md:px-6">
             {activeTab === "pessoais" ? (
               <>
                 <span className="text-[11px] text-gray-500">Etapa 1 de 3</span>
