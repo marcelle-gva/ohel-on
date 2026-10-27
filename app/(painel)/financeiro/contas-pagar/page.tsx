@@ -29,10 +29,16 @@ interface Conta {
   congregacao_id: string | null;
 }
 
+// Corrigindo o erro de ESLint no-explicit-any
+interface Fornecedor {
+  id: string;
+  razao_social: string;
+}
+
 export default function ContasPagarPage() {
   const [loading, setLoading] = useState(true);
   const [contas, setContas] = useState<Conta[]>([]);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
   // Filtros
@@ -114,8 +120,27 @@ export default function ContasPagarPage() {
       
       fetchData(igrejaId!);
       setModal({ isOpen: true, type: "success", title: "Baixa Realizada", message: "Título pago com sucesso! A despesa já foi lançada no Movimento." });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro na Baixa", message: error.message });
+    } catch (error: unknown) { // Correção do ESLint (any)
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      setModal({ isOpen: true, type: "error", title: "Erro na Baixa", message: msg });
+    }
+  };
+
+  // NOVA FUNÇÃO: Excluir Conta a Pagar
+  const handleDeleteConta = async (id: string, descricao: string) => {
+    if (!confirm(`Tem certeza que deseja EXCLUIR a conta "${descricao}"?\n\nEssa ação não pode ser desfeita.`)) return;
+
+    try {
+      const { error } = await supabase.from('contas_pagar').delete().eq('id', id);
+      
+      if (error) throw error;
+
+      // Atualiza a lista na tela
+      fetchData(igrejaId!);
+      setModal({ isOpen: true, type: "success", title: "Excluída", message: "A conta a pagar foi excluída com sucesso." });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Erro ao excluir a conta";
+      setModal({ isOpen: true, type: "error", title: "Erro na Exclusão", message: msg });
     }
   };
 
@@ -314,12 +339,22 @@ export default function ContasPagarPage() {
                       </span>
                     </td>
 
+                    {/* AQUI ESTÃO AS CORREÇÕES DOS BOTÕES */}
                     <td className="p-3 text-center">
                       <div className="flex justify-center gap-2">
-                        <button className="text-ohel-blue hover:text-blue-400"><Edit className="w-3.5 h-3.5" /></button>
-                        <button className="text-red-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <Link href={`/financeiro/contas-pagar/editar/${conta.id}`} className="text-ohel-blue hover:text-blue-400" title="Editar">
+                          <Edit className="w-3.5 h-3.5" />
+                        </Link>
+                        <button 
+                          onClick={() => handleDeleteConta(conta.id, conta.descricao)} 
+                          className="text-red-500 hover:text-red-400" 
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
+
                   </tr>
                 ))
               )}
