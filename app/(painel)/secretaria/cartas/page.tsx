@@ -10,19 +10,28 @@ export default function GestaoCartasPage() {
   const [loading, setLoading] = useState(true);
   const [totalModelos, setTotalModelos] = useState(0);
   const [totalMembros, setTotalMembros] = useState(0);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) throw new Error("Sua sessão expirou. Entre novamente.");
+        const { data: user, error: userError } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
+        if (userError) throw userError;
+        if (!user?.igreja_id) throw new Error("Não foi possível identificar a igreja do usuário.");
         const [modelosRes, membrosRes] = await Promise.all([
-          supabase.from('modelos_cartas').select('*', { count: 'exact', head: true }),
-          supabase.from('membros').select('*', { count: 'exact', head: true })
+          supabase.from('modelos_cartas').select('*', { count: 'exact', head: true }).eq("igreja_id", user.igreja_id),
+          supabase.from('membros').select('*', { count: 'exact', head: true }).eq("igreja_id", user.igreja_id)
         ]);
 
+        if (modelosRes.error) throw modelosRes.error;
+        if (membrosRes.error) throw membrosRes.error;
         setTotalModelos(modelosRes.count || 0);
         setTotalMembros(membrosRes.count || 0);
       } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+        setLoadError(error instanceof Error ? error.message : "Erro ao carregar dados.");
       } finally {
         setLoading(false);
       }
@@ -36,8 +45,9 @@ export default function GestaoCartasPage() {
       {/* Cabeçalho */}
       <div>
         <h1 className="text-xl font-bold text-white tracking-tight">Gestão de Cartas</h1>
-        <p className="text-gray-400 text-xs mt-0.5">Crie modelos personalizados de cartas com variáveis dinâmicas e emita documentos impressos para seus membros.</p>
+        <p className="text-gray-400 text-xs mt-0.5">        Crie modelos personalizados com variáveis dinâmicas, pré-visualize em A4 e encaminhe por WhatsApp ou e-mail.</p>
       </div>
+      {loadError && <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">{loadError}</p>}
 
       {/* Grid dos dois Cards Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
@@ -82,7 +92,7 @@ export default function GestaoCartasPage() {
               </div>
               <h2 className="text-lg font-bold text-white mb-2">Impressão de Cartas</h2>
               <p className="text-sm text-gray-400 leading-relaxed mb-8">
-                Emita e imprima cartas personalizadas selecionando o modelo e o membro desejado. Visualização em formato A4 com impressão em 1 clique.
+                Emita cartas personalizadas para membros, imprima em A4, envie texto por WhatsApp com consentimento ou encaminhe por e-mail a igrejas cadastradas.
               </p>
             </div>
 

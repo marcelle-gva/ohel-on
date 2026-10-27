@@ -17,6 +17,8 @@ function PreCadastroForm() {
   const [activeTab, setActiveTab] = useState("pessoais");
   const [loading, setLoading] = useState(false);
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
+  const [erroCongregacoes, setErroCongregacoes] = useState("");
+  const [formError, setFormError] = useState("");
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
   
   const [consentAccepted, setConsentAccepted] = useState(false);
@@ -30,20 +32,61 @@ function PreCadastroForm() {
   useEffect(() => {
     const fetchCongregacoes = async () => {
       if (!igrejaId) return;
-      const { data } = await supabase.from('congregacoes').select('id, nome').eq('igreja_id', igrejaId).order('nome');
-      if (data) setCongregacoes(data);
+      const { data, error } = await supabase.from('congregacoes').select('id, nome').eq('igreja_id', igrejaId).order('nome');
+      if (error) {
+        console.error("Falha ao carregar congregações do pré-cadastro:", error);
+        setErroCongregacoes("Não foi possível carregar as congregações. Você ainda pode enviar o pré-cadastro sem selecionar uma.");
+        return;
+      }
+      setCongregacoes(data ?? []);
+      setErroCongregacoes("");
     };
     fetchCongregacoes();
   }, [igrejaId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormError("");
+  };
+
+  const avancarEtapa = () => {
+    if (activeTab === "pessoais") {
+      if (!formData.nome.trim()) {
+        setFormError("Informe seu nome completo para continuar.");
+        return;
+      }
+      if (!formData.telefone.trim()) {
+        setFormError("Informe seu telefone ou WhatsApp para continuar.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        setFormError("Informe um e-mail válido para continuar.");
+        return;
+      }
+      setActiveTab("endereco");
+    } else if (activeTab === "endereco") {
+      setActiveTab("adicionais");
+    }
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const voltarEtapa = () => {
+    setActiveTab(activeTab === "adicionais" ? "endereco" : "pessoais");
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!igrejaId) return setModal({ isOpen: true, type: "error", title: "Erro", message: "Link de pré-cadastro inválido." });
+    if (!formData.nome.trim() || !formData.telefone.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setFormError("Confira nome, telefone e e-mail. Esses dados são obrigatórios.");
+      setActiveTab("pessoais");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     if (!consentAccepted) return setModal({ isOpen: true, type: "warning", title: "Atenção", message: "Para prosseguir, você precisa aceitar o Termo de Consentimento e Privacidade." });
     
     setLoading(true);
@@ -81,6 +124,7 @@ function PreCadastroForm() {
       });
       setConsentAccepted(false);
       setActiveTab("pessoais");
+      setFormError("");
     } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seus dados. Tente novamente." });
     } finally {
@@ -89,7 +133,7 @@ function PreCadastroForm() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-ohel-glow py-8 px-4 flex flex-col items-center justify-start">
+    <div className="w-full min-h-[100dvh] bg-ohel-glow py-5 px-3 sm:px-4 md:py-8 flex flex-col items-center justify-start">
       
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
@@ -103,7 +147,7 @@ function PreCadastroForm() {
       </div>
 
       {/* Card Principal (Agora com max-w-2xl e sem altura mínima) */}
-      <Card className="w-full max-w-2xl p-0 overflow-hidden border-gray-800 shadow-2xl flex flex-col">
+      <Card className="w-full max-w-2xl p-0 overflow-visible border-gray-800 shadow-2xl flex flex-col">
         
         {/* Menu de Abas */}
         <div className="flex border-b border-gray-800 bg-ohel-surface/50 overflow-x-auto shrink-0">
@@ -120,7 +164,8 @@ function PreCadastroForm() {
 
         <form onSubmit={handleSubmit} className="flex flex-col">
           
-          <div className="p-5 md:p-6">
+          {formError && <p role="alert" className="mx-5 mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 md:mx-6">{formError}</p>}
+          <div className="p-5 pb-4 md:p-6 md:pb-4">
             {activeTab === "pessoais" && (
               <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <Input label="Nome Completo *" name="nome" value={formData.nome} onChange={handleChange} required placeholder="Seu nome" />
@@ -191,6 +236,11 @@ function PreCadastroForm() {
                       <option key={c.id} value={c.id}>{c.nome}</option>
                     ))}
                   </select>
+                  {erroCongregacoes ? (
+                    <p role="status" className="text-xs text-amber-300">{erroCongregacoes}</p>
+                  ) : congregacoes.length === 0 ? (
+                    <p className="text-xs text-gray-500">Nenhuma congregação cadastrada. Você pode continuar sem selecionar uma.</p>
+                  ) : null}
                 </div>
 
                 {/* TERMO DE CONSENTIMENTO (Apenas na última aba) */}
@@ -220,12 +270,31 @@ function PreCadastroForm() {
                   </label>
                 </div>
 
-                {/* BOTÃO DE ENVIAR (Apenas na última aba) */}
-                <Button type="submit" variant="primary" disabled={loading} className="w-full py-3 text-sm font-bold shadow-[0_0_20px_rgba(0,123,255,0.3)] mt-2">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {loading ? "Enviando dados..." : "Finalizar Pré-Cadastro"}
-                </Button>
               </div>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-gray-800 bg-ohel-surface/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:px-6">
+            {activeTab === "pessoais" ? (
+              <>
+                <span className="text-[11px] text-gray-500">Etapa 1 de 3</span>
+                <Button type="button" onClick={avancarEtapa} className="min-h-11 px-5">Próximo</Button>
+              </>
+            ) : activeTab === "endereco" ? (
+              <>
+                <Button type="button" variant="secondary" onClick={voltarEtapa} className="min-h-11 px-4">Voltar</Button>
+                <span className="text-[11px] text-gray-500">Etapa 2 de 3</span>
+                <Button type="button" onClick={avancarEtapa} className="min-h-11 px-5">Próximo</Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="secondary" onClick={voltarEtapa} className="min-h-11 px-4">Voltar</Button>
+                <span className="text-[11px] text-gray-500">Etapa 3 de 3</span>
+                <Button type="submit" disabled={loading} className="min-h-11 px-4 text-xs sm:px-5 sm:text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  {loading ? "Enviando..." : "Enviar pré-cadastro"}
+                </Button>
+              </>
             )}
           </div>
         </form>

@@ -6,8 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, Save, AlignLeft, Bold, Italic, Underline, List, Image as ImageIcon, Search, Eye, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, AlignLeft, Bold, Italic, Underline, List, Search, Eye, X, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { buildLetterHtml, sanitizeLetterHtml } from "@/lib/cartas";
 
 export default function EditarModeloCartaPage() {
   const router = useRouter();
@@ -17,10 +18,13 @@ export default function EditarModeloCartaPage() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [editorReady, setEditorReady] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const [formData, setFormData] = useState({
-    nome: "", tipo_cabecalho: "padrao", tipo_rodape: "padrao", texto_rodape: "", conteudo: ""
+    nome: "", tipo_cabecalho: "padrao", tipo_rodape: "padrao", texto_rodape: "", imagem_cabecalho_url: "", conteudo: ""
   });
 
   const [buscaVar, setBuscaVar] = useState("");
@@ -29,13 +33,19 @@ export default function EditarModeloCartaPage() {
     { cat: "Dados Pessoais", items: [
       { tag: "{{nome}}", desc: "Nome Completo" }, { tag: "{{cpf}}", desc: "CPF" },
       { tag: "{{rg}}", desc: "RG" }, { tag: "{{data_nascimento}}", desc: "Data de Nascimento" },
+      { tag: "{{email}}", desc: "E-mail" }, { tag: "{{telefone}}", desc: "Telefone" },
+      { tag: "{{endereco}}", desc: "Endereço" },
     ]},
     { cat: "Dados Eclesiásticos", items: [
       { tag: "{{cargo}}", desc: "Cargo Atual" }, { tag: "{{congregacao}}", desc: "Congregação" },
-      { tag: "{{data_batismo}}", desc: "Data de Batismo" },
+      { tag: "{{data_batismo}}", desc: "Data de Batismo" }, { tag: "{{cidade}}", desc: "Cidade" },
+      { tag: "{{estado}}", desc: "Estado" }, { tag: "{{cep}}", desc: "CEP" },
+      { tag: "{{igreja_destino}}", desc: "Igreja destinatária (envio por e-mail)" },
+      { tag: "{{email_igreja_destino}}", desc: "E-mail da igreja destinatária" },
     ]},
     { cat: "Sistema / Igreja", items: [
       { tag: "{{denominacao}}", desc: "Nome da Igreja" }, { tag: "{{data_atual}}", desc: "Data de Hoje" },
+      { tag: "{{data_emissao}}", desc: "Data de Emissão" },
     ]}
   ];
 
@@ -43,20 +53,23 @@ export default function EditarModeloCartaPage() {
     const fetchModelo = async () => {
       if (!id) return;
       try {
-        const { data, error } = await supabase.from('modelos_cartas').select('*').eq('id', id).single();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) throw new Error("Sua sessão expirou. Entre novamente.");
+        const { data: user, error: userError } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
+        if (userError) throw userError;
+        if (!user?.igreja_id) throw new Error("Não foi possível identificar a igreja do usuário.");
+        setIgrejaId(user.igreja_id);
+        const { data, error } = await supabase.from('modelos_cartas').select('*').eq('igreja_id', user.igreja_id).eq('id', id).maybeSingle();
         if (error) throw error;
-
-        if (data) {
-          setFormData({
-            nome: data.nome || "", tipo_cabecalho: data.tipo_cabecalho || "padrao",
-            tipo_rodape: data.tipo_rodape || "padrao", texto_rodape: data.texto_rodape || "", conteudo: data.conteudo || ""
-          });
-          if (editorRef.current) {
-            editorRef.current.innerHTML = data.conteudo || "";
-          }
-        }
+        if (!data) throw new Error("Modelo não encontrado nesta igreja.");
+        setFormData({
+          nome: data.nome || "", tipo_cabecalho: data.tipo_cabecalho || "padrao",
+          tipo_rodape: data.tipo_rodape || "padrao", texto_rodape: data.texto_rodape || "",
+          imagem_cabecalho_url: data.imagem_cabecalho_url || "", conteudo: data.conteudo || ""
+        });
       } catch (error) {
-        setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar." });
+        setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Erro ao carregar o modelo." });
       } finally {
         setLoading(false);
       }
@@ -64,12 +77,20 @@ export default function EditarModeloCartaPage() {
     fetchModelo();
   }, [id]);
 
+  useEffect(() => {
+    if (!loading && !editorReady && editorRef.current) {
+      editorRef.current.innerHTML = sanitizeLetterHtml(formData.conteudo);
+      setEditorReady(true);
+    }
+  }, [loading, editorReady, formData.conteudo]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleEditorInput = () => {
-    if (editorRef.current) setFormData({ ...formData, conteudo: editorRef.current.innerHTML });
+    const conteudo = editorRef.current?.innerHTML || "";
+    setFormData(prev => ({ ...prev, conteudo }));
   };
 
   const execCommand = (command: string) => {
@@ -87,23 +108,42 @@ export default function EditarModeloCartaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada." });
+      return;
+    }
+    if (formData.tipo_cabecalho === "custom" && !/^https:\/\/\S+$/i.test(formData.imagem_cabecalho_url)) {
+      setModal({ isOpen: true, type: "error", title: "Atenção", message: "Informe uma URL HTTPS válida para o banner personalizado." });
+      return;
+    }
     setSaving(true);
     try {
-      const conteudoFinal = editorRef.current?.innerHTML || "";
-      const { error } = await supabase.from("modelos_cartas").update({
+      const conteudoFinal = sanitizeLetterHtml(editorRef.current?.innerHTML || "");
+      const { data, error } = await supabase.from("modelos_cartas").update({
         nome: formData.nome, tipo_cabecalho: formData.tipo_cabecalho,
-        tipo_rodape: formData.tipo_rodape, texto_rodape: formData.texto_rodape, conteudo: conteudoFinal
-      }).eq("id", id);
+        tipo_rodape: formData.tipo_rodape, texto_rodape: formData.texto_rodape,
+        imagem_cabecalho_url: formData.imagem_cabecalho_url || null, conteudo: conteudoFinal
+      }).eq("igreja_id", igrejaId).eq("id", id).select("id").maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("O modelo não foi atualizado.");
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Modelo atualizado!" });
       setTimeout(() => router.push("/secretaria/cartas/modelos"), 1500);
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível salvar o modelo." });
       setSaving(false);
     }
   };
+
+  const previewHtml = buildLetterHtml(
+    formData,
+    { nome: "Maria Exemplo", cpf: "000.000.000-00", cargo: "Membro", congregacoes: { nome: "Sede" } },
+    { nome: "Igreja Exemplo", email: "contato@igreja.com", telefone: "(00) 0000-0000" },
+    "2025-01-15",
+    { mostrarCabecalho: true, mostrarRodape: true, incluirAssinatura: false, assinaturas: [] },
+    sanitizeLetterHtml(formData.conteudo),
+  );
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando modelo...</div>;
 
@@ -143,6 +183,31 @@ export default function EditarModeloCartaPage() {
                   <p className="text-xs font-bold text-white">Personalizado</p>
                 </button>
               </div>
+              {formData.tipo_cabecalho === "custom" && (
+                <Input label="URL HTTPS do banner *" name="imagem_cabecalho_url" value={formData.imagem_cabecalho_url} onChange={handleChange} placeholder="https://..." required className="mt-3 py-2 text-xs" />
+              )}
+            </div>
+
+            <div className="mb-5">
+              <label className="text-[10px] font-semibold text-ohel-silver uppercase tracking-wider mb-2 block">Rodapé</label>
+              <select
+                value={formData.tipo_rodape}
+                onChange={event => setFormData(prev => ({ ...prev, tipo_rodape: event.target.value }))}
+                className="input-ohel w-full rounded-md px-3 py-2 text-xs"
+              >
+                <option value="padrao">Rodapé padrão do OHEL ON</option>
+                <option value="custom">Texto personalizado</option>
+              </select>
+              {formData.tipo_rodape === "custom" && (
+                <textarea
+                  value={formData.texto_rodape}
+                  onChange={event => setFormData(prev => ({ ...prev, texto_rodape: event.target.value }))}
+                  maxLength={1000}
+                  rows={3}
+                  placeholder="Endereço, contato ou observações do documento"
+                  className="input-ohel mt-3 w-full rounded-md px-3 py-2 text-xs"
+                />
+              )}
             </div>
 
             <div>
@@ -201,9 +266,27 @@ export default function EditarModeloCartaPage() {
               })}
             </div>
           </div>
+          <div className="bg-ohel-surface border border-gray-800 rounded-xl p-5 text-center">
+            <button type="button" onClick={() => setPreviewOpen(true)} className="bg-ohel-bg border border-gray-700 text-gray-300 font-medium py-2 px-4 rounded-md text-xs flex items-center justify-center gap-2 w-full hover:text-white transition-colors">
+              <Eye className="w-4 h-4" /> Pré-visualizar Carta
+            </button>
+          </div>
         </div>
 
       </div>
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Pré-visualização da carta">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-gray-700 bg-ohel-surface">
+            <div className="flex items-center justify-between border-b border-gray-700 px-5 py-3">
+              <h2 className="text-sm font-bold text-white">Pré-visualização</h2>
+              <button type="button" onClick={() => setPreviewOpen(false)} aria-label="Fechar pré-visualização" className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="overflow-auto bg-gray-200 p-6">
+              <div className="mx-auto min-h-[297mm] w-full max-w-[210mm] bg-white p-12 shadow-lg" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

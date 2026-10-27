@@ -109,19 +109,21 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="flex h-screen w-full bg-ohel-bg overflow-hidden">
+    <div className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-ohel-bg">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} permissoes={permissoes} isAdmin={isAdmin} />
 
-      <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="md:hidden absolute top-4 left-4 z-50">
           <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-ohel-surface border border-gray-800 rounded-lg text-white">
             <Menu className="w-6 h-6" />
           </button>
         </div>
 
-        <Header />
+        <div className="shrink-0">
+          <Header />
+        </div>
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-16 md:pt-8">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-16 md:p-8 md:pt-8">
           {children}
         </main>
       </div>

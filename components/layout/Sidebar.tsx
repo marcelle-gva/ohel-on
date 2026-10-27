@@ -169,7 +169,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, isAdmin }: SidebarProps
 
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
-        w-64 bg-ohel-surface border-r border-gray-800 flex flex-col h-full transition-transform duration-300
+        w-64 shrink-0 bg-ohel-surface border-r border-gray-800 flex flex-col h-full min-h-0 transition-transform duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
         

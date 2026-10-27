@@ -1,25 +1,58 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, Printer, Search, Check, FileText, Eye, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Search, Check, FileText, Eye, Calendar, Trash2, Mail, MessageCircle } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
+import { buildLetterHtml, letterHtmlToText, sanitizeLetterHtml } from "@/lib/cartas";
+
+type MemberRow = Record<string, unknown> & {
+  id: string;
+  nome: string;
+  cpf?: string | null;
+  rg?: string | null;
+  cargo?: string | null;
+  telefone?: string | null;
+  whatsapp_opt_in?: boolean | null;
+  congregacoes?: { nome?: string | null } | null;
+};
+type ChurchRow = Record<string, unknown> & {
+  id: string;
+  nome: string;
+  logo_url?: string | null;
+  cnpj?: string | null;
+  endereco?: string | null;
+  email?: string | null;
+  telefone?: string | null;
+};
+type LetterModel = Record<string, unknown> & {
+  id: string;
+  nome: string;
+  conteudo?: string | null;
+  tipo_cabecalho?: string | null;
+  tipo_rodape?: string | null;
+  texto_rodape?: string | null;
+  imagem_cabecalho_url?: string | null;
+};
+type Signature = { id: string; cargo: string; nome: string };
 
 export default function ImprimirCartasPage() {
-  const router = useRouter();
-  
   const [loading, setLoading] = useState(true);
-  const [igreja, setIgreja] = useState<any>(null);
-  const [modelos, setModelos] = useState<any[]>([]);
-  const [membros, setMembros] = useState<any[]>([]);
-  
-  const [modeloSelecionado, setModeloSelecionado] = useState<any>(null);
+  const [igreja, setIgreja] = useState<ChurchRow | null>(null);
+  const [modelos, setModelos] = useState<LetterModel[]>([]);
+  const [membros, setMembros] = useState<MemberRow[]>([]);
+  const [igrejasDestinatarias, setIgrejasDestinatarias] = useState<Array<{ id: string; nome: string; email: string }>>([]);
+
+  const [modeloSelecionado, setModeloSelecionado] = useState<LetterModel | null>(null);
   const [membrosSelecionados, setMembrosSelecionados] = useState<string[]>([]);
+  const [igrejasSelecionadas, setIgrejasSelecionadas] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [destinatariosError, setDestinatariosError] = useState("");
+  const [sendStatus, setSendStatus] = useState("");
+  const [sending, setSending] = useState(false);
   
   // Configurações do Documento
   const [dataEmissao, setDataEmissao] = useState(new Date().toISOString().split('T')[0]);
@@ -28,7 +61,7 @@ export default function ImprimirCartasPage() {
   const [incluirAssinatura, setIncluirAssinatura] = useState(true);
 
   // Gerenciamento de Assinaturas
-  const [assinaturas, setAssinaturas] = useState<any[]>([]);
+  const [assinaturas, setAssinaturas] = useState<Signature[]>([]);
   
   const tiposAssinatura = [
     "Pr. Presidente", "1º Secretário", "Pr. Auxiliar", "2º Secretário",
@@ -38,11 +71,13 @@ export default function ImprimirCartasPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) throw new Error("Sua sessão expirou. Entre novamente.");
 
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (!user) return;
+        const { data: user, error: userError } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+        if (userError) throw userError;
+        if (!user?.igreja_id) throw new Error("Não foi possível identificar a igreja do usuário.");
 
         const [igrejaRes, modelosRes, membrosRes] = await Promise.all([
           supabase.from('igrejas').select('*').eq('id', user.igreja_id).single(),
@@ -50,15 +85,27 @@ export default function ImprimirCartasPage() {
           supabase.from('membros').select('*, congregacoes(nome)').eq('igreja_id', user.igreja_id).order('nome')
         ]);
 
-        if (igrejaRes.data) setIgreja(igrejaRes.data);
-        if (modelosRes.data) {
-          setModelos(modelosRes.data);
-          if (modelosRes.data.length > 0) setModeloSelecionado(modelosRes.data[0]);
+        if (igrejaRes.error) throw igrejaRes.error;
+        if (modelosRes.error) throw modelosRes.error;
+        if (membrosRes.error) throw membrosRes.error;
+        setIgreja(igrejaRes.data as ChurchRow);
+        setModelos((modelosRes.data ?? []) as LetterModel[]);
+        if (modelosRes.data?.length) setModeloSelecionado(modelosRes.data[0]);
+        setMembros((membrosRes.data ?? []) as MemberRow[]);
+
+        const recipientsResponse = await fetch("/api/cartas/recipients", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        const recipientsResult = await recipientsResponse.json() as { churches?: Array<{ id: string; nome: string; email: string }>; error?: string };
+        if (!recipientsResponse.ok) {
+          setDestinatariosError(recipientsResult.error ?? "Não foi possível carregar as igrejas destinatárias.");
+        } else {
+          setIgrejasDestinatarias(recipientsResult.churches ?? []);
         }
-        if (membrosRes.data) setMembros(membrosRes.data);
 
       } catch (error) {
-        console.error(error);
+        setLoadError(error instanceof Error ? error.message : "Não foi possível carregar os dados das cartas.");
       } finally {
         setLoading(false);
       }
@@ -71,7 +118,7 @@ export default function ImprimirCartasPage() {
     if (existe) {
       setAssinaturas(assinaturas.filter(a => a.cargo !== tipo));
     } else {
-      setAssinaturas([...assinaturas, { id: Date.now().toString(), cargo: tipo, nome: "" }]);
+      setAssinaturas([...assinaturas, { id: crypto.randomUUID(), cargo: tipo, nome: "" }]);
     }
   };
 
@@ -101,31 +148,123 @@ export default function ImprimirCartasPage() {
   };
 
   const membrosFiltrados = membros.filter(m => 
-    m.nome.toLowerCase().includes(busca.toLowerCase()) || 
+    (m.nome || "").toLowerCase().includes(busca.toLowerCase()) ||
     (m.cpf && m.cpf.includes(busca))
   );
 
-  const gerarTextoCartas = (membro: any) => {
+  const gerarCartaHtml = (membro: MemberRow) => {
     if (!modeloSelecionado || !membro || !igreja) return "";
+    return buildLetterHtml(
+      modeloSelecionado,
+      membro,
+      igreja,
+      dataEmissao,
+      { mostrarCabecalho, mostrarRodape, incluirAssinatura, assinaturas },
+      sanitizeLetterHtml(modeloSelecionado.conteudo || ""),
+    );
+  };
 
-    let texto = modeloSelecionado.conteudo;
-    const dataFormatada = new Date(`${dataEmissao}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-    
-    const substituicoes = {
-      "{{nome}}": membro.nome || "",
-      "{{cpf}}": membro.cpf || "Não informado",
-      "{{rg}}": membro.rg || "Não informado",
-      "{{cargo}}": membro.cargo || "Membro",
-      "{{congregacao}}": membro.congregacoes?.nome || "Sede",
-      "{{denominacao}}": igreja.nome || "Igreja",
-      "{{data_atual}}": dataFormatada
-    };
+  const authorizationHeaders = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!session?.access_token) throw new Error("Sua sessão expirou. Entre novamente.");
+    return { Authorization: `Bearer ${session.access_token}` };
+  };
 
-    Object.keys(substituicoes).forEach(tag => {
-      texto = texto.replace(new RegExp(tag, 'g'), substituicoes[tag as keyof typeof substituicoes]);
-    });
+  const enviarWhatsApp = async () => {
+    setSendStatus("");
+    if (!modeloSelecionado || !membrosSelecionados.length) {
+      setSendStatus("Selecione um modelo e pelo menos um membro.");
+      return;
+    }
+    const selecionados = membros.filter(m => membrosSelecionados.includes(m.id));
+    const inelegiveis = selecionados.filter(m => m.whatsapp_opt_in !== true || !m.telefone);
+    if (inelegiveis.length) {
+      setSendStatus(`${inelegiveis.map(m => m.nome).join(", ")}: falta consentimento WhatsApp ou telefone no cadastro.`);
+      return;
+    }
+    if (!window.confirm(`Enviar ${selecionados.length} carta(s) por WhatsApp? A Meta pode exigir uma janela de atendimento ativa.`)) return;
+    setSending(true);
+    let accepted = 0;
+    const failures: string[] = [];
+    try {
+      const headers = await authorizationHeaders();
+      for (const membro of selecionados) {
+        const text = letterHtmlToText(gerarCartaHtml(membro));
+        if (text.length > 4096) {
+          failures.push(`${membro.nome}: a carta excede o limite de 4.096 caracteres do WhatsApp.`);
+          continue;
+        }
+        const response = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ recipients: [{ id: membro.id, type: "membro" }], type: "texto", text }),
+        });
+        const result = await response.json() as {
+          accepted?: number;
+          results?: Array<{ error?: string }>;
+          historyIncompleteFor?: string[];
+          message?: string;
+          error?: string;
+        };
+        if (!response.ok && response.status !== 207) {
+          failures.push(`${membro.nome}: ${result.error ?? "envio recusado"}`);
+        } else if (result.accepted) {
+          accepted += result.accepted;
+          if (result.historyIncompleteFor?.length) failures.push(`${membro.nome}: ${result.message ?? "O histórico do envio ficou incompleto."}`);
+        } else {
+          failures.push(`${membro.nome}: ${result.results?.[0]?.error ?? "a Meta não aceitou a mensagem"}`);
+        }
+      }
+      setSendStatus(`${accepted} aceita(s) pela Meta; ${failures.length} falha(s).${failures.length ? ` ${failures.join(" · ")}` : ""}`);
+    } catch (error) {
+      setSendStatus(error instanceof Error ? error.message : "Não foi possível enviar as cartas por WhatsApp.");
+    } finally {
+      setSending(false);
+    }
+  };
 
-    return texto;
+  const enviarEmail = async () => {
+    setSendStatus("");
+    if (!modeloSelecionado || !membrosSelecionados.length || !igrejasSelecionadas.length) {
+      setSendStatus("Selecione o modelo, pelo menos um membro e uma igreja destinatária.");
+      return;
+    }
+    const totalEmails = membrosSelecionados.length * igrejasSelecionadas.length;
+    if (totalEmails > 20) {
+      setSendStatus("O envio permite no máximo 20 cartas por solicitação. Reduza os membros ou as igrejas selecionadas.");
+      return;
+    }
+    if (!window.confirm(`Enviar ${totalEmails} e-mail(s), um por combinação de membro e igreja selecionada?`)) return;
+    setSending(true);
+    try {
+      const headers = await authorizationHeaders();
+      const response = await fetch("/api/cartas/send-email", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelId: modeloSelecionado.id,
+          memberIds: membrosSelecionados,
+          churchIds: igrejasSelecionadas,
+          emissionDate: dataEmissao,
+          options: { mostrarCabecalho, mostrarRodape, incluirAssinatura, assinaturas: assinaturas.map(({ cargo, nome }) => ({ cargo, nome })) },
+        }),
+      });
+      const result = await response.json() as {
+        accepted?: number;
+        failed?: number;
+        message?: string;
+        error?: string;
+        results?: Array<{ member: string; church: string; error?: string }>;
+      };
+      if (!response.ok && response.status !== 207) throw new Error(result.error ?? "Não foi possível enviar os e-mails.");
+      const failures = result.results?.filter(item => item.error).map(item => `${item.member} → ${item.church}: ${item.error}`) ?? [];
+      setSendStatus(`${result.message ?? "Envio concluído"} ${result.accepted ?? 0} aceito(s), ${result.failed ?? 0} falha(s).${failures.length ? ` ${failures.join(" · ")}` : ""}`);
+    } catch (error) {
+      setSendStatus(error instanceof Error ? error.message : "Não foi possível enviar as cartas por e-mail.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando dados para impressão...</div>;
@@ -144,10 +283,21 @@ export default function ImprimirCartasPage() {
             <p className="text-gray-400 text-xs mt-0.5">Escolha o modelo, selecione os destinatários e imprima os documentos.</p>
           </div>
         </div>
-        <Button onClick={handlePrint} className="w-auto px-6 py-2 text-xs bg-ohel-blue hover:bg-blue-600 text-white shadow-lg">
-          <Printer className="w-4 h-4 mr-2" /> Imprimir Selecionados ({membrosSelecionados.length})
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handlePrint} className="w-auto px-4 py-2 text-xs bg-ohel-blue hover:bg-blue-600 text-white shadow-lg">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir ({membrosSelecionados.length})
+          </Button>
+          <Button onClick={() => void enviarWhatsApp()} disabled={sending} className="w-auto px-4 py-2 text-xs bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50">
+            <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+          </Button>
+          <Button onClick={() => void enviarEmail()} disabled={sending} className="w-auto px-4 py-2 text-xs bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50">
+            <Mail className="w-4 h-4 mr-2" /> E-mail
+          </Button>
+        </div>
       </div>
+
+      {loadError && <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">{loadError}</p>}
+      {sendStatus && <p role="status" className="rounded-md border border-gray-700 bg-ohel-surface px-4 py-3 text-xs text-gray-200">{sendStatus}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 print:hidden items-start">
         
@@ -164,7 +314,7 @@ export default function ImprimirCartasPage() {
             
             <select 
               value={modeloSelecionado?.id || ""} 
-              onChange={(e) => setModeloSelecionado(modelos.find(m => m.id === e.target.value))}
+              onChange={(e) => setModeloSelecionado(modelos.find(m => m.id === e.target.value) ?? null)}
               className="input-ohel w-full px-3 py-2 rounded-md text-xs font-medium"
             >
               <option value="" disabled>Selecione o modelo</option>
@@ -215,11 +365,40 @@ export default function ImprimirCartasPage() {
                   />
                   <div className="flex-1 overflow-hidden">
                     <p className="text-[11px] font-bold text-white truncate">{membro.nome}</p>
-                    <p className="text-[9px] text-gray-500 truncate">CPF: {membro.cpf || "-"} • {membro.cargo}</p>
+                    <p className="text-[9px] text-gray-500 truncate">CPF: {membro.cpf || "-"} • {membro.cargo || "Membro"} • {membro.whatsapp_opt_in ? "WhatsApp autorizado" : "sem autorização WhatsApp"}</p>
                   </div>
                 </label>
               ))}
             </div>
+          </Card>
+
+          <Card className="p-4 flex flex-col gap-3 border-gray-800 bg-ohel-surface">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+              <h3 className="text-xs font-bold text-white">E-mail para igrejas cadastradas</h3>
+              <span className="text-[10px] text-gray-500">{igrejasSelecionadas.length} selecionada(s)</span>
+            </div>
+            {destinatariosError ? (
+              <p role="alert" className="text-[11px] text-amber-300">{destinatariosError}</p>
+            ) : igrejasDestinatarias.length === 0 ? (
+              <p className="text-[11px] text-gray-500">Nenhuma igreja com e-mail válido disponível.</p>
+            ) : (
+              <div className="flex max-h-[180px] flex-col gap-1.5 overflow-y-auto pr-1">
+                {igrejasDestinatarias.map(destinataria => (
+                  <label key={destinataria.id} className="flex items-start gap-2 rounded-md border border-gray-800 bg-ohel-bg p-2 text-[11px] text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={igrejasSelecionadas.includes(destinataria.id)}
+                      onChange={() => setIgrejasSelecionadas(current => current.includes(destinataria.id)
+                        ? current.filter(id => id !== destinataria.id)
+                        : [...current, destinataria.id])}
+                      className="mt-0.5 accent-ohel-blue"
+                    />
+                    <span className="min-w-0"><span className="block truncate font-semibold text-white">{destinataria.nome}</span><span className="block truncate text-gray-500">{destinataria.email}</span></span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-gray-500">Cada membro selecionado gera uma carta para cada igreja marcada. Limite: 20 e-mails por envio.</p>
           </Card>
 
           {/* CARD DE DATA E ASSINATURAS */}
@@ -318,51 +497,10 @@ export default function ImprimirCartasPage() {
                 <p className="text-sm font-medium">Aguardando seleção...</p>
               </div>
             ) : (
-              <div className="w-[210mm] min-h-[297mm] bg-white text-black p-10 shadow-lg font-sans flex flex-col">
-                
-                {mostrarCabecalho && (
-                  <div className="flex items-center justify-between border-b-2 border-gray-800 pb-4 mb-8">
-                    <div className="flex items-center gap-4">
-                      {igreja?.logo_url ? (
-                        <div className="relative w-32 h-16">
-                          <Image src={igreja.logo_url} alt="Logo" fill className="object-contain object-left" />
-                        </div>
-                      ) : (
-                        <div className="w-24 h-16 bg-gray-100 flex items-center justify-center border border-gray-300 text-xs text-gray-400">LOGO</div>
-                      )}
-                      <div><h1 className="text-xl font-bold uppercase">{igreja?.nome || "IGREJA"}</h1></div>
-                    </div>
-                    <div className="text-[10px] text-gray-600 leading-tight text-right">
-                      <p><strong>CNPJ:</strong> {igreja?.cnpj || "00.000.000/0000-00"}</p>
-                      <p>{igreja?.endereco || "Endereço da Igreja"}</p>
-                      <p><strong>E-mail:</strong> {igreja?.email || "email@igreja.com"}</p>
-                      <p><strong>Tel:</strong> {igreja?.telefone || "(00) 0000-0000"}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div 
-                  className="text-sm text-justify leading-loose min-h-[300px] whitespace-pre-wrap font-sans flex-1"
-                  dangerouslySetInnerHTML={{ __html: gerarTextoCartas(membroPreview) }} 
-                />
-
-                {incluirAssinatura && assinaturas.length > 0 && (
-                  <div className="mt-16 flex flex-wrap justify-around gap-8">
-                    {assinaturas.map(ass => (
-                      <div key={ass.id} className="w-56 border-t border-black text-center pt-2">
-                        <p className="text-sm font-bold">{ass.nome || ass.cargo}</p>
-                        <p className="text-xs text-gray-600">{ass.cargo}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {mostrarRodape && (
-                  <div className="border-t border-gray-300 pt-3 text-[8px] text-gray-400 text-justify mt-12">
-                    <p>Documento gerado eletronicamente pelo sistema OHEL ON. Válido em todo o território nacional.</p>
-                  </div>
-                )}
-              </div>
+              <div
+                className="w-[210mm] min-h-[297mm] bg-white p-10 shadow-lg"
+                dangerouslySetInnerHTML={{ __html: gerarCartaHtml(membroPreview) }}
+              />
             )}
           </div>
         </div>
@@ -375,43 +513,7 @@ export default function ImprimirCartasPage() {
           if (!membro) return null;
 
           return (
-            <div key={membro.id} className="print-page flex flex-col">
-              {mostrarCabecalho && (
-                <div className="flex items-center justify-between border-b-2 border-gray-800 pb-4 mb-8">
-                  <div className="flex items-center gap-4">
-                    {igreja?.logo_url && (
-                      <div className="relative w-32 h-16">
-                        <Image src={igreja.logo_url} alt="Logo" fill className="object-contain object-left" />
-                      </div>
-                    )}
-                    <div><h1 className="text-xl font-bold uppercase">{igreja?.nome}</h1></div>
-                  </div>
-                  <div className="text-[10px] text-gray-600 leading-tight text-right">
-                    <p><strong>CNPJ:</strong> {igreja?.cnpj}</p>
-                    <p>{igreja?.endereco}</p>
-                  </div>
-                </div>
-              )}
-              <div 
-                className="text-sm text-justify leading-loose whitespace-pre-wrap flex-1"
-                dangerouslySetInnerHTML={{ __html: gerarTextoCartas(membro) }} 
-              />
-              {incluirAssinatura && assinaturas.length > 0 && (
-                <div className="mt-20 flex flex-wrap justify-around gap-10">
-                  {assinaturas.map(ass => (
-                    <div key={ass.id} className="w-56 border-t border-black text-center pt-2">
-                      <p className="text-sm font-bold">{ass.nome || ass.cargo}</p>
-                      <p className="text-xs text-gray-600">{ass.cargo}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {mostrarRodape && (
-                <div className="border-t border-gray-300 pt-3 text-[8px] text-gray-400 text-justify mt-auto">
-                  <p>Documento gerado eletronicamente pelo sistema OHEL ON. Válido em todo o território nacional.</p>
-                </div>
-              )}
-            </div>
+            <div key={membro.id} className="print-page" dangerouslySetInnerHTML={{ __html: gerarCartaHtml(membro) }} />
           );
         })}
       </div>
@@ -433,7 +535,6 @@ export default function ImprimirCartasPage() {
             display: flex;
             flex-direction: column;
             background: white;
-            overflow: hidden;
           }
           .print-page:last-child { page-break-after: auto; break-after: auto; }
         }

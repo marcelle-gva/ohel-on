@@ -7,6 +7,17 @@ import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, Ca
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 
+interface PrayerApprovalAudit {
+  id: number;
+  pedido_id: string;
+  pedido_nome: string;
+  acao: "Aprovado" | "Rejeitado";
+  metodo: "pin" | "admin";
+  ator_nome: string;
+  ator_email: string | null;
+  created_at: string;
+}
+
 export default function MonitorMidiaPage() {
   const [loading, setLoading] = useState(true);
   
@@ -21,12 +32,22 @@ export default function MonitorMidiaPage() {
   
   // Permissões do Usuário
   const [podeAprovar, setPodeAprovar] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pinConfigurado, setPinConfigurado] = useState(false);
+  const [approvalAudit, setApprovalAudit] = useState<PrayerApprovalAudit[]>([]);
   const [podeVerEscala, setPodeVerEscala] = useState(false);
   
   // Estados dos Modais
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isPrayerQrModalOpen, setIsPrayerQrModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [isPinSetupOpen, setIsPinSetupOpen] = useState(false);
+  const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinConfirmation, setPinConfirmation] = useState("");
+  const [pendingPrayerDecision, setPendingPrayerDecision] = useState<{ id: string; decision: "approve" | "reject" } | null>(null);
+  const [isPrayerDecisionSubmitting, setIsPrayerDecisionSubmitting] = useState(false);
+  const [isPinSubmitting, setIsPinSubmitting] = useState(false);
 
   const [modalFeedback, setModalFeedback] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -52,20 +73,45 @@ export default function MonitorMidiaPage() {
           
           if (user) {
             setIgrejaId(user.igreja_id);
+            const adminAccess = user.role === 'admin';
+            setIsAdmin(adminAccess);
 
             // VERIFICAÇÃO DE PERMISSÕES
-            if (user.role === 'admin') {
+            let prayerApprovalAccess = adminAccess;
+            if (adminAccess) {
               setPodeAprovar(true);
               setPodeVerEscala(true);
             } else if (user.grupo_id) {
-              const { data: perms } = await supabase
+              const { data: perms, error: permissionError } = await supabase
                 .from('grupos_permissoes')
                 .select('modulo, acao')
                 .eq('grupo_id', user.grupo_id);
+              if (permissionError) throw permissionError;
               
               if (perms) {
-                setPodeAprovar(perms.some(p => p.modulo === 'monitor-oracoes' && p.acao === 'aprovar'));
+                prayerApprovalAccess = perms.some(p => p.modulo === 'monitor-oracoes' && p.acao === 'aprovar');
+                setPodeAprovar(prayerApprovalAccess);
                 setPodeVerEscala(perms.some(p => p.modulo === 'escalas' && p.acao === 'ler'));
+              }
+            }
+
+            if (prayerApprovalAccess) {
+              try {
+                const response = await fetch("/api/oracoes/aprovacao", {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || "Não foi possível carregar as permissões de aprovação.");
+                setPinConfigurado(result.pinConfigured === true);
+                setApprovalAudit(result.audit ?? []);
+              } catch (error) {
+                console.error("Não foi possível carregar as configurações de aprovação:", error);
+                setModalFeedback({
+                  isOpen: true,
+                  type: "error",
+                  title: "Falha ao carregar aprovação",
+                  message: error instanceof Error ? error.message : "Tente novamente.",
+                });
               }
             }
 
@@ -77,7 +123,7 @@ export default function MonitorMidiaPage() {
               supabase.from('visitantes').select('*').eq('data_visita', hoje),
               supabase.from('louvores').select('*').eq('data', hoje).order('created_at'),
               supabase.from('comunicacoes').select('*').order('created_at', { ascending: false }).limit(3),
-              supabase.from('pedidos_oracao').select('*').eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
+              supabase.from('pedidos_oracao').select('*').eq('status', 'Aprovado').eq('visibilidade', 'Público').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
               supabase.from('escalas')
@@ -111,6 +157,11 @@ export default function MonitorMidiaPage() {
               .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao' }, (payload) => {
                 if (payload.eventType === 'INSERT' && payload.new.status === 'Pendente') {
                   setOracoesPendentes((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
+                } else if (payload.eventType === 'UPDATE' && payload.new.status !== 'Pendente') {
+                  setOracoesPendentes((prev) => prev.filter(o => o.id !== payload.new.id));
+                  if (payload.new.status === 'Aprovado' && payload.new.visibilidade === 'Público') {
+                    setOracoesSemana((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
+                  }
                 }
               })
               .subscribe();
@@ -118,6 +169,12 @@ export default function MonitorMidiaPage() {
         }
       } catch (error) {
         console.error(error);
+        setModalFeedback({
+          isOpen: true,
+          type: "error",
+          title: "Falha ao carregar o monitor",
+          message: error instanceof Error ? error.message : "Não foi possível validar os dados de aprovação.",
+        });
       } finally {
         setLoading(false);
       }
@@ -146,30 +203,142 @@ export default function MonitorMidiaPage() {
       await supabase.from('louvores').delete().eq('id', louvorToDelete);
       setLouvoresHoje(louvoresHoje.filter(l => l.id !== louvorToDelete));
       setLouvorToDelete(null);
-    } catch (error) {
+    } catch {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível excluir." });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleApprovePrayer = async (id: string) => {
+  const refreshApprovalAudit = async (accessToken: string) => {
+    const response = await fetch("/api/oracoes/aprovacao", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Não foi possível atualizar o histórico.");
+    setPinConfigurado(result.pinConfigured === true);
+    setApprovalAudit(result.audit ?? []);
+  };
+
+  const submitPrayerDecision = async (decision: { id: string; decision: "approve" | "reject" }, submittedPin?: string) => {
     try {
-      await supabase.from('pedidos_oracao').update({ status: 'Aprovado' }).eq('id', id);
-      const aprovado = oracoesPendentes.find(o => o.id === id);
-      setOracoesPendentes(oracoesPendentes.filter(o => o.id !== id));
-      if (aprovado) setOracoesSemana([{ ...aprovado, status: 'Aprovado' }, ...oracoesSemana]);
+      setIsPrayerDecisionSubmitting(true);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) throw new Error("Sua sessão expirou. Entre novamente.");
+
+      const response = await fetch("/api/oracoes/aprovacao", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "decide",
+          prayerId: decision.id,
+          decision: decision.decision,
+          ...(submittedPin ? { pin: submittedPin } : {}),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível concluir a decisão.");
+
+      const pedido = oracoesPendentes.find(item => item.id === decision.id);
+      setOracoesPendentes(current => current.filter(item => item.id !== decision.id));
+      if (decision.decision === "approve" && pedido) {
+        setOracoesSemana(current => [{ ...pedido, status: "Aprovado" }, ...current]);
+      }
+      let auditRefreshed = true;
+      try {
+        await refreshApprovalAudit(session.access_token);
+      } catch (error) {
+        auditRefreshed = false;
+        console.error("A decisão foi registrada, mas o histórico não pôde ser atualizado:", error);
+      }
+      setPendingPrayerDecision(null);
+      setPin("");
+      setIsPinVerificationOpen(false);
+      setModalFeedback({
+        isOpen: true,
+        type: "success",
+        title: decision.decision === "approve" ? "Pedido aprovado" : "Pedido rejeitado",
+        message: auditRefreshed
+          ? "A decisão e o responsável foram registrados no histórico."
+          : "A decisão foi registrada. Atualize o monitor para recarregar o histórico.",
+      });
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível aprovar." });
+      setPin("");
+      setModalFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Não foi possível processar",
+        message: error instanceof Error ? error.message : "Não foi possível concluir a decisão.",
+      });
+    } finally {
+      setIsPrayerDecisionSubmitting(false);
     }
   };
 
-  const handleRejectPrayer = async (id: string) => {
+  const handlePrayerDecision = (id: string, decision: "approve" | "reject") => {
+    const nextDecision = { id, decision };
+    if (isAdmin) {
+      void submitPrayerDecision(nextDecision);
+      return;
+    }
+    setPendingPrayerDecision(nextDecision);
+    if (!pinConfigurado) {
+      setPin("");
+      setPinConfirmation("");
+      setIsPinSetupOpen(true);
+      return;
+    }
+    setPin("");
+    setIsPinVerificationOpen(true);
+  };
+
+  const savePrayerPin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(pin)) {
+      setModalFeedback({ isOpen: true, type: "error", title: "PIN inválido", message: "O PIN deve conter exatamente seis números." });
+      return;
+    }
+    if (pin !== pinConfirmation) {
+      setModalFeedback({ isOpen: true, type: "error", title: "PIN diferente", message: "A confirmação não corresponde ao PIN informado." });
+      return;
+    }
+
     try {
-      await supabase.from('pedidos_oracao').update({ status: 'Rejeitado' }).eq('id', id);
-      setOracoesPendentes(oracoesPendentes.filter(o => o.id !== id));
+      setIsPinSubmitting(true);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) throw new Error("Sua sessão expirou. Entre novamente.");
+
+      const response = await fetch("/api/oracoes/aprovacao", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "set_pin", pin }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível salvar o PIN.");
+
+      setPinConfigurado(result.pinConfigured === true);
+      setPin("");
+      setPinConfirmation("");
+      setPendingPrayerDecision(null);
+      setIsPinSetupOpen(false);
+      setModalFeedback({ isOpen: true, type: "success", title: "PIN configurado", message: "Agora informe seu PIN para cada aprovação ou rejeição." });
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível rejeitar." });
+      setModalFeedback({
+        isOpen: true,
+        type: "error",
+        title: "Não foi possível configurar o PIN",
+        message: error instanceof Error ? error.message : "Tente novamente.",
+      });
+    } finally {
+      setIsPinSubmitting(false);
     }
   };
 
@@ -524,6 +693,17 @@ export default function MonitorMidiaPage() {
             </div>
             
             <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3">
+              {!isAdmin && !pinConfigurado && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+                  <p className="text-xs text-yellow-200">Configure seu PIN pessoal antes de aprovar ou rejeitar pedidos.</p>
+                  <button
+                    onClick={() => { setPin(""); setPinConfirmation(""); setIsPinSetupOpen(true); }}
+                    className="shrink-0 rounded-md bg-yellow-500 px-3 py-2 text-xs font-semibold text-black hover:bg-yellow-400"
+                  >
+                    Configurar PIN
+                  </button>
+                </div>
+              )}
               {oracoesPendentes.length === 0 ? (
                 <p className="text-center text-gray-500 py-10">Nenhum pedido pendente.</p>
               ) : (
@@ -535,22 +715,125 @@ export default function MonitorMidiaPage() {
                       <p className="text-[10px] text-gray-500 mt-2">{new Date(o.created_at).toLocaleString('pt-BR')}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => handleRejectPrayer(o.id)} className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors" title="Rejeitar">
+                      <button onClick={() => handlePrayerDecision(o.id, "reject")} disabled={isPrayerDecisionSubmitting} className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors disabled:opacity-50" title="Rejeitar">
                         <Trash className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleApprovePrayer(o.id)} className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-lg transition-colors" title="Aprovar para o Telão">
+                      <button onClick={() => handlePrayerDecision(o.id, "approve")} disabled={isPrayerDecisionSubmitting} className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-lg transition-colors disabled:opacity-50" title="Aprovar para o Telão">
                         <Check className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 ))
               )}
+
+              <div className="mt-2 border-t border-gray-800 pt-4">
+                <h4 className="mb-3 text-sm font-semibold text-white">Histórico de decisões</h4>
+                {approvalAudit.length === 0 ? (
+                  <p className="text-xs text-gray-500">Nenhuma aprovação ou rejeição registrada.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {approvalAudit.map(entry => (
+                      <div key={entry.id} className="rounded-lg border border-gray-800 bg-ohel-bg px-3 py-2 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className={entry.acao === "Aprovado" ? "font-semibold text-green-400" : "font-semibold text-red-400"}>
+                            {entry.acao}
+                          </span>
+                          <span className="text-gray-500">{new Date(entry.created_at).toLocaleString("pt-BR")}</span>
+                        </div>
+                        <p className="mt-1 text-gray-300">{entry.pedido_nome} — {entry.ator_nome}</p>
+                        <p className="mt-0.5 text-gray-500">
+                          {entry.ator_email || "E-mail indisponível"} · {entry.metodo === "admin" ? "Ação administrativa" : "PIN pessoal"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end">
               <button onClick={() => setIsApprovalModalOpen(false)} className="bg-ohel-blue text-white font-medium py-2 px-6 rounded-md text-sm hover:bg-blue-600">Concluir</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isPinSetupOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <form onSubmit={savePrayerPin} className="w-full max-w-sm rounded-2xl border border-gray-800 bg-ohel-surface p-6 shadow-2xl">
+            <h3 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+              <Lock className="h-5 w-5 text-ohel-blue" /> Criar PIN de aprovação
+            </h3>
+            <p className="mb-5 text-sm text-gray-400">Escolha um PIN pessoal de seis números. Ele será solicitado em cada decisão.</p>
+            <label className="mb-4 flex flex-col gap-2 text-xs font-semibold uppercase tracking-wider text-gray-300">
+              PIN
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                pattern="[0-9]{6}"
+                value={pin}
+                onChange={event => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="input-ohel w-full rounded-lg px-4 py-3 text-sm tracking-[0.5em]"
+                required
+              />
+            </label>
+            <label className="mb-6 flex flex-col gap-2 text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Confirmar PIN
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                pattern="[0-9]{6}"
+                value={pinConfirmation}
+                onChange={event => setPinConfirmation(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="input-ohel w-full rounded-lg px-4 py-3 text-sm tracking-[0.5em]"
+                required
+              />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => { setIsPinSetupOpen(false); setPendingPrayerDecision(null); }} className="px-4 py-2 text-sm text-gray-400 hover:text-white" disabled={isPinSubmitting}>Cancelar</button>
+              <button type="submit" className="rounded-md bg-ohel-blue px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50" disabled={isPinSubmitting}>
+                {isPinSubmitting ? "Salvando..." : "Salvar PIN"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isPinVerificationOpen && pendingPrayerDecision && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <form
+            onSubmit={event => { event.preventDefault(); void submitPrayerDecision(pendingPrayerDecision, pin); }}
+            className="w-full max-w-sm rounded-2xl border border-gray-800 bg-ohel-surface p-6 shadow-2xl"
+          >
+            <h3 className="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+              <Lock className="h-5 w-5 text-ohel-blue" /> Confirmar decisão
+            </h3>
+            <p className="mb-5 text-sm text-gray-400">
+              Informe seu PIN para {pendingPrayerDecision.decision === "approve" ? "aprovar" : "rejeitar"} este pedido.
+            </p>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="current-password"
+              maxLength={6}
+              pattern="[0-9]{6}"
+              value={pin}
+              onChange={event => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="input-ohel mb-6 w-full rounded-lg px-4 py-3 text-center text-lg tracking-[0.5em]"
+              aria-label="PIN de aprovação"
+              required
+            />
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => { setIsPinVerificationOpen(false); setPendingPrayerDecision(null); setPin(""); }} className="px-4 py-2 text-sm text-gray-400 hover:text-white" disabled={isPrayerDecisionSubmitting}>Cancelar</button>
+              <button type="submit" className="rounded-md bg-ohel-blue px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50" disabled={isPrayerDecisionSubmitting}>
+                {isPrayerDecisionSubmitting ? "Verificando..." : "Confirmar"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
