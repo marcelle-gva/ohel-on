@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { ArrowLeft, Printer, FileText, Search, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/currency";
 
 export default function RelatoriosFinanceirosPage() {
   const [loading, setLoading] = useState(false);
@@ -215,21 +216,21 @@ export default function RelatoriosFinanceirosPage() {
                   <>
                     <td className={`p-2 border-r border-gray-200 font-bold ${d.tipo === 'Receita' ? 'text-green-600' : 'text-red-600'}`}>{d.tipo}</td>
                     <td className="p-2 border-r border-gray-200">{d.categoria}</td>
-                    <td className="p-2 text-right font-mono">{d.total.toFixed(2).replace('.', ',')}</td>
+                    <td className="p-2 text-right font-mono">{formatCurrency(d.total)}</td>
                   </>
                 )}
                 {tipoRelatorio === 'caixa' && (
                   <>
                     <td className="p-2 border-r border-gray-200 font-bold">{d.caixa}</td>
-                    <td className="p-2 text-right text-green-600 font-mono">{d.receitas.toFixed(2).replace('.', ',')}</td>
-                    <td className="p-2 text-right text-red-600 font-mono border-r border-gray-200">{d.despesas.toFixed(2).replace('.', ',')}</td>
-                    <td className={`p-2 text-right font-mono font-bold ${d.saldo >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{d.saldo.toFixed(2).replace('.', ',')}</td>
+                    <td className="p-2 text-right text-green-600 font-mono">{formatCurrency(d.receitas)}</td>
+                    <td className="p-2 text-right text-red-600 font-mono border-r border-gray-200">{formatCurrency(d.despesas)}</td>
+                    <td className={`p-2 text-right font-mono font-bold ${d.saldo >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatCurrency(d.saldo)}</td>
                   </>
                 )}
                 {tipoRelatorio === 'membro' && (
                   <>
                     <td className="p-2 border-r border-gray-200">{d.membro}</td>
-                    <td className="p-2 text-right font-mono text-green-600">{d.valor.toFixed(2).replace('.', ',')}</td>
+                    <td className="p-2 text-right font-mono text-green-600">{formatCurrency(d.valor)}</td>
                   </>
                 )}
               </tr>
@@ -242,15 +243,15 @@ export default function RelatoriosFinanceirosPage() {
           <div className="border-t-2 border-gray-800 pt-4 flex flex-col items-end gap-1">
             <div className="flex justify-between w-64 text-xs">
               <span className="font-bold">Total de Receitas:</span>
-              <span className="font-mono text-green-600">R$ {totais.receitas.toFixed(2).replace('.', ',')}</span>
+              <span className="font-mono text-green-600">{formatCurrency(totais.receitas)}</span>
             </div>
             <div className="flex justify-between w-64 text-xs">
               <span className="font-bold">Total de Despesas:</span>
-              <span className="font-mono text-red-600">R$ {totais.despesas.toFixed(2).replace('.', ',')}</span>
+              <span className="font-mono text-red-600">{formatCurrency(totais.despesas)}</span>
             </div>
             <div className="flex justify-between w-64 text-sm border-t border-gray-300 pt-1 mt-1">
               <span className="font-bold">Saldo Final:</span>
-              <span className={`font-mono font-bold ${totais.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>R$ {totais.saldo.toFixed(2).replace('.', ',')}</span>
+              <span className={`font-mono font-bold ${totais.saldo >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{formatCurrency(totais.saldo)}</span>
             </div>
           </div>
         )}

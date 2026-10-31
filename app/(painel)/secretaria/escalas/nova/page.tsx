@@ -35,10 +35,23 @@ export default function NovaEscalaPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
+        if (user) {
+          setIgrejaId(user.igreja_id);
+          const { data: membs, error } = await supabase.from('membros')
+            .select('id, nome')
+            .eq('igreja_id', user.igreja_id)
+            .order('nome');
+          if (error) {
+            setModal({ isOpen: true, type: "error", title: "Erro ao carregar membros", message: error.message });
+          } else {
+            setMembros(membs || []);
+          }
+        } else {
+          setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível identificar a igreja do usuário." });
+        }
+      } else {
+        setModal({ isOpen: true, type: "error", title: "Sessão expirada", message: "Entre novamente para criar uma escala." });
       }
-      const { data: membs } = await supabase.from('membros').select('id, nome').order('nome');
-      if (membs) setMembros(membs);
     };
     initPage();
   }, []);

@@ -13,6 +13,7 @@ import { ArrowLeft, Shield, Plus, Trash2, Edit, Check, X, ShieldAlert } from "lu
 const MODULOS = [
   { id: "dashboard", nome: "Dashboard" },
   { id: "membros", nome: "Membros" },
+  { id: "kids-teens", nome: "Kids & Teens" },
   { id: "congregacoes", nome: "Congregações" },
   { id: "congregados", nome: "Congregados" },
   { id: "visitantes", nome: "Visitantes" },
@@ -31,6 +32,7 @@ const ACOES = [
   { id: "criar", nome: "Criar" },
   { id: "editar", nome: "Editar" },
   { id: "excluir", nome: "Excluir" },
+  { id: "aprovar", nome: "Aprovar" },
 ];
 
 interface Permissao {

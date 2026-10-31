@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { getMonthlyDate } from "@/lib/monthlyDate";
+import { formatCurrency } from "@/lib/currency";
 import { 
   ArrowLeft, Plus, Search, Clock, AlertTriangle, CheckCircle2, 
   FileText, Edit, Trash2, ChevronDown, Check, DollarSign, Layers
@@ -27,6 +29,9 @@ interface Conta {
   categoria_id: string | null;
   forma_pagamento_id: string | null;
   congregacao_id: string | null;
+  dia_vencimento_mensal?: number | null;
+  data_emissao?: string | null;
+  observacoes?: string | null;
 }
 
 export default function ContasPagarPage() {
@@ -80,6 +85,10 @@ export default function ContasPagarPage() {
 
   // INTEGRAÇÃO AQUI: Baixa do título gera transação no financeiro
   const handleBaixarTitulo = async (conta: Conta) => {
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada. Entre novamente no sistema." });
+      return;
+    }
     if (!confirm(`Deseja marcar a conta "${conta.descricao}" como PAGA?\n\nIsso gerará automaticamente uma Despesa no Movimento Financeiro.`)) return;
     
     try {
@@ -108,14 +117,83 @@ export default function ContasPagarPage() {
       const { error: contaError } = await supabase.from('contas_pagar').update({
         status: 'Pago',
         data_pagamento: hoje
-      }).eq('id', conta.id);
+      }).eq('id', conta.id).eq('igreja_id', igrejaId);
 
       if (contaError) throw contaError;
-      
-      fetchData(igrejaId!);
-      setModal({ isOpen: true, type: "success", title: "Baixa Realizada", message: "Título pago com sucesso! A despesa já foi lançada no Movimento." });
+
+      if (conta.recorrente) {
+        const dueDay = conta.dia_vencimento_mensal || Number(conta.data_vencimento.split("-")[2]);
+        const nextDueDate = getMonthlyDate(conta.data_vencimento, 1, dueDay);
+        const { error: recurrenceError } = await supabase.from("contas_pagar").insert([{
+          igreja_id: igrejaId,
+          fornecedor_id: conta.fornecedor_id,
+          descricao: conta.descricao,
+          numero_documento: null,
+          tipo_conta: "Recorrente",
+          total_parcelas: 1,
+          parcela: "1/1",
+          recorrente: true,
+          valor: Number(conta.valor),
+          data_emissao: null,
+          data_vencimento: nextDueDate > hoje ? nextDueDate : getMonthlyDate(hoje, 1, dueDay),
+          dia_vencimento_mensal: dueDay,
+          categoria_id: conta.categoria_id,
+          caixa_id: conta.caixa_id,
+          forma_pagamento_id: conta.forma_pagamento_id,
+          congregacao_id: conta.congregacao_id,
+          observacoes: conta.observacoes || null,
+          status: "Pendente",
+        }]);
+
+        if (recurrenceError) {
+          await fetchData(igrejaId);
+          setModal({
+            isOpen: true,
+            type: "error",
+            title: "Conta paga; recorrência não agendada",
+            message: `A baixa foi registrada, mas não foi possível criar o próximo vencimento. Cadastre o próximo mês manualmente. ${recurrenceError.message}`,
+          });
+          return;
+        }
+      }
+
+      await fetchData(igrejaId);
+      setModal({
+        isOpen: true,
+        type: "success",
+        title: "Baixa Realizada",
+        message: conta.recorrente
+          ? "Conta paga. O próximo vencimento foi criado com o valor atual; ajuste o valor quando receber a próxima fatura."
+          : "Título pago com sucesso! A despesa já foi lançada no Movimento.",
+      });
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro na Baixa", message: error.message });
+    }
+  };
+
+  const handleExcluirConta = async (conta: Conta) => {
+    if (!igrejaId || conta.status === "Pago") return;
+    if (!confirm(`Excluir a conta "${conta.descricao}"? Esta ação não pode ser desfeita.`)) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("contas_pagar")
+        .delete()
+        .eq("id", conta.id)
+        .eq("igreja_id", igrejaId)
+        .neq("status", "Pago")
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("A conta não foi encontrada, já foi paga ou não pode ser excluída.");
+      await fetchData(igrejaId);
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Não foi possível excluir",
+        message: error instanceof Error ? error.message : "Erro ao excluir conta.",
+      });
     }
   };
 
@@ -188,7 +266,7 @@ export default function ContasPagarPage() {
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Total Pendente</p>
             <Clock className="w-4 h-4 text-yellow-500" />
           </div>
-          <h2 className="text-xl font-bold text-yellow-500">R$ {totalPendente.toFixed(2).replace('.', ',')}</h2>
+          <h2 className="text-xl font-bold text-yellow-500">{formatCurrency(totalPendente)}</h2>
         </Card>
         
         <Card className="p-4 border-l-4 border-l-red-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
@@ -196,7 +274,7 @@ export default function ContasPagarPage() {
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Total Vencido</p>
             <AlertTriangle className="w-4 h-4 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-red-500">R$ {totalAtrasado.toFixed(2).replace('.', ',')}</h2>
+          <h2 className="text-xl font-bold text-red-500">{formatCurrency(totalAtrasado)}</h2>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-green-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
@@ -204,7 +282,7 @@ export default function ContasPagarPage() {
             <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Pago no Mês</p>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </div>
-          <h2 className="text-xl font-bold text-green-500">R$ {totalPagoMes.toFixed(2).replace('.', ',')}</h2>
+          <h2 className="text-xl font-bold text-green-500">{formatCurrency(totalPagoMes)}</h2>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-ohel-blue flex flex-col justify-between bg-ohel-surface border-gray-800">
@@ -212,7 +290,7 @@ export default function ContasPagarPage() {
             <p className="text-ohel-blue text-[10px] font-bold uppercase tracking-wider">Total de Títulos</p>
             <FileText className="w-4 h-4 text-ohel-blue" />
           </div>
-          <h2 className="text-xl font-bold text-white">R$ {totalTitulos.toFixed(2).replace('.', ',')}</h2>
+          <h2 className="text-xl font-bold text-white">{formatCurrency(totalTitulos)}</h2>
         </Card>
       </div>
 
@@ -301,8 +379,8 @@ export default function ContasPagarPage() {
                     </td>
 
                     <td className="p-3 text-right">
-                      <p className="text-white font-bold">R$ {Number(conta.valor).toFixed(2).replace('.', ',')}</p>
-                      {conta.status === 'Pago' && <p className="text-[9px] text-green-500">Pago: R$ {Number(conta.valor).toFixed(2)}</p>}
+                      <p className="text-white font-bold">{formatCurrency(conta.valor)}</p>
+                      {conta.status === 'Pago' && <p className="text-[9px] text-green-500">Pago: {formatCurrency(conta.valor)}</p>}
                     </td>
 
                     <td className="p-3 text-center">
@@ -316,8 +394,12 @@ export default function ContasPagarPage() {
 
                     <td className="p-3 text-center">
                       <div className="flex justify-center gap-2">
-                        <button className="text-ohel-blue hover:text-blue-400"><Edit className="w-3.5 h-3.5" /></button>
-                        <button className="text-red-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        {conta.status !== "Pago" && (
+                          <>
+                            <Link href={`/financeiro/contas-pagar/editar/${conta.id}`} className="text-ohel-blue hover:text-blue-400" title="Editar conta" aria-label={`Editar ${conta.descricao}`}><Edit className="w-3.5 h-3.5" /></Link>
+                            <button type="button" onClick={() => handleExcluirConta(conta)} className="text-red-500 hover:text-red-400" title="Excluir conta" aria-label={`Excluir ${conta.descricao}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -6,9 +6,11 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Save, Plus, Minus, Search, Upload, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
+import { parseCurrencyInput } from "@/lib/currency";
 
 export default function NovaTransacaoPage() {
   const router = useRouter();
@@ -104,11 +106,13 @@ export default function NovaTransacaoPage() {
       // ==========================================
       // PROTEÇÃO: VERIFICAR SE O MÊS ESTÁ FECHADO
       // ==========================================
+      const mesesDaTransacao = [...new Set([formData.mes_referencia, formData.data.slice(0, 7)])];
       const { data: mesFechado, error: errorMes } = await supabase
         .from('meses_fechados')
-        .select('id')
+        .select('mes_referencia')
         .eq('igreja_id', igrejaId)
-        .eq('mes_referencia', formData.mes_referencia)
+        .in('mes_referencia', mesesDaTransacao)
+        .limit(1)
         .maybeSingle();
 
       if (errorMes) throw errorMes;
@@ -118,14 +122,17 @@ export default function NovaTransacaoPage() {
           isOpen: true, 
           type: "error", 
           title: "Mês Fechado", 
-          message: "Não é possível lançar transações para um mês que já foi fechado contabilmente. Reabra o mês no painel financeiro para continuar." 
+          message: `Não é possível lançar esta transação porque o mês ${mesFechado.mes_referencia} está fechado. Reabra o mês no painel financeiro para continuar.` 
         });
         setLoading(false);
         return;
       }
       // ==========================================
 
-      const valorNumerico = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.'));
+      const valorNumerico = parseCurrencyInput(formData.valor);
+      if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
+        throw new Error("Informe um valor maior que zero.");
+      }
       
       const { error } = await supabase.from("transacoes").insert([{
         igreja_id: igrejaId,
@@ -186,7 +193,7 @@ export default function NovaTransacaoPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input label="Data *" type="date" name="data" value={formData.data} onChange={handleChange} required className="py-2 text-xs" />
             <Input label="Mês/Ano Ref *" type="month" name="mes_referencia" value={formData.mes_referencia} onChange={handleChange} required className="py-2 text-xs" />
-            <Input label="Valor (R$) *" name="valor" placeholder="0,00" value={formData.valor} onChange={handleChange} required className="py-2 text-xs" />
+            <CurrencyInput label="Valor (R$) *" name="valor" value={formData.valor} onChange={(value) => setFormData((current) => ({ ...current, valor: value }))} required className="py-2 text-xs" />
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-semibold text-ohel-silver uppercase tracking-wider">Forma Pagto *</label>
               <select name="forma_pagamento_id" value={formData.forma_pagamento_id} onChange={handleChange} required className="input-ohel w-full px-3 py-2 rounded-md text-xs">

@@ -18,7 +18,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        router.push("/");
+        router.push("/login");
         return;
       }
 
@@ -34,7 +34,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         setPermissoes([
           'dashboard', 'membros', 'congregacoes', 'congregados', 
           'visitantes', 'eventos', 'financeiro', 'mural', 
-          'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino'
+          'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino', 'sorteios', 'kids-teens'
         ]);
       } else if (user?.grupo_id) {
         // Se não for admin, busca as permissões do grupo dele

@@ -289,7 +289,7 @@ export default function InscricaoPublicaPage() {
 
       {/* Rodapé */}
       <div className="mt-8 flex flex-col items-center gap-1 opacity-80 hover:opacity-100 transition-opacity">
-        <Logo className="w-32 h-14 md:w-40 md:h-16" noMask={true} />
+        <Logo className="w-32 h-14 md:w-40 md:h-16" />
         <p className="text-[8px] md:text-[9px] text-gray-500 uppercase tracking-[0.2em] font-semibold text-center">Plataforma de Gestão OHEL ON</p>
       </div>
 

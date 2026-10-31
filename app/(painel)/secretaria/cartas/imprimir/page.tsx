@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { escapeHtml } from "@/lib/escapeHtml";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Printer, Search, Check, FileText, Eye, Calendar, Trash2 } from "lucide-react";
@@ -121,8 +122,8 @@ export default function ImprimirCartasPage() {
       "{{data_atual}}": dataFormatada
     };
 
-    Object.keys(substituicoes).forEach(tag => {
-      texto = texto.replace(new RegExp(tag, 'g'), substituicoes[tag as keyof typeof substituicoes]);
+    Object.entries(substituicoes).forEach(([tag, value]) => {
+      texto = texto.split(tag).join(escapeHtml(value));
     });
 
     return texto;

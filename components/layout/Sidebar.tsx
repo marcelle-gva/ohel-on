@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay } from "lucide-react";
+import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay, Gift } from "lucide-react";
 import { Logo } from "../brand/Logo";
 
 interface SidebarProps {
@@ -35,6 +35,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
       subItems: [
         { name: "Congregações", href: "/secretaria/congregacoes", modulo: "congregacoes" },
         { name: "Membros", href: "/secretaria/membros", modulo: "membros" },
+        { name: "Kids & Teens", href: "/secretaria/kids-teens", modulo: "kids-teens" },
         { name: "Congregados", href: "/secretaria/congregados", modulo: "congregados" },
         { name: "Visitantes", href: "/secretaria/visitantes", modulo: "visitantes" },
       ]
@@ -44,6 +45,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
     { name: "Gabinete Pastoral", href: "/gabinete", icon: Church, modulo: "gabinete" },
     { name: "Ensino (EBD)", href: "/ensino", icon: BookOpen, modulo: "ensino" },
     { name: "Eventos", href: "/eventos", icon: Calendar, modulo: "eventos" },
+    { name: "Sorteios", href: "/sorteios", icon: Gift, modulo: "sorteios" },
     { name: "Configurações", href: "/configuracoes", icon: Settings, modulo: "configuracoes" },
   ];
 

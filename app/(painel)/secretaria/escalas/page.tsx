@@ -37,6 +37,7 @@ export default function EscalasDashboard() {
 
   const [showNovoEvento, setShowNovoEvento] = useState(false);
   const [novoEvento, setNovoEvento] = useState({ titulo: "", dia_semana: "0", horario_inicio: "19:30", horario_fim: "21:30" });
+  const [salvandoEvento, setSalvandoEvento] = useState(false);
 
   const [showGerarEscalas, setShowGerarEscalas] = useState(false);
   const [mesGeracao, setMesGeracao] = useState(new Date().getMonth() + 1);
@@ -63,21 +64,28 @@ export default function EscalasDashboard() {
 
   const fetchData = async (id: string) => {
     setLoading(true);
-    const [gruposRes, funcoesRes, eventosRes, escalasRes, membrosRes] = await Promise.all([
-      supabase.from('grupos_trabalho').select('*').eq('igreja_id', id).order('nome'),
-      supabase.from('funcoes_escala').select('*, grupos_trabalho(nome)').eq('igreja_id', id).order('nome'),
-      supabase.from('eventos_regulares').select('*').eq('igreja_id', id).order('dia_semana'),
-      supabase.from('escalas').select('*, escalados(*, funcoes_escala(nome), membros(nome))').eq('igreja_id', id).order('data_culto', { ascending: true }),
-      supabase.from('membros').select('id, nome').order('nome')
-    ]);
-    
-    if (gruposRes.data) setGrupos(gruposRes.data);
-    if (funcoesRes.data) setFuncoes(funcoesRes.data);
-    if (eventosRes.data) setEventos(eventosRes.data);
-    if (escalasRes.data) setEscalas(escalasRes.data);
-    if (membrosRes.data) setMembros(membrosRes.data);
-    
-    setLoading(false);
+    try {
+      const [gruposRes, funcoesRes, eventosRes, escalasRes, membrosRes] = await Promise.all([
+        supabase.from('grupos_trabalho').select('*').eq('igreja_id', id).order('nome'),
+        supabase.from('funcoes_escala').select('*, grupos_trabalho(nome)').eq('igreja_id', id).order('nome'),
+        supabase.from('eventos_regulares').select('*').eq('igreja_id', id).order('dia_semana'),
+        supabase.from('escalas').select('*, escalados(*, funcoes_escala(nome), membros(nome))').eq('igreja_id', id).order('data_culto', { ascending: true }),
+        supabase.from('membros').select('id, nome').eq('igreja_id', id).order('nome')
+      ]);
+
+      const queryErrors = [gruposRes.error, funcoesRes.error, eventosRes.error, escalasRes.error, membrosRes.error].filter(Boolean);
+      if (queryErrors.length > 0) throw new Error(queryErrors.map((queryError) => queryError?.message).join("; "));
+
+      setGrupos(gruposRes.data || []);
+      setFuncoes(funcoesRes.data || []);
+      setEventos(eventosRes.data || []);
+      setEscalas(escalasRes.data || []);
+      setMembros(membrosRes.data || []);
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao carregar escalas", message: error instanceof Error ? error.message : "Não foi possível carregar os dados da igreja." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- HANDLERS DE CRIAÇÃO ---
@@ -103,15 +111,23 @@ export default function EscalasDashboard() {
 
   const handleCreateEvento = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada." });
+      return;
+    }
+    setSalvandoEvento(true);
     try {
       const { error } = await supabase.from('eventos_regulares').insert([{ 
         igreja_id: igrejaId, titulo: novoEvento.titulo, dia_semana: parseInt(novoEvento.dia_semana), 
         horario_inicio: novoEvento.horario_inicio, horario_fim: novoEvento.horario_fim 
       }]);
       if (error) throw error;
-      setShowNovoEvento(false); setNovoEvento({ titulo: "", dia_semana: "0", horario_inicio: "19:30", horario_fim: "21:30" }); fetchData(igrejaId!);
-      setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Evento regular cadastrado!" });
-    } catch (err: any) { setModal({ isOpen: true, type: "error", title: "Erro", message: err.message }); }
+      setShowNovoEvento(false);
+      setNovoEvento({ titulo: "", dia_semana: "0", horario_inicio: "19:30", horario_fim: "21:30" });
+      setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Evento fixo cadastrado na grade da igreja." });
+      await fetchData(igrejaId);
+    } catch (err) { setModal({ isOpen: true, type: "error", title: "Erro", message: err instanceof Error ? err.message : "Não foi possível salvar o evento fixo." }); }
+    finally { setSalvandoEvento(false); }
   };
 
   // --- GERAÇÃO AUTOMÁTICA ---
@@ -207,6 +223,9 @@ export default function EscalasDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={() => { setActiveTab("eventos"); setShowNovoEvento(true); }} className="bg-ohel-bg border border-gray-700 text-gray-300 font-medium py-2 px-4 rounded-md text-xs flex items-center gap-2 hover:text-white transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Novo Evento Fixo
+          </button>
           <button onClick={() => setShowEscalaAvulsa(true)} className="bg-ohel-bg border border-gray-700 text-gray-300 font-medium py-2 px-4 rounded-md text-xs flex items-center gap-2 hover:text-white transition-colors">
             <Plus className="w-3.5 h-3.5" /> Escala Avulsa
           </button>
@@ -228,7 +247,7 @@ export default function EscalasDashboard() {
           <ListChecks className="w-4 h-4" /> Tabela de Funções ({funcoes.length})
         </button>
         <button onClick={() => setActiveTab("eventos")} className={`flex items-center gap-2 px-5 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "eventos" ? "border-ohel-blue text-ohel-blue" : "border-transparent text-gray-400 hover:text-white"}`}>
-          <Clock className="w-4 h-4" /> Eventos Regulares ({eventos.length})
+          <Clock className="w-4 h-4" /> Grade Fixa ({eventos.length})
         </button>
       </div>
 
@@ -298,7 +317,7 @@ export default function EscalasDashboard() {
         {activeTab === "eventos" && (
           <div className="flex flex-col gap-4">
             <Card className="p-4 flex items-center justify-between">
-              <div><h2 className="text-sm font-bold text-white">Grade de Eventos Regulares</h2><p className="text-xs text-gray-400">Eventos recorrentes que geram as escalas mensais.</p></div>
+              <div><h2 className="text-sm font-bold text-white">Grade fixa da igreja</h2><p className="text-xs text-gray-400">Cadastre cultos e encontros recorrentes; depois gere as escalas do mês a partir desta grade.</p></div>
               <Button onClick={() => setShowNovoEvento(true)} className="w-auto px-4 py-2 text-xs bg-ohel-blue text-white"><Plus className="w-3.5 h-3.5 mr-1.5" /> Criar Evento Regular</Button>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -358,7 +377,7 @@ export default function EscalasDashboard() {
                 </div>
                 <Input label="Horário Início" type="time" value={novoEvento.horario_inicio} onChange={e => setNovoEvento({...novoEvento, horario_inicio: e.target.value})} className="py-2 text-xs" />
               </div>
-              <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setShowNovoEvento(false)} className="text-xs text-gray-400">Cancelar</button><Button type="submit" className="w-auto px-4 py-2 text-xs bg-ohel-blue text-white">Salvar Evento</Button></div>
+              <div className="flex justify-end gap-2 mt-2"><button type="button" onClick={() => setShowNovoEvento(false)} className="text-xs text-gray-400">Cancelar</button><Button type="submit" disabled={salvandoEvento} className="w-auto px-4 py-2 text-xs bg-ohel-blue text-white">{salvandoEvento ? "Salvando..." : "Salvar Evento Fixo"}</Button></div>
             </form>
           </div>
         </div>

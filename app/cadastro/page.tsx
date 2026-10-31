@@ -82,7 +82,7 @@ export default function Cadastro() {
       <FeedbackModal isOpen={modal.isOpen} onClose={handleCloseModal} type={modal.type} title={modal.title} message={modal.message} />
       
       <Card className="w-full max-w-[420px] flex flex-col items-center px-8 pt-6 pb-8 border-gray-800 relative mt-4">
-        <Link href="/" className="absolute top-6 left-6 text-gray-400 hover:text-white transition-colors">
+        <Link href="/login" className="absolute top-6 left-6 text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
 
@@ -133,7 +133,7 @@ export default function Cadastro() {
         </form>
 
         <p className="text-xs text-gray-400 mt-5">
-          Já tem conta? <Link href="/" className="text-white font-medium hover:underline">Fazer Login</Link>
+          Já tem conta? <Link href="/login" className="text-white font-medium hover:underline">Fazer Login</Link>
         </p>
       </Card>
     </main>

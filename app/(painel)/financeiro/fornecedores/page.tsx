@@ -16,6 +16,8 @@ export default function FornecedoresPage() {
   const [busca, setBusca] = useState("");
   
   const [showModal, setShowModal] = useState(false);
+  const [editingFornecedorId, setEditingFornecedorId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
   
   const [formData, setFormData] = useState({
@@ -48,37 +50,77 @@ export default function FornecedoresPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((current) => ({ ...current, [e.target.name]: e.target.value }));
   };
 
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const { error } = await supabase.from('fornecedores').insert([{
-        igreja_id: igrejaId,
-        ...formData
-      }]);
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada. Entre novamente no sistema." });
+      return;
+    }
 
-      if (error) throw error;
+    setSaving(true);
+    try {
+      if (editingFornecedorId) {
+        const { data, error } = await supabase.from("fornecedores").update(formData)
+          .eq("id", editingFornecedorId).eq("igreja_id", igrejaId).select("id").maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("Fornecedor não encontrado ou sem permissão para atualizar.");
+      } else {
+        const { error } = await supabase.from("fornecedores").insert([{ igreja_id: igrejaId, ...formData }]);
+        if (error) throw error;
+      }
       
       setShowModal(false);
+      setEditingFornecedorId(null);
       setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "" });
-      fetchFornecedores(igrejaId!);
-      setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Fornecedor cadastrado!" });
+      await fetchFornecedores(igrejaId);
+      setModal({ isOpen: true, type: "success", title: "Sucesso", message: editingFornecedorId ? "Fornecedor atualizado!" : "Fornecedor cadastrado!" });
     } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message || "Não foi possível salvar o fornecedor." });
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleEditar = (fornecedor: typeof fornecedores[number]) => {
+    setEditingFornecedorId(fornecedor.id);
+    setFormData({
+      razao_social: fornecedor.razao_social || "",
+      nome_fantasia: fornecedor.nome_fantasia || "",
+      cnpj_cpf: fornecedor.cnpj_cpf || "",
+      email: fornecedor.email || "",
+      telefone: fornecedor.telefone || "",
+      endereco: fornecedor.endereco || "",
+    });
+    setShowModal(true);
+  };
+
+  const fecharModalFornecedor = () => {
+    setShowModal(false);
+    setEditingFornecedorId(null);
+    setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "" });
   };
 
   const handleDelete = async () => {
     if (!fornecedorToDelete) return;
     setIsDeleting(true);
     try {
-      await supabase.from("fornecedores").delete().eq("id", fornecedorToDelete);
-      setFornecedores(fornecedores.filter((f) => f.id !== fornecedorToDelete));
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const { data, error } = await supabase
+        .from("fornecedores")
+        .delete()
+        .eq("id", fornecedorToDelete)
+        .eq("igreja_id", igrejaId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Fornecedor não encontrado ou sem permissão para excluir.");
+      setFornecedores((current) => current.filter((f) => f.id !== fornecedorToDelete));
       setFornecedorToDelete(null);
     } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível excluir. Verifique se há contas a pagar vinculadas." });
+      setModal({ isOpen: true, type: "error", title: "Não foi possível excluir", message: error.message || "Verifique se há contas a pagar vinculadas." });
     } finally {
       setIsDeleting(false);
     }
@@ -142,8 +184,8 @@ export default function FornecedoresPage() {
                 <tr key={forn.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <button className="text-gray-500 hover:text-ohel-blue transition-colors" title="Editar"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => setFornecedorToDelete(forn.id)} className="text-gray-500 hover:text-red-500 transition-colors" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => handleEditar(forn)} className="text-gray-500 hover:text-ohel-blue transition-colors" title="Editar fornecedor" aria-label={`Editar ${forn.razao_social}`}><Edit className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => setFornecedorToDelete(forn.id)} className="text-gray-500 hover:text-red-500 transition-colors" title="Excluir fornecedor" aria-label={`Excluir ${forn.razao_social}`}><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                   <td className="p-4">
@@ -168,8 +210,8 @@ export default function FornecedoresPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-ohel-surface border border-gray-800 rounded-xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-5 border-b border-gray-800 pb-3">
-              <h3 className="text-sm font-bold text-white">Novo Fornecedor</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
+              <h3 className="text-sm font-bold text-white">{editingFornecedorId ? "Editar Fornecedor" : "Novo Fornecedor"}</h3>
+              <button type="button" onClick={fecharModalFornecedor} className="text-gray-500 hover:text-white" aria-label="Fechar"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleSalvar} className="flex flex-col gap-4">
               <Input label="Razão Social *" name="razao_social" value={formData.razao_social} onChange={handleChange} required className="py-2 text-xs" />
@@ -184,8 +226,8 @@ export default function FornecedoresPage() {
               <Input label="Endereço Completo" name="endereco" value={formData.endereco} onChange={handleChange} className="py-2 text-xs" />
 
               <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancelar</button>
-                <Button type="submit" className="w-auto px-5 py-2 text-xs bg-ohel-blue text-white">Salvar Fornecedor</Button>
+                <button type="button" onClick={fecharModalFornecedor} className="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancelar</button>
+                <Button type="submit" disabled={saving} className="w-auto px-5 py-2 text-xs bg-ohel-blue text-white">{saving ? "Salvando..." : editingFornecedorId ? "Salvar Alterações" : "Salvar Fornecedor"}</Button>
               </div>
             </form>
           </div>

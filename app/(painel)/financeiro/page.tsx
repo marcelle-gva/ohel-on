@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
@@ -13,42 +13,63 @@ export default function FinanceiroHubPage() {
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   const [mesAtual, setMesAtual] = useState(new Date().toISOString().slice(0, 7));
   const [isMesFechado, setIsMesFechado] = useState(false);
+  const [savingFechamento, setSavingFechamento] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
+
+  const checkMesFechado = useCallback(async (id: string) => {
+    const { data, error } = await supabase.from('meses_fechados').select('id').eq('igreja_id', id).eq('mes_referencia', mesAtual).maybeSingle();
+    if (error) throw error;
+    setIsMesFechado(!!data);
+  }, [mesAtual]);
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) {
-          setIgrejaId(user.igreja_id);
-          checkMesFechado(user.igreja_id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: user, error } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+          if (error) throw error;
+          if (user) {
+            setIgrejaId(user.igreja_id);
+            await checkMesFechado(user.igreja_id);
+          }
         }
+      } catch (error) {
+        setModal({
+          isOpen: true,
+          type: "error",
+          title: "Erro ao carregar fechamento",
+          message: error instanceof Error ? error.message : "Não foi possível consultar o mês contábil.",
+        });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     init();
-  }, []);
-
-  const checkMesFechado = async (id: string) => {
-    const { data } = await supabase.from('meses_fechados').select('*').eq('igreja_id', id).eq('mes_referencia', mesAtual).maybeSingle();
-    setIsMesFechado(!!data);
-  };
+  }, [checkMesFechado]);
 
   const toggleFechamento = async () => {
     if (!igrejaId) return;
+    setSavingFechamento(true);
     try {
       if (isMesFechado) {
-        await supabase.from('meses_fechados').delete().eq('igreja_id', igrejaId).eq('mes_referencia', mesAtual);
+        const { data, error } = await supabase.from('meses_fechados').delete()
+          .eq('igreja_id', igrejaId).eq('mes_referencia', mesAtual).select('id').maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("O mês não estava fechado ou não há permissão para reabri-lo.");
         setIsMesFechado(false);
         setModal({ isOpen: true, type: "success", title: "Mês Reaberto", message: "Agora é possível lançar transações neste mês." });
       } else {
-        await supabase.from('meses_fechados').insert([{ igreja_id: igrejaId, mes_referencia: mesAtual }]);
+        const { error } = await supabase.from('meses_fechados')
+          .insert([{ igreja_id: igrejaId, mes_referencia: mesAtual }]);
+        if (error) throw error;
         setIsMesFechado(true);
         setModal({ isOpen: true, type: "success", title: "Mês Fechado", message: "Novas transações para este mês estão bloqueadas." });
       }
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } catch (error: unknown) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível alterar o fechamento do mês." });
+    } finally {
+      setSavingFechamento(false);
     }
   };
 
@@ -94,8 +115,8 @@ export default function FinanceiroHubPage() {
             {isMesFechado ? "O mês está fechado. Não é possível lançar novas transações." : "O mês está aberto para lançamentos."}
           </p>
         </div>
-        <Button onClick={toggleFechamento} className={`w-auto px-5 py-2 text-xs text-white ${isMesFechado ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
-          {isMesFechado ? "Reabrir Mês" : "Fechar Mês"}
+        <Button onClick={toggleFechamento} disabled={savingFechamento || !igrejaId} className={`w-auto px-5 py-2 text-xs text-white ${isMesFechado ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
+          {savingFechamento ? "Salvando..." : isMesFechado ? "Reabrir Mês" : "Fechar Mês"}
         </Button>
       </Card>
 

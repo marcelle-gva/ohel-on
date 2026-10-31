@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Upload, Check, X, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/currency";
 
 interface TransacaoOFX {
   id: string;
@@ -185,7 +186,7 @@ export default function ImportarOFXPage() {
                     </span>
                   </td>
                   <td className={`p-3 text-right font-bold ${t.tipo === 'Receita' ? 'text-green-500' : 'text-red-500'}`}>
-                    R$ {t.valor.toFixed(2)}
+                    {formatCurrency(t.valor)}
                   </td>
                 </tr>
               ))}

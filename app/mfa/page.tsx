@@ -60,7 +60,7 @@ export default function MfaChallengePage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/"); // <-- Volta para a raiz (login)
+    router.push("/login");
   };
 
   if (loading) return <div className="w-full h-screen bg-ohel-bg flex items-center justify-center text-white">Carregando...</div>;

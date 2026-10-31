@@ -5,7 +5,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Search, Edit, ArrowRightLeft } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Search, Edit, ArrowRightLeft, X, Save } from "lucide-react";
+import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/lib/currency";
 
 // DEFININDO OS TIPOS PARA O TYPESCRIPT NÃO RECLAMAR
 interface Transacao {
@@ -24,6 +28,11 @@ export default function MovimentoPage() {
   const [loading, setLoading] = useState(true);
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [congregacoes, setCongregacoes] = useState<any[]>([]);
+  const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [transacaoEditando, setTransacaoEditando] = useState<Transacao | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
+  const [formEdicao, setFormEdicao] = useState({ data: "", descricao: "", valor: "" });
   
   const dataAtual = new Date();
   const [mesRef, setMesRef] = useState(`${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`);
@@ -41,6 +50,7 @@ export default function MovimentoPage() {
       if (!session) return;
       const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
       if (!user) return;
+      setIgrejaId(user.igreja_id);
 
       const [transRes, congRes] = await Promise.all([
         supabase.from('transacoes')
@@ -57,6 +67,65 @@ export default function MovimentoPage() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const abrirEdicao = (transacao: Transacao) => {
+    setTransacaoEditando(transacao);
+    setFormEdicao({
+      data: transacao.data,
+      descricao: transacao.descricao || "",
+      valor: formatCurrencyInput(String(Math.round(Number(transacao.valor) * 100))),
+    });
+  };
+
+  const handleSalvarEdicao = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!transacaoEditando || !igrejaId) return;
+
+    const valor = parseCurrencyInput(formEdicao.valor);
+    if (!Number.isFinite(valor) || valor <= 0 || !formEdicao.data) {
+      setModal({ isOpen: true, type: "error", title: "Dados inválidos", message: "Informe uma data e um valor maior que zero." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const mesReferencia = formEdicao.data.slice(0, 7);
+      const { data: mesFechado, error: erroMes } = await supabase
+        .from("meses_fechados")
+        .select("id")
+        .eq("igreja_id", igrejaId)
+        .eq("mes_referencia", mesReferencia)
+        .maybeSingle();
+      if (erroMes) throw erroMes;
+      if (mesFechado) throw new Error("Não é possível alterar uma transação para um mês fechado.");
+
+      const { data, error } = await supabase.from("transacoes").update({
+        data: formEdicao.data,
+        mes_referencia: mesReferencia,
+        descricao: formEdicao.descricao.trim(),
+        valor,
+      }).eq("id", transacaoEditando.id).eq("igreja_id", igrejaId).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Transação não encontrada ou sem permissão para atualizar.");
+
+      setTransacaoEditando(null);
+      if (mesReferencia === mesRef) {
+        await fetchData();
+      } else {
+        setMesRef(mesReferencia);
+      }
+      setModal({ isOpen: true, type: "success", title: "Transação atualizada", message: "As alterações foram salvas." });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Não foi possível salvar",
+        message: error instanceof Error ? error.message : "Erro ao atualizar transação.",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -83,6 +152,7 @@ export default function MovimentoPage() {
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-5 pb-10">
+      <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -114,21 +184,21 @@ export default function MovimentoPage() {
         <Card className="p-5 border-gray-800 flex justify-between items-center bg-ohel-surface">
           <div>
             <p className="text-gray-400 text-xs font-bold uppercase mb-1">Receitas</p>
-            <h2 className="text-3xl font-bold text-green-500">R$ {totalReceitas.toFixed(2).replace('.', ',')}</h2>
+            <h2 className="text-3xl font-bold text-green-500">{formatCurrency(totalReceitas)}</h2>
           </div>
           <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-green-500" /></div>
         </Card>
         <Card className="p-5 border-gray-800 flex justify-between items-center bg-ohel-surface">
           <div>
             <p className="text-gray-400 text-xs font-bold uppercase mb-1">Despesas</p>
-            <h2 className="text-3xl font-bold text-red-500">R$ {totalDespesas.toFixed(2).replace('.', ',')}</h2>
+            <h2 className="text-3xl font-bold text-red-500">{formatCurrency(totalDespesas)}</h2>
           </div>
           <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center"><TrendingDown className="w-5 h-5 text-red-500" /></div>
         </Card>
         <Card className="p-5 border-ohel-blue/50 flex justify-between items-center bg-ohel-blue/5">
           <div>
             <p className="text-ohel-blue text-xs font-bold uppercase mb-1">Saldo Acumulado</p>
-            <h2 className={`text-3xl font-bold ${saldo >= 0 ? 'text-ohel-blue' : 'text-red-500'}`}>R$ {saldo.toFixed(2).replace('.', ',')}</h2>
+            <h2 className={`text-3xl font-bold ${saldo >= 0 ? 'text-ohel-blue' : 'text-red-500'}`}>{formatCurrency(saldo)}</h2>
           </div>
           <div className="w-10 h-10 rounded-full bg-ohel-blue/20 flex items-center justify-center"><Wallet className="w-5 h-5 text-ohel-blue" /></div>
         </Card>
@@ -166,10 +236,10 @@ export default function MovimentoPage() {
                     <p className="text-xs font-bold text-ohel-blue flex items-center gap-2"><Wallet className="w-3.5 h-3.5"/> {congNome}</p>
                     <div className="flex gap-4 text-[10px] font-bold">
                       <span className="text-green-400">
-                        Rec: R$ {itemsArray.filter((i: Transacao) => i.tipo === 'Receita').reduce((a: number, b: Transacao) => a + Number(b.valor), 0).toFixed(2)}
+                        Rec: {formatCurrency(itemsArray.filter((i: Transacao) => i.tipo === 'Receita').reduce((a: number, b: Transacao) => a + Number(b.valor), 0))}
                       </span>
                       <span className="text-red-400">
-                        Desp: R$ {itemsArray.filter((i: Transacao) => i.tipo === 'Despesa').reduce((a: number, b: Transacao) => a + Number(b.valor), 0).toFixed(2)}
+                        Desp: {formatCurrency(itemsArray.filter((i: Transacao) => i.tipo === 'Despesa').reduce((a: number, b: Transacao) => a + Number(b.valor), 0))}
                       </span>
                     </div>
                   </div>
@@ -187,15 +257,15 @@ export default function MovimentoPage() {
                     <tbody className="divide-y divide-gray-800/30">
                       {itemsArray.map((t: Transacao) => (
                         <tr key={t.id} className="hover:bg-white/[0.02]">
-                          <td className="p-3"><button className="text-gray-500 hover:text-ohel-blue"><Edit className="w-4 h-4"/></button></td>
+                          <td className="p-3"><button type="button" onClick={() => abrirEdicao(t)} className="text-gray-500 hover:text-ohel-blue" title="Editar transação" aria-label={`Editar ${t.descricao || "transação"}`}><Edit className="w-4 h-4"/></button></td>
                           <td className="p-3 text-gray-400">{new Date(`${t.data}T12:00:00`).toLocaleDateString('pt-BR')}</td>
                           <td className="p-3">
                             <p className="text-white font-bold">{t.categorias_financeiras?.nome}</p>
                             <p className="text-gray-500 text-[10px]">{t.descricao || '-'}</p>
                           </td>
                           <td className="p-3 text-gray-300">{t.membros?.nome || t.origem_nome_manual || '-'}</td>
-                          <td className="p-3 text-right text-green-400 font-medium">{t.tipo === 'Receita' ? `R$ ${Number(t.valor).toFixed(2)}` : '-'}</td>
-                          <td className="p-3 text-right text-red-400 font-medium">{t.tipo === 'Despesa' ? `R$ ${Number(t.valor).toFixed(2)}` : '-'}</td>
+                          <td className="p-3 text-right text-green-400 font-medium">{t.tipo === 'Receita' ? formatCurrency(t.valor) : '-'}</td>
+                          <td className="p-3 text-right text-red-400 font-medium">{t.tipo === 'Despesa' ? formatCurrency(t.valor) : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -206,6 +276,29 @@ export default function MovimentoPage() {
           )}
         </div>
       </Card>
+
+      {transacaoEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-xl border border-gray-800 bg-ohel-surface p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between border-b border-gray-800 pb-3">
+              <h2 className="text-sm font-bold text-white">Editar transação</h2>
+              <button type="button" onClick={() => setTransacaoEditando(null)} className="text-gray-500 hover:text-white" aria-label="Fechar">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mb-4 text-xs text-gray-400">Tipo: {transacaoEditando.tipo}. A categoria, o caixa e os vínculos permanecem iguais.</p>
+            <form onSubmit={handleSalvarEdicao} className="flex flex-col gap-4">
+              <Input label="Data *" type="date" value={formEdicao.data} onChange={(event) => setFormEdicao((current) => ({ ...current, data: event.target.value }))} required />
+              <Input label="Descrição" value={formEdicao.descricao} onChange={(event) => setFormEdicao((current) => ({ ...current, descricao: event.target.value }))} />
+              <CurrencyInput label="Valor (R$) *" name="valor" value={formEdicao.valor} onChange={(valor) => setFormEdicao((current) => ({ ...current, valor }))} required />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setTransacaoEditando(null)} className="w-auto">Cancelar</Button>
+                <Button type="submit" disabled={saving} className="w-auto">{saving ? "Salvando..." : <><Save className="h-4 w-4" /> Salvar</>}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

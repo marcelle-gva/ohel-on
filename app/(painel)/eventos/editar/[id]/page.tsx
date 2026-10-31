@@ -30,7 +30,12 @@ export default function EditarEventoPage() {
     nome: "", descricao: "", congregacao_id: "", data_inicio: "", data_fim: "", hora_abertura: "",
     data_limite_inscricao: "", limite_participantes: "", cartaz_url: "",
     cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
-    status: "Aberto", publicar_mural: false
+    status: "Aberto", publicar_mural: false,
+    tipo: "evento",
+    valor_bilhete: "10",
+    total_numeros: "100",
+    numero_inicial: "1",
+    data_sorteio: ""
   });
 
   useEffect(() => {
@@ -51,7 +56,12 @@ export default function EditarEventoPage() {
             cartaz_url: data.cartaz_url || "", cep: data.cep || "", logradouro: data.logradouro || "",
             numero: data.numero || "", complemento: data.complemento || "", bairro: data.bairro || "",
             cidade: data.cidade || "", uf: data.uf || "", status: data.status || "Aberto",
-            publicar_mural: data.publicar_mural || false
+            publicar_mural: data.publicar_mural || false,
+            tipo: data.tipo || "evento",
+            valor_bilhete: data.valor_bilhete?.toString() || "10",
+            total_numeros: data.total_numeros?.toString() || "100",
+            numero_inicial: data.numero_inicial?.toString() || "1",
+            data_sorteio: data.data_sorteio || ""
           });
         }
       } catch (error) {
@@ -90,6 +100,26 @@ export default function EditarEventoPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      if (formData.tipo === "sorteio") {
+        const payload = {
+          nome: formData.nome,
+          descricao: formData.descricao,
+          tipo: "sorteio",
+          valor_bilhete: Number(formData.valor_bilhete || 0),
+          total_numeros: Number(formData.total_numeros || 100),
+          numero_inicial: Number(formData.numero_inicial || 1),
+          data_sorteio: formData.data_sorteio || null,
+          cartaz_url: formData.cartaz_url || null,
+          status: formData.status === "Aberto" ? "ativo" : formData.status.toLowerCase(),
+        };
+
+        const { error } = await supabase.from("sorteios").update(payload).eq("id", id);
+        if (error) throw new Error("Tabela de sorteios não encontrada. Execute o SQL do módulo de sorteios antes de editar a rifa.");
+
+        setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Sorteio atualizado com sucesso!" });
+        return;
+      }
+
       const payload = {
         nome: formData.nome, descricao: formData.descricao, congregacao_id: formData.congregacao_id || null,
         data_inicio: formData.data_inicio, data_fim: formData.data_fim || null, hora_abertura: formData.hora_abertura || null,
@@ -152,6 +182,29 @@ export default function EditarEventoPage() {
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Tipo de cadastro</label>
+                  <select name="tipo" value={formData.tipo} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm">
+                    <option value="evento">Evento</option>
+                    <option value="sorteio">Sorteio</option>
+                  </select>
+                </div>
+                {formData.tipo === "sorteio" ? (
+                  <Input label="Valor do bilhete" type="number" min="0" step="0.01" name="valor_bilhete" value={formData.valor_bilhete} onChange={handleChange} />
+                ) : (
+                  <Input label="Hora Abertura" type="time" name="hora_abertura" value={formData.hora_abertura} onChange={handleChange} />
+                )}
+              </div>
+
+              {formData.tipo === "sorteio" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border border-violet-500/20 rounded-xl bg-violet-500/5 p-4">
+                  <Input label="Total de números" type="number" min="1" name="total_numeros" value={formData.total_numeros} onChange={handleChange} />
+                  <Input label="Número inicial" type="number" min="1" name="numero_inicial" value={formData.numero_inicial} onChange={handleChange} />
+                  <Input label="Data do sorteio" type="date" name="data_sorteio" value={formData.data_sorteio} onChange={handleChange} />
+                </div>
+              )}
 
               {/* CHECKBOX NO TOPO */}
               <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-xl">

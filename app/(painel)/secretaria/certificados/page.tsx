@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { escapeHtml } from "@/lib/escapeHtml";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, Printer, Search, RefreshCw, CheckSquare, Square, Award } from "lucide-react";
@@ -93,9 +94,9 @@ export default function CertificadosPage() {
     let texto = modeloSelecionado.conteudo;
     const dataAtual = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
     
-    texto = texto.replace(/{{nome}}/g, pessoa.nome || "");
-    texto = texto.replace(/{{cargo}}/g, pessoa.cargo || "Membro");
-    texto = texto.replace(/{{data_atual}}/g, dataAtual);
+    texto = texto.replace(/{{nome}}/g, escapeHtml(pessoa.nome || ""));
+    texto = texto.replace(/{{cargo}}/g, escapeHtml(pessoa.cargo || "Membro"));
+    texto = texto.replace(/{{data_atual}}/g, escapeHtml(dataAtual));
     
     return texto;
   };

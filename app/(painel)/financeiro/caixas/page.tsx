@@ -5,16 +5,20 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Plus, Landmark, Wallet, X, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/lib/currency";
 
 export default function CaixasPage() {
   const [loading, setLoading] = useState(true);
-  const [caixas, setCaixas] = useState<any[]>([]);
+  const [caixas, setCaixas] = useState<Array<{ id: string; nome: string; tipo: string; banco: string | null; agencia: string | null; conta: string | null; saldo_inicial: number }>>([]);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
   const [showModal, setShowModal] = useState(false);
+  const [editingCaixaId, setEditingCaixaId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
   
   const [formData, setFormData] = useState({
@@ -44,30 +48,82 @@ export default function CaixasPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((current) => ({ ...current, [e.target.name]: e.target.value }));
   };
 
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada. Entre novamente no sistema." });
+      return;
+    }
+
+    setSaving(true);
     try {
-      const { error } = await supabase.from('caixas').insert([{
-        igreja_id: igrejaId,
+      const payload = {
         nome: formData.nome,
         tipo: formData.tipo,
         banco: formData.banco,
         agencia: formData.agencia,
         conta: formData.conta,
-        saldo_inicial: parseFloat(formData.saldo_inicial.replace(',', '.')) || 0
-      }]);
-
-      if (error) throw error;
+        saldo_inicial: parseCurrencyInput(formData.saldo_inicial)
+      };
+      if (editingCaixaId) {
+        const { data, error } = await supabase.from("caixas").update(payload)
+          .eq("id", editingCaixaId).eq("igreja_id", igrejaId).select("id").maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("Caixa não encontrado ou sem permissão para atualizar.");
+      } else {
+        const { error } = await supabase.from("caixas").insert([{ igreja_id: igrejaId, ...payload }]);
+        if (error) throw error;
+      }
       
       setShowModal(false);
+      setEditingCaixaId(null);
       setFormData({ nome: "", tipo: "Caixa Físico", banco: "", agencia: "", conta: "", saldo_inicial: "" });
-      fetchCaixas(igrejaId!);
-      setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Caixa cadastrado!" });
+      await fetchCaixas(igrejaId);
+      setModal({ isOpen: true, type: "success", title: "Sucesso", message: editingCaixaId ? "Caixa atualizado!" : "Caixa cadastrado!" });
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditar = (caixa: typeof caixas[number]) => {
+    setEditingCaixaId(caixa.id);
+    setFormData({
+      nome: caixa.nome || "",
+      tipo: caixa.tipo || "Caixa Físico",
+      banco: caixa.banco || "",
+      agencia: caixa.agencia || "",
+      conta: caixa.conta || "",
+      saldo_inicial: formatCurrencyInput(String(Math.round(Number(caixa.saldo_inicial) * 100))),
+    });
+    setShowModal(true);
+  };
+
+  const fecharModal = () => {
+    setShowModal(false);
+    setEditingCaixaId(null);
+    setFormData({ nome: "", tipo: "Caixa Físico", banco: "", agencia: "", conta: "", saldo_inicial: "" });
+  };
+
+  const handleExcluir = async (caixa: typeof caixas[number]) => {
+    if (!igrejaId || !confirm(`Excluir "${caixa.nome}"? Caixas vinculados a transações não podem ser removidos.`)) return;
+    try {
+      const { data, error } = await supabase.from("caixas").delete()
+        .eq("id", caixa.id).eq("igreja_id", igrejaId).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Caixa não encontrado ou vinculado a lançamentos.");
+      await fetchCaixas(igrejaId);
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Não foi possível excluir",
+        message: error instanceof Error ? error.message : "Erro ao excluir caixa.",
+      });
     }
   };
 
@@ -110,11 +166,11 @@ export default function CaixasPage() {
             <div className="border-t border-gray-800 pt-3 flex justify-between items-center">
               <div>
                 <p className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Inicial</p>
-                <p className="text-sm font-bold text-white">R$ {Number(caixa.saldo_inicial).toFixed(2).replace('.', ',')}</p>
+                <p className="text-sm font-bold text-white">{formatCurrency(caixa.saldo_inicial)}</p>
               </div>
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="text-gray-500 hover:text-ohel-blue"><Edit className="w-4 h-4" /></button>
-                <button className="text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button type="button" onClick={() => handleEditar(caixa)} className="text-gray-500 hover:text-ohel-blue" title="Editar caixa" aria-label={`Editar ${caixa.nome}`}><Edit className="w-4 h-4" /></button>
+                <button type="button" onClick={() => handleExcluir(caixa)} className="text-gray-500 hover:text-red-500" title="Excluir caixa" aria-label={`Excluir ${caixa.nome}`}><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
           </Card>
@@ -126,8 +182,8 @@ export default function CaixasPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-ohel-surface border border-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-5 border-b border-gray-800 pb-3">
-              <h3 className="text-sm font-bold text-white">Novo Caixa / Conta</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
+              <h3 className="text-sm font-bold text-white">{editingCaixaId ? "Editar Caixa / Conta" : "Novo Caixa / Conta"}</h3>
+              <button type="button" onClick={fecharModal} className="text-gray-500 hover:text-white" aria-label="Fechar"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleSalvar} className="flex flex-col gap-4">
               <Input label="Nome do Caixa / Conta *" name="nome" placeholder="Ex: Caixa da Secretaria, Banco do Brasil" value={formData.nome} onChange={handleChange} required className="py-2 text-xs" />
@@ -140,7 +196,7 @@ export default function CaixasPage() {
                     <option value="Conta Bancária">Conta Bancária</option>
                   </select>
                 </div>
-                <Input label="Saldo Inicial (R$)" name="saldo_inicial" type="number" step="0.01" placeholder="0.00" value={formData.saldo_inicial} onChange={handleChange} className="py-2 text-xs" />
+                <CurrencyInput label="Saldo Inicial (R$)" name="saldo_inicial" value={formData.saldo_inicial} onChange={(value) => setFormData((current) => ({ ...current, saldo_inicial: value }))} className="py-2 text-xs" />
               </div>
 
               {formData.tipo === 'Conta Bancária' && (
@@ -152,8 +208,8 @@ export default function CaixasPage() {
               )}
 
               <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancelar</button>
-                <Button type="submit" className="w-auto px-5 py-2 text-xs bg-ohel-blue text-white">Salvar Caixa</Button>
+                <button type="button" onClick={fecharModal} className="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancelar</button>
+                <Button type="submit" disabled={saving} className="w-auto px-5 py-2 text-xs bg-ohel-blue text-white">{saving ? "Salvando..." : editingCaixaId ? "Salvar Alterações" : "Salvar Caixa"}</Button>
               </div>
             </form>
           </div>

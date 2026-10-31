@@ -27,7 +27,12 @@ export default function NovoEventoPage() {
     nome: "", descricao: "", congregacao_id: "", data_inicio: "", data_fim: "", hora_abertura: "",
     data_limite_inscricao: "", limite_participantes: "", cartaz_url: "",
     cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
-    publicar_mural: false
+    publicar_mural: false,
+    tipo: "evento",
+    valor_bilhete: "10",
+    total_numeros: "100",
+    numero_inicial: "1",
+    data_sorteio: ""
   });
 
   useEffect(() => {
@@ -69,9 +74,31 @@ export default function NovoEventoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!igrejaId) return setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada." });
-    
+
     setLoading(true);
     try {
+      if (formData.tipo === "sorteio") {
+        const payload = {
+          igreja_id: igrejaId,
+          nome: formData.nome,
+          descricao: formData.descricao,
+          tipo: "sorteio",
+          valor_bilhete: Number(formData.valor_bilhete || 0),
+          total_numeros: Number(formData.total_numeros || 100),
+          numero_inicial: Number(formData.numero_inicial || 1),
+          data_sorteio: formData.data_sorteio || null,
+          cartaz_url: formData.cartaz_url || null,
+          status: "ativo",
+          link_publico: typeof window !== "undefined" ? `${window.location.origin}/sorteio` : null,
+        };
+
+        const { error } = await supabase.from("sorteios").insert([payload]);
+        if (error) throw new Error("Tabela de sorteios não encontrada. Execute o SQL do módulo de sorteios antes de criar a rifa.");
+
+        setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Sorteio criado com sucesso!" });
+        return;
+      }
+
       const payload = {
         igreja_id: igrejaId, nome: formData.nome, descricao: formData.descricao,
         congregacao_id: formData.congregacao_id || null, data_inicio: formData.data_inicio,
@@ -86,7 +113,7 @@ export default function NovoEventoPage() {
 
       const { error } = await supabase.from("eventos").insert([payload]);
       if (error) throw error;
-      
+
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Evento criado com sucesso!" });
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro ao Criar", message: error.message });
@@ -127,6 +154,29 @@ export default function NovoEventoPage() {
           {activeTab === "dados" && (
             <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <Input label="Nome do Evento *" name="nome" placeholder="Ex: Congresso de Jovens 2024" value={formData.nome} onChange={handleChange} required />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Tipo de cadastro</label>
+                  <select name="tipo" value={formData.tipo} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm">
+                    <option value="evento">Evento</option>
+                    <option value="sorteio">Sorteio</option>
+                  </select>
+                </div>
+                {formData.tipo === "sorteio" ? (
+                  <Input label="Valor do bilhete" type="number" min="0" step="0.01" name="valor_bilhete" value={formData.valor_bilhete} onChange={handleChange} />
+                ) : (
+                  <Input label="Hora Abertura" type="time" name="hora_abertura" value={formData.hora_abertura} onChange={handleChange} />
+                )}
+              </div>
+
+              {formData.tipo === "sorteio" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border border-violet-500/20 rounded-xl bg-violet-500/5 p-4">
+                  <Input label="Total de números" type="number" min="1" name="total_numeros" value={formData.total_numeros} onChange={handleChange} />
+                  <Input label="Número inicial" type="number" min="1" name="numero_inicial" value={formData.numero_inicial} onChange={handleChange} />
+                  <Input label="Data do sorteio" type="date" name="data_sorteio" value={formData.data_sorteio} onChange={handleChange} />
+                </div>
+              )}
 
               {/* CHECKBOX NO TOPO - IMPOSSÍVEL NÃO VER */}
               <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-xl">

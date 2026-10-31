@@ -74,25 +74,37 @@ export default function MonitorMidiaPage() {
 
             // Busca os dados do monitor
             const [visitasRes, louvoresRes, muralRes, oracoesRes, pendentesRes, escalasRes] = await Promise.all([
-              supabase.from('visitantes').select('*').eq('data_visita', hoje),
-              supabase.from('louvores').select('*').eq('data', hoje).order('created_at'),
-              supabase.from('comunicacoes').select('*').order('created_at', { ascending: false }).limit(3),
-              supabase.from('pedidos_oracao').select('*').eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
-              supabase.from('pedidos_oracao').select('*').eq('status', 'Pendente').order('created_at', { ascending: false }),
+              supabase.from('visitantes').select('*').eq('igreja_id', user.igreja_id).eq('data_visita', hoje),
+              supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
+              supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
+              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
+              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
               supabase.from('escalas')
                 .select(`
-                  id, nome, data,
+                  id, titulo, data_culto, horario_inicio,
                   escalados (
                     membros (nome),
                     funcoes_escala (nome)
                   )
                 `)
                 .eq('igreja_id', user.igreja_id)
-                .gte('data', hoje)
-                .order('data', { ascending: true })
+                .gte('data_culto', hoje)
+                .order('data_culto', { ascending: true })
                 .limit(3)
             ]);
+
+            const queryErrors = [
+              visitasRes.error,
+              louvoresRes.error,
+              muralRes.error,
+              oracoesRes.error,
+              pendentesRes.error,
+              escalasRes.error,
+            ].filter(Boolean);
+            if (queryErrors.length > 0) {
+              throw new Error(queryErrors.map((queryError) => queryError?.message).join("; "));
+            }
 
             setVisitantesHoje(visitasRes.data || []);
             setLouvoresHoje(louvoresRes.data || []);
@@ -104,13 +116,32 @@ export default function MonitorMidiaPage() {
             const channelName = `realtime-monitor-${Date.now()}-${Math.random()}`;
             channel = supabase
               .channel(channelName)
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'louvores', filter: `data=eq.${hoje}` }, (payload) => {
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'louvores', filter: `igreja_id=eq.${user.igreja_id}` }, (payload) => {
                 if (payload.eventType === 'INSERT') setLouvoresHoje((prev) => prev.some(l => l.id === payload.new.id) ? prev : [...prev, payload.new]);
                 else if (payload.eventType === 'DELETE') setLouvoresHoje((prev) => prev.filter(l => l.id !== payload.old.id));
+                else if (payload.eventType === 'UPDATE') {
+                  setLouvoresHoje((prev) => payload.new.data === hoje
+                    ? prev.some((louvor) => louvor.id === payload.new.id)
+                      ? prev.map((louvor) => louvor.id === payload.new.id ? payload.new : louvor)
+                      : [...prev, payload.new]
+                    : prev.filter((louvor) => louvor.id !== payload.new.id));
+                }
               })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao' }, (payload) => {
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao', filter: `igreja_id=eq.${user.igreja_id}` }, (payload) => {
                 if (payload.eventType === 'INSERT' && payload.new.status === 'Pendente') {
                   setOracoesPendentes((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
+                }
+                if (payload.eventType === 'UPDATE') {
+                  setOracoesPendentes((prev) => payload.new.status === 'Pendente'
+                    ? prev.some((pedido) => pedido.id === payload.new.id)
+                      ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
+                      : [payload.new, ...prev]
+                    : prev.filter((pedido) => pedido.id !== payload.new.id));
+                  setOracoesSemana((prev) => payload.new.status === 'Aprovado'
+                    ? prev.some((pedido) => pedido.id === payload.new.id)
+                      ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
+                      : [payload.new, ...prev]
+                    : prev.filter((pedido) => pedido.id !== payload.new.id));
                 }
               })
               .subscribe();
@@ -118,6 +149,12 @@ export default function MonitorMidiaPage() {
         }
       } catch (error) {
         console.error(error);
+        setModalFeedback({
+          isOpen: true,
+          type: "error",
+          title: "Não foi possível carregar o Monitor",
+          message: error instanceof Error ? error.message : "Verifique sua conexão e as permissões do usuário.",
+        });
       } finally {
         setLoading(false);
       }
@@ -143,11 +180,15 @@ export default function MonitorMidiaPage() {
     if (!louvorToDelete) return;
     setIsDeleting(true);
     try {
-      await supabase.from('louvores').delete().eq('id', louvorToDelete);
-      setLouvoresHoje(louvoresHoje.filter(l => l.id !== louvorToDelete));
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const { data, error } = await supabase.from('louvores').delete()
+        .eq('id', louvorToDelete).eq('igreja_id', igrejaId).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Louvor não encontrado ou sem permissão para excluir.");
+      setLouvoresHoje((current) => current.filter(l => l.id !== louvorToDelete));
       setLouvorToDelete(null);
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível excluir." });
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível excluir." });
     } finally {
       setIsDeleting(false);
     }
@@ -155,21 +196,29 @@ export default function MonitorMidiaPage() {
 
   const handleApprovePrayer = async (id: string) => {
     try {
-      await supabase.from('pedidos_oracao').update({ status: 'Aprovado' }).eq('id', id);
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const { data, error } = await supabase.from('pedidos_oracao').update({ status: 'Aprovado' })
+        .eq('id', id).eq('igreja_id', igrejaId).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Pedido não encontrado ou sem permissão para aprovar.");
       const aprovado = oracoesPendentes.find(o => o.id === id);
-      setOracoesPendentes(oracoesPendentes.filter(o => o.id !== id));
-      if (aprovado) setOracoesSemana([{ ...aprovado, status: 'Aprovado' }, ...oracoesSemana]);
+      setOracoesPendentes((current) => current.filter(o => o.id !== id));
+      if (aprovado) setOracoesSemana((current) => [{ ...aprovado, status: 'Aprovado' }, ...current]);
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível aprovar." });
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível aprovar." });
     }
   };
 
   const handleRejectPrayer = async (id: string) => {
     try {
-      await supabase.from('pedidos_oracao').update({ status: 'Rejeitado' }).eq('id', id);
-      setOracoesPendentes(oracoesPendentes.filter(o => o.id !== id));
+      if (!igrejaId) throw new Error("Igreja não identificada.");
+      const { data, error } = await supabase.from('pedidos_oracao').update({ status: 'Rejeitado' })
+        .eq('id', id).eq('igreja_id', igrejaId).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Pedido não encontrado ou sem permissão para rejeitar.");
+      setOracoesPendentes((current) => current.filter(o => o.id !== id));
     } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível rejeitar." });
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível rejeitar." });
     }
   };
 
@@ -379,8 +428,8 @@ export default function MonitorMidiaPage() {
                     <div key={escala.id} className="bg-ohel-bg p-3 rounded-lg border border-gray-800 text-xs fullscreen-text">
                       <div className="flex items-center gap-2 mb-2 border-b border-gray-800/50 pb-2">
                         <Calendar className="w-3 h-3 text-yellow-500" />
-                        <span className="text-white font-bold text-sm">{new Date(escala.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                        <span className="text-gray-400 truncate">{escala.nome}</span>
+                        <span className="text-white font-bold text-sm">{new Date(`${escala.data_culto}T00:00:00`).toLocaleDateString('pt-BR')}</span>
+                        <span className="text-gray-400 truncate">{escala.titulo} {escala.horario_inicio ? `(${escala.horario_inicio})` : ""}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {escala.escalados?.map((esc: any, idx: number) => (

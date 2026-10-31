@@ -11,6 +11,7 @@ import { ArrowLeft, Shield, Plus, Trash2, Edit, Check, X, Users, UserPlus, Lock 
 const MODULOS = [
   { id: "dashboard", nome: "Dashboard" },
   { id: "membros", nome: "Secretaria: Membros" },
+  { id: "kids-teens", nome: "Secretaria: Kids & Teens" },
   { id: "congregacoes", nome: "Secretaria: Congregações" },
   { id: "congregados", nome: "Secretaria: Congregados" },
   { id: "visitantes", nome: "Secretaria: Visitantes" },

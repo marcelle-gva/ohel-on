@@ -6,9 +6,12 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Save, FileText, CalendarDays, Tag, AlignLeft } from "lucide-react";
 import Link from "next/link";
+import { parseCurrencyInput } from "@/lib/currency";
+import { getMonthlyDate } from "@/lib/monthlyDate";
 
 export default function NovaContaPagarPage() {
   const router = useRouter();
@@ -67,35 +70,52 @@ export default function NovaContaPagarPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    
-    // Se mudar para única, reseta parcelas
-    if (name === 'tipo_conta' && value === 'Única') {
-      setFormData(prev => ({ ...prev, total_parcelas: "1", dia_vencimento_mensal: "" }));
-    }
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "tipo_conta" && value === "Única" ? { total_parcelas: "1", dia_vencimento_mensal: "" } : {}),
+      ...(name === "tipo_conta" && value === "Recorrente" ? { total_parcelas: "1" } : {}),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!igrejaId) return;
+    if (!igrejaId) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: "Igreja não identificada. Entre novamente no sistema." });
+      return;
+    }
+
+    const valorTotal = parseCurrencyInput(formData.valor);
+    if (!Number.isFinite(valorTotal) || valorTotal <= 0) {
+      setModal({ isOpen: true, type: "error", title: "Valor inválido", message: "Informe um valor maior que zero." });
+      return;
+    }
+    if (!formData.data_vencimento) {
+      setModal({ isOpen: true, type: "error", title: "Vencimento obrigatório", message: "Informe a data do primeiro vencimento." });
+      return;
+    }
+    const diaInformado = formData.dia_vencimento_mensal ? Number(formData.dia_vencimento_mensal) : null;
+    if (diaInformado !== null && (!Number.isInteger(diaInformado) || diaInformado < 1 || diaInformado > 31)) {
+      setModal({ isOpen: true, type: "error", title: "Dia inválido", message: "O dia de vencimento deve estar entre 1 e 31." });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.'));
-      const qtdParcelas = parseInt(formData.total_parcelas) || 1;
-      const valorParcela = valorTotal / qtdParcelas;
-      
+      const qtdParcelas = formData.tipo_conta === "Parcelada" ? parseInt(formData.total_parcelas, 10) : 1;
+      if (!Number.isInteger(qtdParcelas) || qtdParcelas < 1 || qtdParcelas > 120) {
+        throw new Error("Informe uma quantidade de parcelas entre 1 e 120.");
+      }
+      const valorEmCentavos = Math.round(valorTotal * 100);
+      const valorBaseEmCentavos = Math.floor(valorEmCentavos / qtdParcelas);
+      const centavosRestantes = valorEmCentavos % qtdParcelas;
       const contasParaInserir = [];
-      let dataBase = new Date(`${formData.data_vencimento}T12:00:00`);
+      const diaVencimento = diaInformado
+        ? diaInformado
+        : Number(formData.data_vencimento.split("-")[2]);
 
       for (let i = 0; i < qtdParcelas; i++) {
-        // Soma um mês para cada parcela subsequente
-        if (i > 0) {
-          dataBase.setMonth(dataBase.getMonth() + 1);
-        }
-        
-        const dataVencimentoFormatada = dataBase.toISOString().split('T')[0];
-
         contasParaInserir.push({
           igreja_id: igrejaId,
           fornecedor_id: formData.fornecedor_id || null,
@@ -104,10 +124,13 @@ export default function NovaContaPagarPage() {
           tipo_conta: formData.tipo_conta,
           total_parcelas: qtdParcelas,
           parcela: `${i + 1}/${qtdParcelas}`,
-          valor: valorParcela,
+          recorrente: formData.tipo_conta === "Recorrente",
+          valor: formData.tipo_conta === "Recorrente"
+            ? valorTotal
+            : (valorBaseEmCentavos + (i < centavosRestantes ? 1 : 0)) / 100,
           data_emissao: formData.data_emissao || null,
-          data_vencimento: dataVencimentoFormatada,
-          dia_vencimento_mensal: formData.dia_vencimento_mensal ? parseInt(formData.dia_vencimento_mensal) : null,
+          data_vencimento: i === 0 ? formData.data_vencimento : getMonthlyDate(formData.data_vencimento, i, diaVencimento),
+          dia_vencimento_mensal: formData.tipo_conta === "Recorrente" ? diaVencimento : null,
           categoria_id: formData.categoria_id || null,
           caixa_id: formData.caixa_id || null,
           forma_pagamento_id: formData.forma_pagamento_id || null,
@@ -173,7 +196,7 @@ export default function NovaContaPagarPage() {
               </select>
             </div>
             <Input label="Nº do Documento / Nota Fiscal / Boleto" name="numero_documento" placeholder="Ex: NF-10492 ou Código de Barras" value={formData.numero_documento} onChange={handleChange} className="py-2 text-xs" />
-            <Input label="Valor da Conta (R$) *" name="valor" placeholder="0,00" value={formData.valor} onChange={handleChange} required className="py-2 text-xs" />
+            <CurrencyInput label="Valor da Conta (R$) *" name="valor" value={formData.valor} onChange={(value) => setFormData((current) => ({ ...current, valor: value }))} required className="py-2 text-xs" />
             <Input label="Data de Emissão" type="date" name="data_emissao" value={formData.data_emissao} onChange={handleChange} className="py-2 text-xs" />
           </div>
         </Card>
@@ -190,8 +213,14 @@ export default function NovaContaPagarPage() {
             
             {formData.tipo_conta !== 'Única' && (
               <>
-                <Input label="Dia de Vencimento Mensal" type="number" name="dia_vencimento_mensal" placeholder="Ex: 20" value={formData.dia_vencimento_mensal} onChange={handleChange} className="py-2 text-xs" />
-                <Input label="Quantidade de Parcelas *" type="number" name="total_parcelas" min="2" placeholder="Ex: 12" value={formData.total_parcelas} onChange={handleChange} required className="py-2 text-xs" />
+                <Input label="Dia de Vencimento Mensal" type="number" name="dia_vencimento_mensal" min="1" max="31" placeholder="Ex: 20" value={formData.dia_vencimento_mensal} onChange={handleChange} className="py-2 text-xs" />
+                {formData.tipo_conta === "Parcelada" ? (
+                  <Input label="Quantidade de Parcelas *" type="number" name="total_parcelas" min="2" max="120" placeholder="Ex: 12" value={formData.total_parcelas} onChange={handleChange} required className="py-2 text-xs" />
+                ) : (
+                  <p className="md:col-span-2 self-center text-xs text-gray-400">
+                    Ao dar baixa, o sistema criará o próximo vencimento. Você poderá ajustar o valor da próxima conta antes de pagar.
+                  </p>
+                )}
               </>
             )}
           </div>
