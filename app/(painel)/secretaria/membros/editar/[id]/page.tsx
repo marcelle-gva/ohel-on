@@ -32,7 +32,9 @@ export default function EditarMembroPage() {
     cep: "", logradouro: "", numero: "", bairro: "", cidade: "", uf: "",
     data_batismo: "", cargo: "Membro", status: "Ativo",
     congregacao_id: "",
-    foto_url: ""
+    foto_url: "",
+    whatsapp_opt_in: false,
+    whatsapp_opt_in_at: "",
   });
 
   useEffect(() => {
@@ -67,10 +69,12 @@ export default function EditarMembroPage() {
             uf: data.uf || "", data_batismo: data.data_batismo || "", cargo: data.cargo || "Membro",
             status: data.status || "Ativo",
             congregacao_id: data.congregacao_id || "",
-            foto_url: data.foto_url || ""
+            foto_url: data.foto_url || "",
+            whatsapp_opt_in: data.whatsapp_opt_in === true,
+            whatsapp_opt_in_at: data.whatsapp_opt_in_at || "",
           });
         }
-      } catch (error) {
+      } catch {
         setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar os dados do membro." });
       } finally {
         setLoading(false);
@@ -95,8 +99,13 @@ export default function EditarMembroPage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setFormData({ ...formData, foto_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar foto." });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Erro ao enviar foto.",
+      });
     } finally {
       setUploading(false);
     }
@@ -112,14 +121,22 @@ export default function EditarMembroPage() {
         congregacao_id: formData.congregacao_id || null,
         data_nascimento: formData.data_nascimento ? formData.data_nascimento : null,
         data_batismo: formData.data_batismo ? formData.data_batismo : null,
+        whatsapp_opt_in_at: formData.whatsapp_opt_in
+          ? (formData.whatsapp_opt_in_at || new Date().toISOString())
+          : null,
       };
 
       const { error } = await supabase.from("membros").update(payload).eq("id", id);
       if (error) throw error;
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Membro atualizado com sucesso!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Atualizar", message: error.message });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro ao Atualizar",
+        message: error instanceof Error ? error.message : "Não foi possível atualizar o membro.",
+      });
     } finally {
       setSaving(false);
     }
@@ -202,6 +219,22 @@ export default function EditarMembroPage() {
                 </div>
                 <Input label="CPF" name="cpf" value={formData.cpf} onChange={handleChange} />
                 <Input label="Telefone / WhatsApp" name="telefone" value={formData.telefone} onChange={handleChange} />
+                <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-gray-800 bg-ohel-bg p-3 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.whatsapp_opt_in}
+                    onChange={(e) => setFormData((previous) => ({
+                      ...previous,
+                      whatsapp_opt_in: e.target.checked,
+                      whatsapp_opt_in_at: e.target.checked ? previous.whatsapp_opt_in_at : "",
+                    }))}
+                    className="mt-1 accent-green-500"
+                  />
+                  <span>
+                    O membro autorizou receber mensagens da igreja pelo WhatsApp.
+                    <span className="mt-1 block text-xs text-gray-500">Desmarcar retira o contato dos próximos envios.</span>
+                  </span>
+                </label>
                 <div className="md:col-span-2"><Input label="E-mail" type="email" name="email" value={formData.email} onChange={handleChange} /></div>
               </div>
             </div>

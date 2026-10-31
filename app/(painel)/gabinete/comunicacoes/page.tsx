@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { ArrowLeft, MessageCircle, Plus, Search, CheckCircle2, Clock, Paperclip } from "lucide-react";
+import { ArrowLeft, MessageCircle, Plus, Search, CheckCircle2, Clock } from "lucide-react";
 
 interface Comunicacao {
   id: string;
-  mensagem: string;
-  publico_alvo: string;
-  anexo_nome: string;
+  template_name: string;
+  language_code: string;
+  parameter_text: string | null;
   status: string;
+  total_destinatarios: number;
+  enviados: number;
+  falhas: number;
   created_at: string;
 }
 
@@ -19,25 +22,33 @@ export default function ComunicacoesPage() {
   const [loading, setLoading] = useState(true);
   const [comunicacoes, setComunicacoes] = useState<Comunicacao[]>([]);
   const [busca, setBusca] = useState("");
+  const [erro, setErro] = useState("");
 
   useEffect(() => {
-    fetchComunicacoes();
+    let active = true;
+    const fetchComunicacoes = async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_comunicacoes")
+        .select("id, template_name, language_code, parameter_text, status, total_destinatarios, enviados, falhas, created_at")
+        .order('created_at', { ascending: false });
+      if (!active) return;
+      if (error) {
+        setErro("Não foi possível carregar o histórico. Execute a migration do WhatsApp no Supabase e confira sua permissão de administrador.");
+      } else {
+        setErro("");
+        setComunicacoes((data ?? []) as Comunicacao[]);
+      }
+      setLoading(false);
+    };
+    void fetchComunicacoes();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const fetchComunicacoes = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('comunicacoes_pastorais')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setComunicacoes(data as Comunicacao[]);
-    setLoading(false);
-  };
-
   const filtradas = comunicacoes.filter(c => 
-    c.mensagem.toLowerCase().includes(busca.toLowerCase()) || 
-    c.publico_alvo.toLowerCase().includes(busca.toLowerCase())
+    c.template_name.toLowerCase().includes(busca.toLowerCase()) ||
+    (c.parameter_text ?? "").toLowerCase().includes(busca.toLowerCase())
   );
 
   const formatarData = (dataStr: string) => {
@@ -54,7 +65,7 @@ export default function ComunicacoesPage() {
             <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-green-500" /> Comunicações Pastorais
             </h1>
-            <p className="text-gray-400 text-xs mt-0.5">Envie mensagens em massa via WhatsApp para grupos específicos.</p>
+            <p className="text-gray-400 text-xs mt-0.5">Envios pela API oficial, com destinatários consentidos e status de entrega.</p>
           </div>
         </div>
         <Link href="/gabinete/comunicacoes/nova" className="w-auto px-5 py-2 text-xs bg-green-500 hover:bg-green-600 text-white rounded-md flex items-center gap-2 font-medium transition-colors shadow-[0_0_15px_rgba(34,197,94,0.2)]">
@@ -79,36 +90,34 @@ export default function ComunicacoesPage() {
         <table className="w-full text-left text-xs">
           <thead className="bg-[#05080f] border-b border-gray-800 text-[9px] uppercase tracking-wider text-gray-400">
             <tr>
-              <th className="p-3 font-medium">Data de Envio</th>
-              <th className="p-3 font-medium">Público-Alvo</th>
-              <th className="p-3 font-medium">Mensagem</th>
-              <th className="p-3 font-medium">Anexo</th>
+              <th className="p-3 font-medium">Data</th>
+              <th className="p-3 font-medium">Modelo Meta</th>
+              <th className="p-3 font-medium">Variável 1</th>
+              <th className="p-3 font-medium text-center">Destinatários</th>
               <th className="p-3 font-medium text-center">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/30">
             {loading ? (
-              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Carregando histórico...</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">{erro || "Carregando histórico..."}</td></tr>
             ) : filtradas.length === 0 ? (
-              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Nenhuma comunicação realizada.</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">{erro || "Nenhum envio registrado."}</td></tr>
             ) : (
               filtradas.map((com) => (
                 <tr key={com.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="p-3 text-gray-400 whitespace-nowrap">{formatarData(com.created_at)}</td>
                   <td className="p-3">
                     <span className="bg-ohel-blue/10 text-ohel-blue font-bold px-2 py-0.5 rounded text-[10px] uppercase">
-                      {com.publico_alvo}
+                      {com.template_name} ({com.language_code})
                     </span>
                   </td>
-                  <td className="p-3 text-white max-w-xs truncate" title={com.mensagem}>{com.mensagem}</td>
-                  <td className="p-3 text-gray-400">
-                    {com.anexo_nome ? <span className="flex items-center gap-1"><Paperclip className="w-3 h-3"/> {com.anexo_nome}</span> : "-"}
-                  </td>
+                  <td className="p-3 text-white max-w-xs truncate" title={com.parameter_text ?? ""}>{com.parameter_text || "—"}</td>
+                  <td className="p-3 text-center text-gray-300">{com.enviados}/{com.total_destinatarios} aceitos · {com.falhas} falhas</td>
                   <td className="p-3 text-center">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider
-                      ${com.status === "Enviado" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"}`}>
-                      {com.status === 'Enviado' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {com.status}
+                      ${com.status === "enviado" ? "bg-green-500/10 text-green-500 border-green-500/20" : com.status === "falhou" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"}`}>
+                      {com.status === "enviado" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                      {com.status === "enviado" ? "Aceito pela Meta" : com.status === "parcial" ? "Parcial" : com.status === "falhou" ? "Falhou" : "Processando"}
                     </span>
                   </td>
                 </tr>

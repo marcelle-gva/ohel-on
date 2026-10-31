@@ -165,12 +165,16 @@ Se a branch de publicação não for `main`, use o nome correto. Não adicione `
 
 **Data:** 31/10/2026
 
-Foi criada a rota de callback da Meta em [app/api/webhooks/whatsapp/route.ts](./app/api/webhooks/whatsapp/route.ts). Após publicar esta versão na Vercel, configure na Meta:
+Foi criada a rota de callback da Meta em [app/api/webhooks/whatsapp/route.ts](./app/api/webhooks/whatsapp/route.ts). Depois de publicar a versão, configure na Meta:
 
 - **Callback URL:** `https://www.ipocloud.com.br/api/webhooks/whatsapp`
 - **Verify token:** o mesmo valor configurado na Vercel em `WHATSAPP_VERIFY_TOKEN` (não compartilhar nem versionar esse segredo).
 
-A rota responde ao desafio GET de verificação da Meta e valida a assinatura HMAC SHA-256 dos webhooks POST. Para habilitar a validação de POST na Vercel, configure também `META_APP_SECRET` com o segredo do aplicativo Meta e faça um novo deploy. A rota ainda não processa eventos recebidos nem envia mensagens; isso exige implementar e configurar separadamente os fluxos de envio, modelos aprovados, `META_WA_ACCESS_TOKEN` e `META_WA_PHONE_NUMBER_ID`.
+A rota responde ao desafio GET de verificação e valida a assinatura HMAC SHA-256 dos webhooks POST. O código agora processa atualizações de entrega/leitura/falha sem armazenar o conteúdo de mensagens recebidas. A API de envio usa modelos aprovados, limita o envio a membros ativos com opt-in e exige usuário administrador da igreja. Também registra o histórico, evita reenvio com a mesma chave e atualiza estados via webhook.
+
+Antes do deploy da integração, execute [SUPABASE_SQL_EDITOR_WHATSAPP.sql](./SUPABASE_SQL_EDITOR_WHATSAPP.sql) no projeto correto. Membros existentes ficam sem consentimento (`whatsapp_opt_in = false`) até que a igreja confirme e registre a autorização no cadastro/edição. Na Vercel, configure em Production `META_APP_SECRET`, `META_WA_ACCESS_TOKEN` e `META_WA_PHONE_NUMBER_ID`; `WHATSAPP_VERIFY_TOKEN`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SECRET_KEY` também precisam estar presentes. Os segredos da Meta devem ser inseridos diretamente na Vercel e nunca enviados em chat nem versionados.
+
+Depois, faça redeploy e configure na Meta o callback `https://www.ipocloud.com.br/api/webhooks/whatsapp`, usando o mesmo verify token e assinando o campo `messages`. O envio só funciona com token válido da WhatsApp Cloud API, ID do número correto e modelo aprovado na Meta com nome/idioma exatamente iguais. O painel indica quando a Meta aceitou as mensagens; entrega final depende dos webhooks e das regras de consentimento/template da Meta.
 
 ### Diagnóstico DNS realizado
 

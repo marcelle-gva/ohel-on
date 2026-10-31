@@ -30,7 +30,8 @@ export default function NovoMembroPage() {
     cep: "", logradouro: "", numero: "", bairro: "", cidade: "", uf: "",
     data_batismo: "", cargo: "Membro", status: "Ativo",
     congregacao_id: "",
-    foto_url: ""
+    foto_url: "",
+    whatsapp_opt_in: false,
   });
 
   useEffect(() => {
@@ -80,8 +81,13 @@ export default function NovoMembroPage() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setFormData({ ...formData, foto_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar foto." });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro",
+        message: error instanceof Error ? error.message : "Erro ao enviar foto.",
+      });
     } finally {
       setUploading(false);
     }
@@ -99,14 +105,20 @@ export default function NovoMembroPage() {
         congregacao_id: formData.congregacao_id || null,
         data_nascimento: formData.data_nascimento || null,
         data_batismo: formData.data_batismo || null,
+        whatsapp_opt_in_at: formData.whatsapp_opt_in ? new Date().toISOString() : null,
       };
 
       const { error } = await supabase.from("membros").insert([payload]);
       if (error) throw error;
       
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Membro cadastrado com sucesso!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro ao Cadastrar", message: error.message });
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        type: "error",
+        title: "Erro ao Cadastrar",
+        message: error instanceof Error ? error.message : "Não foi possível cadastrar o membro.",
+      });
     } finally {
       setLoading(false);
     }
@@ -197,6 +209,18 @@ export default function NovoMembroPage() {
 
                 <Input label="CPF" name="cpf" placeholder="000.000.000-00" value={formData.cpf} onChange={handleChange} />
                 <Input label="Telefone / WhatsApp" name="telefone" placeholder="(00) 00000-0000" value={formData.telefone} onChange={handleChange} />
+                <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-gray-800 bg-ohel-bg p-3 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.whatsapp_opt_in}
+                    onChange={(e) => setFormData((previous) => ({ ...previous, whatsapp_opt_in: e.target.checked }))}
+                    className="mt-1 accent-green-500"
+                  />
+                  <span>
+                    O membro autorizou receber mensagens da igreja pelo WhatsApp.
+                    <span className="mt-1 block text-xs text-gray-500">Marque somente após obter consentimento. O registro é necessário para incluí-lo em comunicações.</span>
+                  </span>
+                </label>
                 <div className="md:col-span-2">
                   <Input label="E-mail" type="email" name="email" placeholder="email@exemplo.com" value={formData.email} onChange={handleChange} />
                 </div>
