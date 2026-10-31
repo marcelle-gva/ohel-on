@@ -41,7 +41,7 @@ export default function Login() {
         router.push("/dashboard");
       }
 
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Falha no Login", message: "E-mail ou senha incorretos." });
     } finally {
       setLoading(false);
@@ -58,7 +58,7 @@ export default function Login() {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro no Google", message: "Não foi possível conectar com o Google." });
       setLoading(false);
     }
