@@ -12,7 +12,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // O callback do Google troca o parâmetro `code` por uma sessão.
     // O PKCE mantém essa troca vinculada ao navegador que iniciou o login.
     flowType: 'pkce',
-    detectSessionInUrl: true,
+    // A página /auth/callback troca o code manualmente. Deixar a detecção
+    // automática ativa faria o Supabase tentar trocar o mesmo code duas vezes.
+    detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: true,
   },
