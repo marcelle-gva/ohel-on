@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { createSignedStorageUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -172,9 +173,9 @@ export default function GerenciarEventoPage() {
       const fileExt = file.name.split('.').pop();
       const fileName = `comprovante-${pedidoId}-${Date.now()}.${fileExt}`;
       await supabase.storage.from('comprovantes').upload(fileName, file);
-      const { data } = supabase.storage.from('comprovantes').getPublicUrl(fileName);
-      await supabase.from('eventos_pedidos').update({ comprovante_url: data.publicUrl }).eq('id', pedidoId);
-      setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, comprovante_url: data.publicUrl } : p));
+      const signedUrl = await createSignedStorageUrl('comprovantes', fileName);
+      await supabase.from('eventos_pedidos').update({ comprovante_url: signedUrl }).eq('id', pedidoId);
+      setPedidos(pedidos.map(p => p.id === pedidoId ? { ...p, comprovante_url: signedUrl } : p));
       setModalFeedback({ isOpen: true, type: "success", title: "Comprovante Anexado", message: "A imagem foi salva no pedido." });
     } catch (error) { setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar o comprovante." }); } finally { setUploading(false); }
   };

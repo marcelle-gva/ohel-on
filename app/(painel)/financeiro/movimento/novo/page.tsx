@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createSignedStorageUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -87,8 +88,8 @@ export default function NovaTransacaoPage() {
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
       const { error } = await supabase.storage.from('documentos').upload(fileName, file);
       if (error) throw error;
-      const { data } = supabase.storage.from('documentos').getPublicUrl(fileName);
-      setFormData({ ...formData, comprovante_url: data.publicUrl });
+      const signedUrl = await createSignedStorageUrl('documentos', fileName);
+      setFormData({ ...formData, comprovante_url: signedUrl });
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao enviar comprovante." });
     } finally {

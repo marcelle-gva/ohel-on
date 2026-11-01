@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createSignedStorageUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -113,8 +114,8 @@ export default function NovaReuniaoPage() {
       const { error } = await supabase.storage.from('documentos').upload(fileName, file);
       if (error) throw error;
       
-      const { data } = await supabase.storage.from('documentos').getPublicUrl(fileName);
-      setAnexos([...anexos, { nome: file.name, url: data.publicUrl }]);
+      const signedUrl = await createSignedStorageUrl('documentos', fileName);
+      setAnexos([...anexos, { nome: file.name, url: signedUrl }]);
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Falha ao enviar anexo." });
     } finally {

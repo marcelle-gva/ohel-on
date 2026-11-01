@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createSignedStorageUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
@@ -100,17 +101,17 @@ export default function AcompanhamentoSorteioPage() {
       const { error: uploadError } = await supabase.storage.from("comprovantes").upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("comprovantes").getPublicUrl(fileName);
+      const signedUrl = await createSignedStorageUrl("comprovantes", fileName);
 
       const { error: updateError } = await supabase.rpc("registrar_comprovante_sorteio", {
         p_sorteio_id: params.id,
         p_token: token,
-        p_comprovante_url: data.publicUrl,
+        p_comprovante_url: signedUrl,
       });
       if (updateError) throw updateError;
       setParticipante((current) => current && ({
         ...current,
-        comprovante_url: data.publicUrl,
+        comprovante_url: signedUrl,
         status: current.status === "confirmado" ? current.status : "reservado",
       }));
       setModal({ isOpen: true, type: "success", title: "Comprovante enviado", message: "O comprovante foi anexado e aguarda conferência da igreja. O envio não confirma o pagamento." });
