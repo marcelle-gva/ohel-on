@@ -1,10 +1,21 @@
-# Entregas do faturamento mensal
+# Entregas do projeto
+
+## Faturamento mensal
 
 - [x] Criar no Supabase as tabelas `billing_subscriptions` e `billing_webhook_events`, com índice único por igreja e RLS sem acesso direto a eventos.
 - [x] Implementar o plano único de R$ 80,00 mensais em Stripe Checkout, mantendo `STRIPE_PRICE_ID` opcional para reutilizar um preço já criado.
-- [x] Vincular checkout, cliente e assinatura à `igreja_id` autenticada e exigir administrador da igreja nas rotas server-side.
-- [x] Processar `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` e `invoice.payment_failed` com assinatura Stripe e idempotência.
-- [x] Disponibilizar a tela `/configuracoes/faturamento` com valor, status, próxima renovação, cancelamento no fim do período, reativação e portal Stripe.
-- [x] Adicionar o acesso ao faturamento nas configurações e ajustar o rótulo do plano no cabeçalho.
-- [ ] Registrar em Vercel as variáveis de produção e cadastrar `https://www.ipocloud.com.br/api/webhooks/stripe` no Stripe.
+- [x] Vincular checkout, cliente e assinatura à `igreja_id` autenticada e exigir `usuarios.role = 'admin'` nas rotas server-side.
+- [x] Processar os eventos de assinatura Stripe com validação de assinatura e idempotência.
+- [x] Disponibilizar a tela `/configuracoes/faturamento` com status, renovação, cancelamento no fim do período, reativação e portal Stripe.
+- [ ] Registrar em Vercel as variáveis de produção e cadastrar o webhook no Stripe.
 - [ ] Executar `SUPABASE_SQL_EDITOR_FATURAMENTO.sql` no projeto Supabase correto.
+
+## Culto e Monitor de Mídia
+
+- [x] Manter o fluxo atual do repertório: louvores do dia, edição, exclusão, comandos de slide, transposição e abertura da projeção.
+- [x] Criar no Monitor um bloco Palavra com busca de referência bíblica pela API, usando Almeida e consulta pontual.
+- [x] Permitir preencher título, tema, pastor/preletor e esboço no próprio Monitor.
+- [x] Salvar a mensagem na tabela `sermoes` vinculada à `igreja_id` da sessão.
+- [x] Enviar referência, texto e blocos do esboço para `/projecao` em tempo real.
+- [x] Fazer `/projecao` reconhecer Palavra e louvor sem conflitar os dois modos.
+- [ ] Testar no culto com duas abas reais: Monitor de Mídia e tela de projeção.

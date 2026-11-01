@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Music, ChevronLeft, ChevronRight, Maximize, MonitorPlay } from "lucide-react";
+import { Music, BookOpen, ChevronLeft, ChevronRight, Maximize, MonitorPlay } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 
 // Função auxiliar para transpor acordes
@@ -27,6 +27,7 @@ export default function ProjecaoPage() {
   const [slideIndex, setSlideIndex] = useState(0);
   const [musicaTitulo, setMusicaTitulo] = useState("Nenhuma música selecionada");
   const [musicaTom, setMusicaTom] = useState("");
+  const [modoProjecao, setModoProjecao] = useState<"musica" | "palavra">("musica");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -49,9 +50,16 @@ export default function ProjecaoPage() {
 
     channel
       .on('broadcast', { event: 'comando_projecao' }, (payload) => {
-        const { musica_id, slide_index, transposicao, status } = payload.payload;
+        const { musica_id, slide_index, transposicao, status, tipo, titulo, referencia, slides: palavraSlides } = payload.payload;
 
-        if (status === 'Tocando' && musica_id) {
+        if (tipo === "palavra" && Array.isArray(palavraSlides)) {
+          setModoProjecao("palavra");
+          setMusicaTitulo(titulo || "Palavra");
+          setMusicaTom(referencia || "");
+          setSlides(palavraSlides);
+          setSlideIndex(0);
+        } else if (status === 'Tocando' && musica_id) {
+          setModoProjecao("musica");
           buscarMusica(musica_id, slide_index, transposicao);
         } else if (status === 'Pausado') {
           setMusicaTitulo("Projeção Pausada");
@@ -87,6 +95,7 @@ export default function ProjecaoPage() {
 
     setMusicaTitulo(data.titulo);
     setMusicaTom(data.tom);
+    setModoProjecao("musica");
     setTransposicao(trans);
     setSlideIndex(slide);
 
@@ -197,10 +206,10 @@ export default function ProjecaoPage() {
       </div>
 
       <div className="absolute top-6 left-6 flex items-center gap-4 text-white opacity-40 z-50">
-        <Music className="w-6 h-6" />
+        {modoProjecao === "palavra" ? <BookOpen className="w-6 h-6" /> : <Music className="w-6 h-6" />}
         <div>
           <h1 className="text-xl font-bold">{musicaTitulo}</h1>
-          <p className="text-xs">Tom: {musicaTom} | Transposição: {transposicao}</p>
+          <p className="text-xs">{modoProjecao === "palavra" ? musicaTom || "Mensagem do culto" : `Tom: ${musicaTom} | Transposição: ${transposicao}`}</p>
         </div>
       </div>
 
@@ -232,7 +241,7 @@ export default function ProjecaoPage() {
               <MonitorPlay className="w-12 h-12 text-ohel-blue opacity-50" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Aguardando Monitor de Mídia</h2>
-            <p className="text-gray-400 text-lg">Selecione um louvor no painel para iniciar a projeção.</p>
+            <p className="text-gray-400 text-lg">Selecione um louvor ou uma Palavra no Monitor de Mídia para iniciar a projeção.</p>
             <p className="text-gray-500 text-sm mt-8">Dica: Use as setas do teclado (← →) para passar os slides.</p>
           </div>
         )}

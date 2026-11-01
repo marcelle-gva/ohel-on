@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { PalavraPanel } from "@/components/monitor/PalavraPanel";
 
 export default function MonitorMidiaPage() {
   const [loading, setLoading] = useState(true);
@@ -232,6 +233,28 @@ export default function MonitorMidiaPage() {
     } catch (error) { console.error(error); }
   };
 
+  const projetarPalavra = async (payload: { titulo: string; referencia: string; texto: string; esboco: string }) => {
+    if (!igrejaId) return;
+    const slides = [
+      payload.referencia && payload.texto ? `${payload.referencia}\n\n${payload.texto}` : "",
+      ...payload.esboco.split(/\n\s*\n/).map((bloco) => bloco.trim()).filter(Boolean),
+    ].filter(Boolean);
+    const channel = supabase.channel(`projecao-${igrejaId}`, { config: { broadcast: { ack: true } } });
+    try {
+      await channel.subscribe();
+      await channel.send({
+        type: "broadcast",
+        event: "comando_projecao",
+        payload: { tipo: "palavra", titulo: payload.titulo || "Palavra", referencia: payload.referencia, slides, status: "Palavra" },
+      });
+      setProjecaoAtual({ musicaId: null, slide: 0, transposicao: 0 });
+    } catch (error) {
+      setModalFeedback({ isOpen: true, type: "error", title: "Erro na projeção", message: error instanceof Error ? error.message : "Não foi possível enviar a Palavra para a projeção." });
+    } finally {
+      await supabase.removeChannel(channel);
+    }
+  };
+
   const publicUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/louvor/${igrejaId}` : "";
   const projecaoUrl = typeof window !== "undefined" ? `${window.location.origin}/projecao` : "";
   const prayerUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/oracao/${igrejaId}` : "";
@@ -411,6 +434,8 @@ export default function MonitorMidiaPage() {
                 </div>
               </div>
             </div>
+
+            <PalavraPanel igrejaId={igrejaId} onProjetar={(payload) => void projetarPalavra(payload)} />
 
             <div id="section-escala" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">

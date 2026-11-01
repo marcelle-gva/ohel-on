@@ -1,6 +1,6 @@
-# Faturamento OHEL ON — plano mensal
+# OHEL ON — plano de faturamento e culto
 
-## Requisitos confirmados
+## Faturamento mensal
 
 - Um único plano comercial para cada igreja.
 - Preço: R$ 80,00 por mês.
@@ -11,24 +11,26 @@
 - Webhooks Stripe atualizam o status no Supabase e são protegidos por assinatura HMAC da Stripe.
 - O aplicativo não armazena dados de cartão.
 
-## Decisões de implementação
+## Palavra no Monitor de Mídia
 
-- A tabela `billing_subscriptions` guarda o estado comercial mínimo por igreja: cliente Stripe, assinatura, preço, status, renovação, cancelamento programado e último estado de fatura.
-- A tabela `billing_webhook_events` garante idempotência pelo `stripe_event_id`.
-- Rotas server-side validam o Bearer token do Supabase e exigem `usuarios.role = 'admin'` antes de criar checkout, cancelar, reativar ou abrir o portal.
-- O preço pode ser fornecido por `STRIPE_PRICE_ID`; se não for, o backend cria ou reutiliza o produto/preço marcado com metadata própria por R$ 80,00/mês.
-- O cancelamento usa `cancel_at_period_end=true`, preservando o serviço até o fim do ciclo pago.
-- A tela mostra o estado atual, data de renovação, pagamento pendente e ações de cancelar, reativar e abrir o portal Stripe.
+- O Monitor de Mídia terá um bloco Palavra para buscar referências na API `bible-api.com` usando a tradução Almeida.
+- O bloco exibirá a referência e o texto retornado, permitirá compor título, tema, pastor/preletor e esboço, e salvará o sermão na tabela existente `sermoes` vinculado à `igreja_id` autenticada.
+- A ação Exibir na Projeção enviará referência, texto bíblico e blocos do esboço pelo canal Realtime `projecao-{igreja_id}`.
+- A tela `/projecao` reconhecerá comandos de Palavra e exibirá seus slides sem interferir no fluxo de louvores.
+- O padrão visual e o fluxo de criação reaproveitam o Banco de Sermões do Gabinete Pastoral.
+- A API escolhida é adequada para consulta pontual: documenta a tradução Almeida, CORS e limite de uso; o aplicativo não fará download da Bíblia inteira.
 
-## Estrutura do projeto
+## Estrutura principal
 
+- `components/monitor/PalavraPanel.tsx`: busca bíblica, formulário de esboço, gravação em `sermoes` e comando de projeção.
+- `app/(painel)/monitor-midia/page.tsx`: composição do bloco Palavra com o Monitor e envio Realtime.
+- `app/projecao/page.tsx`: renderização de slides Palavra e louvor.
+- `app/(painel)/gabinete/sermoes/page.tsx` e `app/(painel)/gabinete/sermoes/novo/page.tsx`: biblioteca e formulário completo de sermões.
 - `lib/billing-server.ts`: autenticação administrativa, cliente Stripe, produto/preço, cliente e sincronização.
 - `app/api/billing/route.ts`: leitura do status e criação do Checkout Session.
 - `app/api/billing/cancel/route.ts`: cancelamento ou reativação no fim do período.
 - `app/api/billing/portal/route.ts`: portal Stripe para dados de pagamento e faturas.
 - `app/api/webhooks/stripe/route.ts`: webhook assinado e idempotente.
-- `app/(painel)/configuracoes/faturamento/page.tsx`: painel de cobrança.
-- `SUPABASE_SQL_EDITOR_FATURAMENTO.sql`: tabelas, índices e RLS.
 
 ## Variáveis necessárias em produção
 
@@ -39,8 +41,4 @@
 
 ## Direção visual
 
-Três alternativas consideradas: painel SaaS financeiro discreto (0,68), cartão neon premium (0,04) e checkout minimalista branco (0,03). A escolha é o painel SaaS financeiro discreto, porque preserva a linguagem escura do OHEL ON, destaca o valor e deixa o estado da assinatura legível.
-
-Princípios: estado financeiro sempre visível, CTAs com uma ação principal, linguagem em português do Brasil e mensagens que diferenciam pagamento pendente de cancelamento agendado. A paleta mantém azul OHEL para ação, verde para ativo, âmbar para atenção e vermelho somente para cancelamento. A interação usa confirmação antes de cancelar e retorna ao painel após o checkout.
-
-Marca: OHEL ON deve parecer seguro, organizado e pastoral, sem transformar a tela de cobrança em uma página agressiva de vendas. Voz: “Seu sistema continua organizado; sua assinatura está ativa.” e “Você pode cancelar quando quiser. O acesso permanece até o fim do período já pago.”
+O OHEL ON mantém um painel SaaS escuro, seguro e pastoral. A Palavra usa âmbar para diferenciar o momento da pregação dos louvores em azul, sem alterar o restante do Monitor.
