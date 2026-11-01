@@ -2,11 +2,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-const OWNER_EMAIL = (
-  process.env.ADMIN_INVITE_OWNER_EMAIL ||
-  process.env.ADMIN_INVITE_SENDER_EMAIL ||
-  "marcelle.gva@gmail.com"
-).trim().toLowerCase();
+const OWNER_EMAILS = new Set([
+  process.env.ADMIN_INVITE_OWNER_EMAIL,
+  process.env.ADMIN_INVITE_SENDER_EMAIL,
+  "marcelle.gva@gmail.com",
+].filter(Boolean).map((email) => email!.trim().toLowerCase()));
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -31,7 +31,7 @@ async function getAuthorizedOwner(request: Request) {
     return { error: jsonError("Somente um administrador pode gerenciar convites.", 403) };
   }
 
-  if ((profile.email || authData.user.email || "").trim().toLowerCase() !== OWNER_EMAIL) {
+  if (!OWNER_EMAILS.has((profile.email || authData.user.email || "").trim().toLowerCase())) {
     return { error: jsonError("Somente o administrador proprietário autorizado pode convidar novos administradores.", 403) };
   }
 
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) return jsonError("Informe um e-mail válido.");
     if (!nome || nome.length < 2) return jsonError("Informe o nome do novo administrador.");
     if (!igrejaNome || igrejaNome.length < 2) return jsonError("Informe o nome da nova igreja.");
-    if (email === OWNER_EMAIL) return jsonError("Esse e-mail já é o administrador proprietário.");
+    if (OWNER_EMAILS.has(email)) return jsonError("Esse e-mail já é um administrador proprietário.");
 
     const { data: church, error: churchError } = await authorized.admin
       .from("igrejas")
