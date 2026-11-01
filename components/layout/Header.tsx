@@ -19,7 +19,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <span className="text-white font-medium text-sm md:text-base">Igreja Matriz</span>
         <span className="hidden md:inline-block text-xs bg-ohel-blue/20 text-ohel-blue px-2 py-1 rounded-full border border-ohel-blue/30">
-          Plano Diamante
+          Plano Mensal
         </span>
       </div>
 
