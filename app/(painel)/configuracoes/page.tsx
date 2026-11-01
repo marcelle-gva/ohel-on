@@ -306,6 +306,23 @@ export default function ConfiguracoesPage() {
               <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
             </Link>
 
+            {/* Administradores */}
+            <Link
+              href="/configuracoes/administradores"
+              className="flex items-center justify-between bg-ohel-surface border border-gray-800 hover:border-ohel-blue p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-ohel-blue transition-colors">Administradores</p>
+                  <p className="text-[11px] text-gray-400">Convide e revogue administradores.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-ohel-blue transition-all" />
+            </Link>
+
           </div>
         </div>
 
