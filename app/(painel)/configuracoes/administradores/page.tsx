@@ -92,7 +92,7 @@ export default function AdministradoresPage() {
         <Link href="/configuracoes" className="text-gray-400 hover:text-white mt-1"><ArrowLeft className="w-6 h-6" /></Link>
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2"><ShieldCheck className="w-6 h-6 text-cyan-400" /> Administradores</h1>
-          <p className="text-gray-400 text-sm mt-1">Somente admin@ipocloud.com.br pode convidar novos administradores.</p>
+          <p className="text-gray-400 text-sm mt-1">Somente a conta proprietária conectada pelo Google pode convidar novos administradores.</p>
         </div>
       </div>
 

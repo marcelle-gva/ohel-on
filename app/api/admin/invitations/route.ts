@@ -2,7 +2,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-const OWNER_EMAIL = (process.env.ADMIN_INVITE_SENDER_EMAIL || "admin@ipocloud.com.br").trim().toLowerCase();
+const OWNER_EMAIL = (
+  process.env.ADMIN_INVITE_OWNER_EMAIL ||
+  process.env.ADMIN_INVITE_SENDER_EMAIL ||
+  "marcelle.gva@gmail.com"
+).trim().toLowerCase();
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
