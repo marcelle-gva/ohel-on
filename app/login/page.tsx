@@ -115,8 +115,8 @@ export default function Login() {
           Continuar com Google
         </Button>
 
-        <p className="text-xs text-gray-400 mt-5">
-          Não tem conta? <Link href="/cadastro" className="text-white font-medium hover:underline">Cadastre-se</Link>
+        <p className="text-xs text-gray-500 mt-5 text-center">
+          O acesso administrativo é liberado por convite do proprietário do sistema.
         </p>
 
       </Card>
