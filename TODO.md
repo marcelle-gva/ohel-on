@@ -16,7 +16,7 @@
 - [x] Criar no Monitor um navegador bíblico por lista de livros, capítulos e versículos usando a API Almeida.
 - [x] Ao clicar em um versículo, abrir a tela `/projecao` e enviar o capítulo como slides, iniciando no versículo escolhido.
 - [x] Permitir avançar e voltar pelos versículos com as setas do teclado na projeção.
-- [x] Dar mais espaço à lista de livros e manter somente o botão de sermão com o texto `Crie um sermão`.
+- [x] Dar mais espaço à lista de livros, organizar os livros por Antigo e Novo Testamento e manter o formulário acessível somente pelo botão `Criar sermão`.
 - [x] Permitir preencher título, tema, pastor/preletor e esboço no próprio Monitor.
 - [x] Salvar a mensagem na tabela `sermoes` vinculada à `igreja_id` da sessão.
 - [x] Enviar referência, texto e blocos do esboço para `/projecao` em tempo real.

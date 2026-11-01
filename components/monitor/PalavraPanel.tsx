@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BookOpen, BookMarked, ChevronRight, Loader2, Save, Send } from "lucide-react";
+import { BookOpen, BookMarked, ChevronRight, Loader2, Save, Send, X } from "lucide-react";
 
 interface BibleBook {
   id: string;
@@ -54,6 +54,7 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
+  const [sermaoAberto, setSermaoAberto] = useState(false);
   const [form, setForm] = useState({ titulo: "", tema: "", pastor: "", esboco: "" });
 
   useEffect(() => {
@@ -74,7 +75,8 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const filteredBooks = useMemo(() => books.filter((item) => item.name.toLowerCase().includes(bookFilter.toLowerCase())), [books, bookFilter]);
+  const oldTestamentBooks = useMemo(() => books.slice(0, 39).filter((item) => item.name.toLowerCase().includes(bookFilter.toLowerCase())), [books, bookFilter]);
+  const newTestamentBooks = useMemo(() => books.slice(39).filter((item) => item.name.toLowerCase().includes(bookFilter.toLowerCase())), [books, bookFilter]);
 
   const selectBook = async (nextBook: BibleBook) => {
     setBook(nextBook);
@@ -185,7 +187,7 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
         <span className="text-[10px] text-gray-500">Almeida · livros, capítulos e versículos</span>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_0.9fr] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_0.8fr] gap-4">
         <div className="min-w-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-[10px] text-gray-400">
@@ -199,7 +201,10 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
           {!book && (
             <>
               <input value={bookFilter} onChange={(event) => setBookFilter(event.target.value)} placeholder="Filtrar livros..." className="w-full mb-2 bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" />
-              {loadingBooks ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando livros...</div> : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[420px] overflow-y-auto pr-1">{filteredBooks.map((item) => <button key={item.id} onClick={() => void selectBook(item)} className="text-left px-3 py-2.5 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300 transition-colors">{item.name}</button>)}</div>}
+              {loadingBooks ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando livros...</div> : <div className="max-h-[520px] overflow-y-auto pr-1 space-y-4">
+                <div><p className="text-[10px] font-bold uppercase tracking-wider text-amber-200 mb-2">Antigo Testamento</p><div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">{oldTestamentBooks.map((item) => <button key={item.id} onClick={() => void selectBook(item)} className="text-left px-3 py-2.5 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300 transition-colors">{item.name}</button>)}</div></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-wider text-amber-200 mb-2">Novo Testamento</p><div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">{newTestamentBooks.map((item) => <button key={item.id} onClick={() => void selectBook(item)} className="text-left px-3 py-2.5 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300 transition-colors">{item.name}</button>)}</div></div>
+              </div>}
             </>
           )}
 
@@ -214,12 +219,15 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
 
         <div className="flex flex-col gap-2">
           {selectedVerse && <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-3"><p className="text-amber-200 text-xs font-bold flex items-center gap-2"><BookMarked className="w-3.5 h-3.5" /> {selectedVerse.book} {selectedVerse.chapter}:{selectedVerse.verse}</p><p className="text-gray-200 text-xs leading-relaxed mt-2">{selectedVerse.text.trim()}</p></div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={form.titulo} onChange={(event) => atualizarForm("titulo", event.target.value)} placeholder="Título do sermão" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" /><input value={form.tema} onChange={(event) => atualizarForm("tema", event.target.value)} placeholder="Tema central" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" /></div>
-          <input value={form.pastor} onChange={(event) => atualizarForm("pastor", event.target.value)} placeholder="Pastor / preletor" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" />
-          <textarea value={form.esboco} onChange={(event) => atualizarForm("esboco", event.target.value)} placeholder="Esboço, introdução, tópicos e conclusão da mensagem..." className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 min-h-[112px] resize-y focus:border-ohel-blue outline-none leading-relaxed" />
-          {erro && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-md p-2">{erro}</p>}
-          {mensagem && <p className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-md p-2">{mensagem}</p>}
-          <div className="flex flex-wrap justify-end gap-2"><button onClick={salvarSermao} disabled={salvando} className="px-3 py-2 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 text-[10px] font-semibold flex items-center gap-1.5 disabled:opacity-60">{salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Crie um sermão</button><button onClick={projetarEsboco} className="px-3 py-2 rounded-md bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-white text-[10px] font-semibold flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Exibir Esboço</button></div>
+          {!sermaoAberto ? <div className="flex flex-col items-center justify-center min-h-[180px] rounded-lg border border-dashed border-gray-700 bg-ohel-bg/40 p-5 text-center"><BookOpen className="w-8 h-8 text-gray-600 mb-3" /><p className="text-xs text-gray-400 mb-4">O formulário de sermão fica fechado durante a seleção da Bíblia.</p><button onClick={() => setSermaoAberto(true)} className="px-5 py-2.5 rounded-md bg-ohel-blue text-white hover:bg-blue-600 text-xs font-bold">Criar sermão</button></div> : <>
+            <div className="flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Novo sermão</p><button onClick={() => setSermaoAberto(false)} aria-label="Fechar criação de sermão" className="p-1 text-gray-500 hover:text-white"><X className="w-4 h-4" /></button></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={form.titulo} onChange={(event) => atualizarForm("titulo", event.target.value)} placeholder="Título do sermão" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" /><input value={form.tema} onChange={(event) => atualizarForm("tema", event.target.value)} placeholder="Tema central" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" /></div>
+            <input value={form.pastor} onChange={(event) => atualizarForm("pastor", event.target.value)} placeholder="Pastor / preletor" className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" />
+            <textarea value={form.esboco} onChange={(event) => atualizarForm("esboco", event.target.value)} placeholder="Esboço, introdução, tópicos e conclusão da mensagem..." className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 min-h-[112px] resize-y focus:border-ohel-blue outline-none leading-relaxed" />
+            {erro && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-md p-2">{erro}</p>}
+            {mensagem && <p className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-md p-2">{mensagem}</p>}
+            <div className="flex flex-wrap justify-end gap-2"><button onClick={salvarSermao} disabled={salvando} className="px-3 py-2 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 text-[10px] font-semibold flex items-center gap-1.5 disabled:opacity-60">{salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Salvar sermão</button><button onClick={projetarEsboco} className="px-3 py-2 rounded-md bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-white text-[10px] font-semibold flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Exibir Esboço</button></div>
+          </>}
         </div>
       </div>
     </section>
