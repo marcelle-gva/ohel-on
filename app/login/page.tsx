@@ -123,6 +123,10 @@ export default function Login() {
           O acesso administrativo é liberado por convite do proprietário do sistema.
         </p>
 
+        <Link href="/login-membro" className="text-xs text-emerald-300 hover:text-emerald-200 mt-4 transition-colors">
+          Sou membro da igreja — acessar Área do Membro
+        </Link>
+
       </Card>
     </main>
   );

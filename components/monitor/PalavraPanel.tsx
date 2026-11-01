@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { BookOpen, BookMarked, ChevronRight, Loader2, Save, Send } from "lucide-react";
 
@@ -186,7 +185,7 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
         <span className="text-[10px] text-gray-500">Almeida · livros, capítulos e versículos</span>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_0.9fr] gap-4">
         <div className="min-w-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-[10px] text-gray-400">
@@ -200,16 +199,16 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
           {!book && (
             <>
               <input value={bookFilter} onChange={(event) => setBookFilter(event.target.value)} placeholder="Filtrar livros..." className="w-full mb-2 bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 focus:border-ohel-blue outline-none" />
-              {loadingBooks ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando livros...</div> : <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[235px] overflow-y-auto pr-1">{filteredBooks.map((item) => <button key={item.id} onClick={() => void selectBook(item)} className="text-left px-2.5 py-2 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300 transition-colors">{item.name}</button>)}</div>}
+              {loadingBooks ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando livros...</div> : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[420px] overflow-y-auto pr-1">{filteredBooks.map((item) => <button key={item.id} onClick={() => void selectBook(item)} className="text-left px-3 py-2.5 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300 transition-colors">{item.name}</button>)}</div>}
             </>
           )}
 
           {book && !chapter && (
-            loadingChapters ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando capítulos...</div> : <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 max-h-[235px] overflow-y-auto pr-1">{chapters.map((item) => <button key={item.chapter} onClick={() => void selectChapter(item)} className="py-2 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300">{item.chapter}</button>)}</div>
+            loadingChapters ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando capítulos...</div> : <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 max-h-[360px] overflow-y-auto pr-1">{chapters.map((item) => <button key={item.chapter} onClick={() => void selectChapter(item)} className="py-2.5 bg-ohel-bg border border-gray-800 hover:border-amber-400/50 hover:text-amber-200 rounded-md text-xs text-gray-300">{item.chapter}</button>)}</div>
           )}
 
           {book && chapter && (
-            loadingVerses ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando versículos...</div> : <div className="flex flex-col gap-1 max-h-[235px] overflow-y-auto pr-1">{verses.map((item) => <button key={item.verse} onClick={() => selectVerse(item)} className={`text-left p-2 rounded-md border text-xs transition-colors ${selectedVerse?.verse === item.verse ? "border-amber-400/60 bg-amber-400/10 text-amber-100" : "border-gray-800 bg-ohel-bg text-gray-300 hover:border-amber-400/40 hover:text-white"}`}><span className="font-bold text-amber-300 mr-2">{item.verse}</span>{item.text.trim()}</button>)}</div>
+            loadingVerses ? <div className="flex items-center gap-2 text-xs text-gray-500 p-3"><Loader2 className="w-4 h-4 animate-spin" /> Carregando versículos...</div> : <div className="flex flex-col gap-1 max-h-[360px] overflow-y-auto pr-1">{verses.map((item) => <button key={item.verse} onClick={() => selectVerse(item)} className={`text-left p-2.5 rounded-md border text-xs transition-colors ${selectedVerse?.verse === item.verse ? "border-amber-400/60 bg-amber-400/10 text-amber-100" : "border-gray-800 bg-ohel-bg text-gray-300 hover:border-amber-400/40 hover:text-white"}`}><span className="font-bold text-amber-300 mr-2">{item.verse}</span>{item.text.trim()}</button>)}</div>
           )}
         </div>
 
@@ -220,7 +219,7 @@ export function PalavraPanel({ igrejaId, onProjetar }: PalavraPanelProps) {
           <textarea value={form.esboco} onChange={(event) => atualizarForm("esboco", event.target.value)} placeholder="Esboço, introdução, tópicos e conclusão da mensagem..." className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 min-h-[112px] resize-y focus:border-ohel-blue outline-none leading-relaxed" />
           {erro && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-md p-2">{erro}</p>}
           {mensagem && <p className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-md p-2">{mensagem}</p>}
-          <div className="flex flex-wrap justify-end gap-2"><Link href="/gabinete/sermoes/novo" className="px-3 py-2 rounded-md border border-gray-700 text-gray-300 hover:text-white hover:border-ohel-blue text-[10px] font-semibold">Editor completo</Link><button onClick={salvarSermao} disabled={salvando} className="px-3 py-2 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 text-[10px] font-semibold flex items-center gap-1.5 disabled:opacity-60">{salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Salvar Sermão</button><button onClick={projetarEsboco} className="px-3 py-2 rounded-md bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-white text-[10px] font-semibold flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Exibir Esboço</button></div>
+          <div className="flex flex-wrap justify-end gap-2"><button onClick={salvarSermao} disabled={salvando} className="px-3 py-2 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 text-[10px] font-semibold flex items-center gap-1.5 disabled:opacity-60">{salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Crie um sermão</button><button onClick={projetarEsboco} className="px-3 py-2 rounded-md bg-amber-500/20 text-amber-200 hover:bg-amber-500 hover:text-white text-[10px] font-semibold flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Exibir Esboço</button></div>
         </div>
       </div>
     </section>

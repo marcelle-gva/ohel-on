@@ -4,7 +4,13 @@
       "path": "/"
     },
     {
+      "path": "/area-membro"
+    },
+    {
       "path": "/auth/callback"
+    },
+    {
+      "path": "/auth/membro/callback"
     },
     {
       "path": "/cadastro"
@@ -146,6 +152,9 @@
     },
     {
       "path": "/login"
+    },
+    {
+      "path": "/login-membro"
     },
     {
       "path": "/louvor/:id"

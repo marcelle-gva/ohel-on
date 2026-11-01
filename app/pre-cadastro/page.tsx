@@ -81,7 +81,7 @@ function PreCadastroForm() {
       });
       setConsentAccepted(false);
       setActiveTab("pessoais");
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seus dados. Tente novamente." });
     } finally {
       setLoading(false);
@@ -147,7 +147,7 @@ function PreCadastroForm() {
                   <Input label="CPF" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="000.000.000-00" />
                   <Input label="Telefone / WhatsApp *" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="(00) 00000-0000" />
                   <div className="md:col-span-2">
-                    <Input label="E-mail" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" />
+                    <Input label="E-mail para acessar a Área do Membro *" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" required />
                   </div>
                 </div>
               </div>

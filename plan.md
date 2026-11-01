@@ -1,44 +1,32 @@
-# OHEL ON — plano de faturamento e culto
+# OHEL ON — plano de faturamento, culto e acesso de membros
 
 ## Faturamento mensal
 
-- Um único plano comercial para cada igreja.
-- Preço: R$ 80,00 por mês.
-- Cobrança recorrente pela Stripe Checkout hospedada.
-- O administrador da igreja inicia a assinatura dentro de Configurações > Faturamento.
-- Cancelamento disponível a qualquer momento; o cancelamento padrão encerra no fim do período já pago.
-- Cada assinatura é vinculada a uma única `igreja_id`.
-- Webhooks Stripe atualizam o status no Supabase e são protegidos por assinatura HMAC da Stripe.
-- O aplicativo não armazena dados de cartão.
+O sistema mantém um plano único de R$ 80,00 mensais por igreja, com Stripe Checkout hospedado, cancelamento no fim do período pago, vínculo por `igreja_id`, webhooks assinados e sem armazenar dados de cartão. O administrador inicia a cobrança em Configurações > Faturamento.
 
 ## Palavra no Monitor de Mídia
 
-- O Monitor de Mídia terá um bloco Palavra para buscar referências na API `bible-api.com` usando a tradução Almeida.
-- O bloco exibirá a referência e o texto retornado, permitirá compor título, tema, pastor/preletor e esboço, e salvará o sermão na tabela existente `sermoes` vinculado à `igreja_id` autenticada.
-- A ação Exibir na Projeção enviará referência, texto bíblico e blocos do esboço pelo canal Realtime `projecao-{igreja_id}`.
-- A tela `/projecao` reconhecerá comandos de Palavra e exibirá seus slides sem interferir no fluxo de louvores.
-- O padrão visual e o fluxo de criação reaproveitam o Banco de Sermões do Gabinete Pastoral.
-- A API escolhida é adequada para consulta pontual: documenta a tradução Almeida, CORS e limite de uso; o aplicativo não fará download da Bíblia inteira.
+O Monitor possui um navegador bíblico em três níveis — livro, capítulo e versículo — usando os endpoints de dados da tradução Almeida. Ao clicar em um versículo, a projeção é aberta e recebe todos os versículos do capítulo como slides, iniciando na seleção. As setas do teclado avançam e retornam entre os slides. O Monitor também permite preencher e salvar título, tema, pastor/preletor e esboço em `sermoes`.
+
+## Acesso de membros
+
+O pré-cadastro público continua sendo uma fila de aprovação: ele grava `membros.status = 'Pré-Cadastro'` e exige e-mail para que a pessoa possa acessar a área depois. A aprovação feita pela secretaria muda o status para `Ativo`.
+
+Membros não entram no login administrativo, não precisam de registro em `usuarios` e não recebem acesso ao painel interno. Eles entram por `/login-membro`, informam o mesmo e-mail do cadastro e recebem um link seguro por e-mail via Supabase OTP. O callback valida o e-mail e o status `Ativo`, e então encaminha para `/area-membro`. A área inicial mostra o cadastro e dá acesso ao `/checkin`.
+
+A política `SUPABASE_SQL_EDITOR_ACESSO_MEMBROS.sql` permite que um membro autenticado consulte somente o próprio registro ativo, comparando o e-mail da sessão com `membros.email`. A secretaria continua sendo responsável por aprovar o cadastro.
 
 ## Estrutura principal
 
-- `components/monitor/PalavraPanel.tsx`: busca bíblica, formulário de esboço, gravação em `sermoes` e comando de projeção.
-- `app/(painel)/monitor-midia/page.tsx`: composição do bloco Palavra com o Monitor e envio Realtime.
-- `app/projecao/page.tsx`: renderização de slides Palavra e louvor.
-- `app/(painel)/gabinete/sermoes/page.tsx` e `app/(painel)/gabinete/sermoes/novo/page.tsx`: biblioteca e formulário completo de sermões.
-- `lib/billing-server.ts`: autenticação administrativa, cliente Stripe, produto/preço, cliente e sincronização.
-- `app/api/billing/route.ts`: leitura do status e criação do Checkout Session.
-- `app/api/billing/cancel/route.ts`: cancelamento ou reativação no fim do período.
-- `app/api/billing/portal/route.ts`: portal Stripe para dados de pagamento e faturas.
-- `app/api/webhooks/stripe/route.ts`: webhook assinado e idempotente.
-
-## Variáveis necessárias em produção
-
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_ID` (opcional; sem ele o backend cria/reutiliza o preço pelo metadata)
-- `NEXT_PUBLIC_APP_URL=https://www.ipocloud.com.br`
+- `components/monitor/PalavraPanel.tsx`: navegador bíblico, formulário de sermão e projeção.
+- `app/(painel)/monitor-midia/page.tsx`: envio dos comandos Realtime do culto.
+- `app/projecao/page.tsx`: renderização de slides de louvor e Palavra.
+- `app/pre-cadastro/page.tsx`: fila pública de cadastro, agora com e-mail obrigatório.
+- `app/login-membro/page.tsx`: solicitação do link de acesso do membro.
+- `app/auth/membro/callback/page.tsx`: troca do código PKCE e validação do membro ativo.
+- `app/area-membro/page.tsx`: área inicial do membro e acesso ao check-in.
+- `SUPABASE_SQL_EDITOR_ACESSO_MEMBROS.sql`: política RLS do próprio registro ativo.
 
 ## Direção visual
 
-O OHEL ON mantém um painel SaaS escuro, seguro e pastoral. A Palavra usa âmbar para diferenciar o momento da pregação dos louvores em azul, sem alterar o restante do Monitor.
+O OHEL ON mantém uma interface escura, organizada e pastoral. A área do membro usa verde para indicar acesso pessoal e ativo, enquanto a Palavra usa âmbar para diferenciar a pregação dos louvores em azul.

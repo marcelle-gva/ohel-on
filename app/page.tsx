@@ -72,6 +72,9 @@ export default function HomePage() {
             <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white">
               Área Administrativa
             </Link>
+            <Link href="/login-membro" className="rounded-lg px-4 py-2 text-sm font-medium text-emerald-300 transition hover:text-emerald-200">
+              Área do Membro
+            </Link>
             <a
               href={quoteLink}
               target="_blank"

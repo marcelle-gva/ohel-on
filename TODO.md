@@ -16,8 +16,18 @@
 - [x] Criar no Monitor um navegador bíblico por lista de livros, capítulos e versículos usando a API Almeida.
 - [x] Ao clicar em um versículo, abrir a tela `/projecao` e enviar o capítulo como slides, iniciando no versículo escolhido.
 - [x] Permitir avançar e voltar pelos versículos com as setas do teclado na projeção.
+- [x] Dar mais espaço à lista de livros e manter somente o botão de sermão com o texto `Crie um sermão`.
 - [x] Permitir preencher título, tema, pastor/preletor e esboço no próprio Monitor.
 - [x] Salvar a mensagem na tabela `sermoes` vinculada à `igreja_id` da sessão.
 - [x] Enviar referência, texto e blocos do esboço para `/projecao` em tempo real.
 - [x] Fazer `/projecao` reconhecer Palavra e louvor sem conflitar os dois modos.
 - [ ] Testar no culto com duas abas reais: Monitor de Mídia e tela de projeção.
+
+## Acesso de membros
+
+- [x] Confirmar que o pré-cadastro grava somente `membros` com status `Pré-Cadastro` e não cria acesso automaticamente.
+- [x] Exigir e-mail no pré-cadastro para permitir acesso posterior do membro.
+- [x] Criar `/login-membro` com envio de link seguro por e-mail via Supabase OTP.
+- [x] Criar `/auth/membro/callback` para validar o código e permitir somente membros com status `Ativo`.
+- [x] Criar `/area-membro` separado do painel administrativo, com acesso ao `/checkin`.
+- [ ] Executar `SUPABASE_SQL_EDITOR_ACESSO_MEMBROS.sql` no Supabase para liberar a leitura do próprio registro ativo via RLS.
