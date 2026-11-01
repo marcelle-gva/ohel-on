@@ -283,6 +283,7 @@ export default function MonitorMidiaPage() {
       {loading ? (
         <div className="text-center py-10 text-gray-400 text-sm">Sincronizando painel de mídia...</div>
       ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
           {/* COLUNA 1 */}
@@ -439,8 +440,6 @@ export default function MonitorMidiaPage() {
               </div>
             </div>
 
-            <PalavraPanel igrejaId={igrejaId} onProjetar={(payload) => void projetarPalavra(payload)} />
-
             <div id="section-escala" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
@@ -548,6 +547,10 @@ export default function MonitorMidiaPage() {
           </div>
 
         </div>
+        <div className="mt-4 w-full">
+          <PalavraPanel igrejaId={igrejaId} onProjetar={(payload) => void projetarPalavra(payload)} />
+        </div>
+        </>
       )}
 
       {/* MODAL: QR CODE DO LOUVOR */}
