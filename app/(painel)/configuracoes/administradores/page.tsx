@@ -16,11 +16,13 @@ interface Invitation {
   expires_at: string;
   accepted_at: string | null;
   created_at: string;
+  igrejas?: { nome: string } | null;
 }
 
 export default function AdministradoresPage() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [igrejaNome, setIgrejaNome] = useState("");
   const [convites, setConvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,12 +58,13 @@ export default function AdministradoresPage() {
       const response = await fetch("/api/admin/invitations", {
         method: "POST",
         headers,
-        body: JSON.stringify({ nome, email }),
+        body: JSON.stringify({ nome, email, igrejaNome }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível enviar o convite.");
       setNome("");
       setEmail("");
+      setIgrejaNome("");
       setModal({ isOpen: true, type: "success", title: "Convite enviado", message: `O convite para ${email} foi enviado pelo Supabase Auth. O destinatário terá 7 dias para aceitar.` });
       await load();
     } catch (error) {
@@ -94,8 +97,9 @@ export default function AdministradoresPage() {
       </div>
 
       <Card className="border-cyan-500/20">
-        <div className="flex items-center gap-3 mb-5"><UserPlus className="w-5 h-5 text-cyan-400" /><div><h2 className="text-white font-semibold">Convidar administrador</h2><p className="text-gray-400 text-xs">O convite fica vinculado à sua igreja e expira em 7 dias.</p></div></div>
-        <form onSubmit={invite} className="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+        <div className="flex items-center gap-3 mb-5"><UserPlus className="w-5 h-5 text-cyan-400" /><div><h2 className="text-white font-semibold">Cadastrar outra igreja</h2><p className="text-gray-400 text-xs">Uma nova igreja será criada e o administrador ficará vinculado a ela. O convite expira em 7 dias.</p></div></div>
+        <form onSubmit={invite} className="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
+          <Input label="Nome da igreja" value={igrejaNome} onChange={(e) => setIgrejaNome(e.target.value)} placeholder="Igreja Esperança" required />
           <Input label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do administrador" required />
           <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@outra-pessoa.com" required />
           <Button type="submit" disabled={saving} className="h-10">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Mail className="w-4 h-4 mr-2" /> Enviar convite</>}</Button>
@@ -105,7 +109,7 @@ export default function AdministradoresPage() {
 
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b border-gray-800"><h2 className="text-white font-semibold">Convites enviados</h2></div>
-        {loading ? <div className="p-8 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline" /></div> : convites.length === 0 ? <div className="p-8 text-center text-gray-400">Nenhum convite enviado.</div> : <div className="divide-y divide-gray-800">{convites.map((convite) => { const expired = new Date(convite.expires_at).getTime() < Date.now(); return <div key={convite.id} className="p-4 flex items-center justify-between gap-4"><div><p className="text-white text-sm font-medium">{convite.nome}</p><p className="text-gray-400 text-xs flex items-center gap-1"><Mail className="w-3 h-3" />{convite.email}</p></div><div className="flex items-center gap-3"><span className={`text-xs ${convite.accepted_at ? "text-green-400" : expired ? "text-red-400" : "text-yellow-400"}`}>{convite.accepted_at ? "Aceito" : expired ? "Expirado" : "Pendente"}</span>{!convite.accepted_at && <button onClick={() => revoke(convite.id)} className="text-gray-500 hover:text-red-400" title="Revogar convite"><Trash2 className="w-4 h-4" /></button>}</div></div>; })}</div>}
+        {loading ? <div className="p-8 text-center text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline" /></div> : convites.length === 0 ? <div className="p-8 text-center text-gray-400">Nenhum convite enviado.</div> : <div className="divide-y divide-gray-800">{convites.map((convite) => { const expired = new Date(convite.expires_at).getTime() < Date.now(); return <div key={convite.id} className="p-4 flex items-center justify-between gap-4"><div><p className="text-white text-sm font-medium">{convite.igrejas?.nome || "Igreja"}</p><p className="text-gray-300 text-sm">{convite.nome}</p><p className="text-gray-400 text-xs flex items-center gap-1"><Mail className="w-3 h-3" />{convite.email}</p></div><div className="flex items-center gap-3"><span className={`text-xs ${convite.accepted_at ? "text-green-400" : expired ? "text-red-400" : "text-yellow-400"}`}>{convite.accepted_at ? "Aceito" : expired ? "Expirado" : "Pendente"}</span>{!convite.accepted_at && <button onClick={() => revoke(convite.id)} className="text-gray-500 hover:text-red-400" title="Revogar convite"><Trash2 className="w-4 h-4" /></button>}</div></div>; })}</div>}
       </Card>
     </div>
   );
