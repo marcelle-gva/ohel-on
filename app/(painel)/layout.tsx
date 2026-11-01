@@ -33,8 +33,10 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         // REGRA DE OURO: Se for admin, libera TUDO.
         setPermissoes([
           'dashboard', 'membros', 'congregacoes', 'congregados', 
-          'visitantes', 'eventos', 'financeiro', 'mural', 
-          'monitor-midia', 'monitor-oracoes', 'escalas', 'configuracoes', 'patrimonio', 'gabinete', 'ensino', 'sorteios', 'kids-teens'
+          'visitantes', 'visitas', 'eventos', 'financeiro', 'mural',
+          'monitor-midia', 'monitor-oracoes', 'escalas', 'reunioes', 'oracoes',
+          'cartas', 'certificados', 'credenciais', 'fichas', 'configuracoes',
+          'patrimonio', 'gabinete', 'ensino', 'sorteios', 'kids-teens'
         ]);
       } else if (user?.grupo_id) {
         // Se não for admin, busca as permissões do grupo dele
