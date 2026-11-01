@@ -70,7 +70,7 @@ export default function HomePage() {
           </Link>
           <nav className="flex items-center gap-3">
             <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white">
-              Entrar
+              Área Administrativa
             </Link>
             <a
               href={quoteLink}
@@ -122,7 +122,7 @@ export default function HomePage() {
                 href="/login"
                 className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
               >
-                Entrar no sistema
+                Acessar Área Administrativa
               </Link>
             </div>
 
@@ -425,7 +425,7 @@ export default function HomePage() {
       <footer className="border-t border-white/[0.08]">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-6 text-xs text-gray-500 sm:flex-row md:px-8">
           <span>© {new Date().getFullYear()} OHEL ON. Gestão eclesiástica.</span>
-          <Link href="/login" className="text-gray-300 transition hover:text-white">Acessar o sistema</Link>
+          <Link href="/login" className="text-gray-300 transition hover:text-white">Área Administrativa</Link>
         </div>
       </footer>
     </main>

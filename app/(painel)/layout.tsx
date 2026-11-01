@@ -23,11 +23,17 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       }
 
       // Busca o grupo e a role (admin, pastor, membro) do usuário
-      const { data: user } = await supabase
+      const { data: user, error: userError } = await supabase
         .from('usuarios')
-        .select('grupo_id, role')
+        .select('grupo_id, role, igreja_id')
         .eq('id', session.user.id)
         .single();
+
+      if (userError || !user?.igreja_id) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return;
+      }
 
       if (user?.role === 'admin') {
         // REGRA DE OURO: Se for admin, libera TUDO.

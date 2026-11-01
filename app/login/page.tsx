@@ -76,8 +76,12 @@ export default function Login() {
         </div>
         
         <h2 className="text-white text-[15px] font-bold tracking-wide mb-6 uppercase text-center">
-          Ohel ON — Entrar na conta
+          Ohel ON — Área Administrativa
         </h2>
+
+        <p className="text-center text-xs text-gray-400 mb-5">
+          Acesso exclusivo para administradores e usuários autorizados da igreja.
+        </p>
 
         <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
           
@@ -91,7 +95,7 @@ export default function Login() {
           </div>
 
           <Button type="submit" variant="primary" className="mt-2 w-full" disabled={loading}>
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Entrando...</> : "Entrar"}
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verificando acesso...</> : "Entrar na Área Administrativa"}
           </Button>
         </form>
 
