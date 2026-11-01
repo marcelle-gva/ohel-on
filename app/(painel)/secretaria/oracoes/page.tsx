@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { Search, Plus, Edit, Trash2, AlertTriangle, HeartHandshake, EyeOff, Eye } from "lucide-react";
+import { Search, Plus, Edit, Trash2, AlertTriangle, HeartHandshake, EyeOff, Eye, CheckCircle, XCircle } from "lucide-react";
 
 interface PedidoOracao {
   id: string; nome_solicitante: string; descricao: string; visibilidade: string; status: string; created_at: string;
@@ -20,6 +20,7 @@ export default function OracoesPage() {
 
   const [pedidoToDelete, setPedidoToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPedidos();
@@ -53,6 +54,25 @@ export default function OracoesPage() {
       console.error("Erro ao excluir:", error);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    setStatusUpdatingId(id);
+    try {
+      const { data, error } = await supabase
+        .from("pedidos_oracao")
+        .update({ status })
+        .eq("id", id)
+        .select("id, status")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Pedido não encontrado ou sem permissão para alterar o status.");
+      setPedidos((current) => current.map((pedido) => pedido.id === id ? { ...pedido, status: data.status } : pedido));
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+    } finally {
+      setStatusUpdatingId(null);
     }
   };
 
@@ -90,6 +110,8 @@ export default function OracoesPage() {
         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-ohel-bg border border-gray-700 text-sm text-white rounded-md px-4 py-2.5 outline-none w-full lg:w-48">
           <option value="todos">Todos os Status</option>
           <option value="Pendente">Pendentes</option>
+          <option value="Aprovado">Aprovados</option>
+          <option value="Rejeitado">Rejeitados</option>
           <option value="Em Oração">Em Oração</option>
           <option value="Atendido">Atendidos</option>
         </select>
@@ -119,6 +141,12 @@ export default function OracoesPage() {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <button onClick={() => router.push(`/secretaria/oracoes/editar/${pedido.id}`)} className="text-gray-500 hover:text-ohel-blue transition-colors"><Edit className="w-4 h-4" /></button>
+                        {pedido.status === "Pendente" && (
+                          <>
+                            <button onClick={() => void handleStatusChange(pedido.id, "Aprovado")} disabled={statusUpdatingId === pedido.id} className="text-gray-500 hover:text-green-400 disabled:opacity-50 transition-colors" title="Aprovar"><CheckCircle className="w-4 h-4" /></button>
+                            <button onClick={() => void handleStatusChange(pedido.id, "Rejeitado")} disabled={statusUpdatingId === pedido.id} className="text-gray-500 hover:text-red-400 disabled:opacity-50 transition-colors" title="Rejeitar"><XCircle className="w-4 h-4" /></button>
+                          </>
+                        )}
                         <button onClick={() => setPedidoToDelete(pedido.id)} className="text-gray-500 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
@@ -136,8 +164,9 @@ export default function OracoesPage() {
                     <td className="p-4 text-gray-400 text-sm">{formatarData(pedido.created_at)}</td>
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
-                        ${pedido.status === "Pendente" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : 
-                          pedido.status === "Em Oração" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : 
+                        ${pedido.status === "Pendente" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
+                          pedido.status === "Aprovado" || pedido.status === "Em Oração" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                          pedido.status === "Rejeitado" ? "bg-red-500/10 text-red-400 border-red-500/20" :
                           "bg-green-500/10 text-green-400 border-green-500/20"}`}>
                         {pedido.status}
                       </span>

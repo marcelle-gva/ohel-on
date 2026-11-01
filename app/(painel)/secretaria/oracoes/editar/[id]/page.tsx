@@ -135,6 +135,8 @@ export default function EditarPedidoOracaoPage() {
               <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Status</label>
               <select name="status" value={formData.status} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm">
                 <option value="Pendente">Pendente</option>
+                <option value="Aprovado">Aprovado</option>
+                <option value="Rejeitado">Rejeitado</option>
                 <option value="Em Oração">Em Oração</option>
                 <option value="Atendido">Atendido</option>
               </select>
