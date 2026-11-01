@@ -11,7 +11,9 @@ interface PreCadastro {
   id: string;
   nome: string;
   telefone: string;
+  email: string | null;
   congregacao_id: string | null;
+  created_at: string | null;
 }
 
 export default function AprovacaoPage() {
@@ -19,17 +21,13 @@ export default function AprovacaoPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
-  useEffect(() => {
-    fetchPreCadastros();
-  }, []);
-
   const fetchPreCadastros = async () => {
     try {
       const { data, error } = await supabase
         .from("membros")
-        .select("id, nome, telefone, congregacao_id")
+        .select("id, nome, telefone, email, congregacao_id, created_at")
         .eq("status", "Pré-Cadastro")
-        .order("nome");
+        .order("created_at", { ascending: false, nullsFirst: false });
       
       if (error) throw error;
       setPreCadastros(data || []);
@@ -39,6 +37,11 @@ export default function AprovacaoPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchPreCadastros(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleAprovar = async (id: string) => {
     try {
@@ -81,29 +84,33 @@ export default function AprovacaoPage() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-ohel-surface/80 border-b border-gray-800 text-xs uppercase tracking-wider text-gray-400">
-              <th className="p-4 font-medium">Ações</th>
               <th className="p-4 font-medium">Nome</th>
               <th className="p-4 font-medium">Telefone</th>
+              <th className="p-4 font-medium">E-mail</th>
+              <th className="p-4 font-medium">Recebido em</th>
+              <th className="p-4 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
             {loading ? (
-              <tr><td colSpan={3} className="p-8 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Carregando...</td></tr>
             ) : preCadastros.length === 0 ? (
-              <tr><td colSpan={3} className="p-8 text-center text-gray-400">Nenhum pré-cadastro pendente no momento.</td></tr>
+              <tr><td colSpan={5} className="p-8 text-center text-gray-400">Nenhum pré-cadastro pendente no momento.</td></tr>
             ) : (
               preCadastros.map((p) => (
                 <tr key={p.id} className="hover:bg-white/[0.02]">
+                  <td className="p-4 text-white font-medium">{p.nome}</td>
+                  <td className="p-4 text-gray-300">{p.telefone}</td>
+                  <td className="p-4 text-gray-300">{p.email || "—"}</td>
+                  <td className="p-4 text-gray-400 text-xs">{p.created_at ? new Date(p.created_at).toLocaleString("pt-BR") : "—"}</td>
                   <td className="p-4 flex items-center gap-3">
                     <button onClick={() => handleAprovar(p.id)} className="text-green-500 hover:text-green-400 flex items-center gap-1 text-xs font-medium" title="Aprovar">
                       <CheckCircle className="w-5 h-5" /> Aprovar
                     </button>
-                    <button onClick={() => handleRecusar(p.id)} className="text-red-500 hover:text-red-400 flex items-center gap-1 text-xs font-medium ml-4" title="Recusar">
+                    <button onClick={() => handleRecusar(p.id)} className="text-red-500 hover:text-red-400 flex items-center gap-1 text-xs font-medium" title="Recusar">
                       <XCircle className="w-5 h-5" /> Recusar
                     </button>
                   </td>
-                  <td className="p-4 text-white font-medium">{p.nome}</td>
-                  <td className="p-4 text-gray-300">{p.telefone}</td>
                 </tr>
               ))
             )}

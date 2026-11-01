@@ -1,11 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Bell, Search, LogOut } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
+  const [preCadastrosPendentes, setPreCadastrosPendentes] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const loadPending = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: usuario } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
+      if (!usuario?.igreja_id) return;
+      const { count } = await supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", usuario.igreja_id).eq("status", "Pré-Cadastro");
+      if (active) setPreCadastrosPendentes(count || 0);
+    };
+    void loadPending();
+    const interval = window.setInterval(() => void loadPending(), 30000);
+    const channel = supabase.channel("header-pre-cadastros").on("postgres_changes", { event: "*", schema: "public", table: "membros" }, () => void loadPending()).subscribe();
+    return () => { active = false; window.clearInterval(interval); void supabase.removeChannel(channel); };
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -34,9 +52,9 @@ export function Header() {
           />
         </div>
 
-        <button className="p-2 text-gray-400 hover:text-white transition-colors relative">
+        <button onClick={() => router.push("/secretaria/membros/aprovacao")} aria-label="Ver pré-cadastros pendentes" className="p-2 text-gray-400 hover:text-white transition-colors relative">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+          {preCadastrosPendentes > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{preCadastrosPendentes > 99 ? "99+" : preCadastrosPendentes}</span>}
         </button>
 
         <div className="h-8 w-px bg-gray-700 mx-1 md:mx-2"></div>
