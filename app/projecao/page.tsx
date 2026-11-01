@@ -50,14 +50,14 @@ export default function ProjecaoPage() {
 
     channel
       .on('broadcast', { event: 'comando_projecao' }, (payload) => {
-        const { musica_id, slide_index, transposicao, status, tipo, titulo, referencia, slides: palavraSlides } = payload.payload;
+        const { musica_id, slide_index, transposicao, status, tipo, titulo, referencia, slides: palavraSlides, initial_slide } = payload.payload;
 
         if (tipo === "palavra" && Array.isArray(palavraSlides)) {
           setModoProjecao("palavra");
           setMusicaTitulo(titulo || "Palavra");
           setMusicaTom(referencia || "");
           setSlides(palavraSlides);
-          setSlideIndex(0);
+          setSlideIndex(typeof initial_slide === "number" ? Math.min(Math.max(0, initial_slide), palavraSlides.length - 1) : 0);
         } else if (status === 'Tocando' && musica_id) {
           setModoProjecao("musica");
           buscarMusica(musica_id, slide_index, transposicao);

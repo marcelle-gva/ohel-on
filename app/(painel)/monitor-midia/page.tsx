@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { PalavraPanel } from "@/components/monitor/PalavraPanel";
+import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
 
 export default function MonitorMidiaPage() {
   const [loading, setLoading] = useState(true);
@@ -233,19 +233,23 @@ export default function MonitorMidiaPage() {
     } catch (error) { console.error(error); }
   };
 
-  const projetarPalavra = async (payload: { titulo: string; referencia: string; texto: string; esboco: string }) => {
+  const projetarPalavra = async (payload: PalavraProjectionPayload) => {
     if (!igrejaId) return;
-    const slides = [
-      payload.referencia && payload.texto ? `${payload.referencia}\n\n${payload.texto}` : "",
-      ...payload.esboco.split(/\n\s*\n/).map((bloco) => bloco.trim()).filter(Boolean),
-    ].filter(Boolean);
+    const slides = payload.slides?.length
+      ? payload.slides
+      : [
+          ...(payload.referencia && payload.texto ? [`${payload.referencia}\n\n${payload.texto}`] : []),
+          ...payload.esboco.split(/\n\s*\n/).map((bloco) => bloco.trim()).filter(Boolean),
+        ].filter(Boolean);
+    if (payload.autoOpen && typeof window !== "undefined") window.open(`${window.location.origin}/projecao`, "_blank", "noopener,noreferrer");
     const channel = supabase.channel(`projecao-${igrejaId}`, { config: { broadcast: { ack: true } } });
     try {
       await channel.subscribe();
+      if (payload.autoOpen) await new Promise((resolve) => window.setTimeout(resolve, 700));
       await channel.send({
         type: "broadcast",
         event: "comando_projecao",
-        payload: { tipo: "palavra", titulo: payload.titulo || "Palavra", referencia: payload.referencia, slides, status: "Palavra" },
+        payload: { tipo: "palavra", titulo: payload.titulo || "Palavra", referencia: payload.referencia, slides, initial_slide: payload.initialSlide || 0, status: "Palavra" },
       });
       setProjecaoAtual({ musicaId: null, slide: 0, transposicao: 0 });
     } catch (error) {
