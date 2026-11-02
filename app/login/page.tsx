@@ -51,13 +51,22 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Remove um verifier PKCE antigo que pode ter ficado interrompido
+      // por uma tentativa anterior no celular.
+      Object.keys(window.localStorage)
+        .filter((key) => key.includes("-code-verifier"))
+        .forEach((key) => window.localStorage.removeItem(key));
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: true,
         },
       });
       if (error) throw error;
+      if (!data.url) throw new Error("URL do Google não gerada.");
+      window.location.assign(data.url);
     } catch {
       setModal({ isOpen: true, type: "error", title: "Erro no Google", message: "Não foi possível conectar com o Google." });
       setLoading(false);
@@ -65,11 +74,11 @@ export default function Login() {
   };
 
   return (
-    <main className="w-full h-screen flex items-center justify-center bg-ohel-glow p-4">
+    <main className="w-full min-h-screen overflow-x-hidden flex items-center justify-center bg-ohel-glow p-3 sm:p-4">
       
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
 
-      <Card className="w-full max-w-[400px] flex flex-col items-center px-8 pt-6 pb-8 border-gray-800">
+      <Card className="w-full max-w-[400px] flex flex-col items-center px-5 sm:px-8 pt-6 pb-8 border-gray-800">
         
         <div className="mb-4">
           <Logo className="h-[100px] w-[200px]" />
@@ -89,7 +98,7 @@ export default function Login() {
 
           <div className="relative">
             <Input label="Senha" type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-ohel-bg/50 pr-10" />
-            <button type="button" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-[14px] text-gray-500 hover:text-white transition-colors cursor-pointer">
+            <button type="button" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 bottom-3 text-gray-500 hover:text-white transition-colors cursor-pointer">
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
@@ -99,7 +108,7 @@ export default function Login() {
           </Button>
         </form>
 
-        <Link href="/recuperar-senha" className="text-xs text-ohel-blue hover:text-blue-400 mt-4 transition-colors">
+        <Link href="/recuperar-senha" className="text-xs text-ohel-blue hover:text-blue-400 mt-4 transition-colors text-center break-words px-2">
           Esqueci minha senha
         </Link>
 
@@ -123,7 +132,7 @@ export default function Login() {
           O acesso administrativo é liberado por convite do proprietário do sistema.
         </p>
 
-        <Link href="/login-membro" className="text-xs text-emerald-300 hover:text-emerald-200 mt-4 transition-colors">
+        <Link href="/login-membro" className="w-full text-xs text-emerald-300 hover:text-emerald-200 mt-4 transition-colors text-center break-words leading-5 px-2">
           Sou membro da igreja — acessar Área do Membro
         </Link>
 

@@ -20,14 +20,25 @@ export default function AuthCallbackPage() {
       const oauthError = callbackUrl.searchParams.get("error_description")
         || callbackUrl.searchParams.get("error");
 
-      if (oauthError || !code) {
+      if (oauthError) {
         setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
         return;
       }
 
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) {
-        setMessage("Não foi possível validar a sessão do Google. Tente novamente.");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          setMessage("Não foi possível validar a sessão do Google. Tente novamente.");
+          return;
+        }
+      }
+
+      // Em alguns navegadores móveis o Supabase conclui a sessão antes
+      // de a página de callback terminar de carregar. Reaproveitamos essa
+      // sessão em vez de mandar o usuário voltar ao login.
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        setMessage("Não foi possível iniciar a sessão do Google. Tente novamente.");
         return;
       }
 
