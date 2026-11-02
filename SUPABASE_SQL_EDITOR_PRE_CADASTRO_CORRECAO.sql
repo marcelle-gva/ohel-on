@@ -31,6 +31,60 @@ with check (
   and public.igreja_publica_existe(igreja_id)
 );
 
+-- A secretaria precisa conseguir analisar a fila da própria igreja.
+-- O filtro por igreja evita que um usuário veja ou altere cadastros de outra igreja.
+grant select, update, delete on public.membros to authenticated;
+
+drop policy if exists ohel_membros_staff_select on public.membros;
+create policy ohel_membros_staff_select
+on public.membros
+for select
+to authenticated
+using (
+  exists (
+    select 1 from public.usuarios u
+    where u.id = auth.uid()
+      and u.igreja_id = membros.igreja_id
+      and u.role in ('admin', 'pastor', 'secretaria')
+  )
+);
+
+drop policy if exists ohel_membros_staff_update on public.membros;
+create policy ohel_membros_staff_update
+on public.membros
+for update
+to authenticated
+using (
+  exists (
+    select 1 from public.usuarios u
+    where u.id = auth.uid()
+      and u.igreja_id = membros.igreja_id
+      and u.role in ('admin', 'pastor', 'secretaria')
+  )
+)
+with check (
+  exists (
+    select 1 from public.usuarios u
+    where u.id = auth.uid()
+      and u.igreja_id = membros.igreja_id
+      and u.role in ('admin', 'pastor', 'secretaria')
+  )
+);
+
+drop policy if exists ohel_membros_staff_delete on public.membros;
+create policy ohel_membros_staff_delete
+on public.membros
+for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.usuarios u
+    where u.id = auth.uid()
+      and u.igreja_id = membros.igreja_id
+      and u.role in ('admin', 'pastor', 'secretaria')
+  )
+);
+
 -- A fila continua protegida: somente usuários autenticados da igreja podem ler e tratar registros.
 create index if not exists idx_membros_pre_cadastro_recent
   on public.membros (igreja_id, status, created_at desc);

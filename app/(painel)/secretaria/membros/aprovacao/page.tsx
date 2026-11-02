@@ -19,6 +19,7 @@ interface PreCadastro {
 export default function AprovacaoPage() {
   const [preCadastros, setPreCadastros] = useState<PreCadastro[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const fetchPreCadastros = async () => {
@@ -44,26 +45,29 @@ export default function AprovacaoPage() {
   }, []);
 
   const handleAprovar = async (id: string) => {
+    setProcessingId(id);
     try {
-      const { error } = await supabase.from("membros").update({ status: "Ativo" }).eq("id", id);
+      const { data, error } = await supabase.from("membros").update({ status: "Ativo" }).eq("id", id).select("id, status").maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("Nenhum cadastro foi alterado. Execute a correção de permissões do pré-cadastro no Supabase.");
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
       setModal({ isOpen: true, type: "success", title: "Aprovado", message: "O pré-cadastro foi aprovado e o membro já está ativo no sistema." });
     } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível aprovar." });
-    }
+      setModal({ isOpen: true, type: "error", title: "Não foi possível aprovar", message: error instanceof Error ? error.message : "Verifique as permissões da tabela membros no Supabase." });
+    } finally { setProcessingId(null); }
   };
 
   const handleRecusar = async (id: string) => {
+    setProcessingId(id);
     try {
       const { error } = await supabase.from("membros").delete().eq("id", id);
       if (error) throw error;
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
     } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível recusar." });
-    }
+      setModal({ isOpen: true, type: "error", title: "Não foi possível recusar", message: error instanceof Error ? error.message : "Verifique as permissões da tabela membros no Supabase." });
+    } finally { setProcessingId(null); }
   };
 
   return (
@@ -104,10 +108,10 @@ export default function AprovacaoPage() {
                   <td className="p-4 text-gray-300">{p.email || "—"}</td>
                   <td className="p-4 text-gray-400 text-xs">{p.created_at ? new Date(p.created_at).toLocaleString("pt-BR") : "—"}</td>
                   <td className="p-4 flex items-center gap-3">
-                    <button onClick={() => handleAprovar(p.id)} className="text-green-500 hover:text-green-400 flex items-center gap-1 text-xs font-medium" title="Aprovar">
+                    <button disabled={processingId === p.id} onClick={() => void handleAprovar(p.id)} className="text-green-500 hover:text-green-400 disabled:opacity-50 flex items-center gap-1 text-xs font-medium" title="Aprovar">
                       <CheckCircle className="w-5 h-5" /> Aprovar
                     </button>
-                    <button onClick={() => handleRecusar(p.id)} className="text-red-500 hover:text-red-400 flex items-center gap-1 text-xs font-medium" title="Recusar">
+                    <button disabled={processingId === p.id} onClick={() => void handleRecusar(p.id)} className="text-red-500 hover:text-red-400 disabled:opacity-50 flex items-center gap-1 text-xs font-medium" title="Recusar">
                       <XCircle className="w-5 h-5" /> Recusar
                     </button>
                   </td>

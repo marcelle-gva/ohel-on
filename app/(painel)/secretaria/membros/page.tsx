@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { Search, Plus, Edit, Trash2, AlertTriangle, MessageCircle, QrCode, User, CheckSquare, CheckCircle } from "lucide-react";
+import { Search, Plus, Edit, Trash2, AlertTriangle, QrCode, User, CheckSquare, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
 
@@ -37,18 +37,6 @@ export default function MembrosPage() {
   // Estado do Toast (Notificação)
   const [toast, setToast] = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
-      }
-      fetchDados();
-    };
-    init();
-  }, []);
-
   const fetchDados = async () => {
     try {
       setLoading(true);
@@ -69,6 +57,18 @@ export default function MembrosPage() {
     }
   };
 
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+        if (user) setIgrejaId(user.igreja_id);
+      }
+      fetchDados();
+    };
+    init();
+  }, []);
+
   const handleDelete = async () => {
     if (!membroToDelete) return;
     setIsDeleting(true);
@@ -76,7 +76,7 @@ export default function MembrosPage() {
       await supabase.from("membros").delete().eq("id", membroToDelete);
       setMembros(membros.filter((m) => m.id !== membroToDelete));
       setMembroToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao excluir:", error);
     } finally {
       setIsDeleting(false);
@@ -149,18 +149,18 @@ export default function MembrosPage() {
       </Card>
 
       <Card className="overflow-hidden p-0 border-gray-800/60">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
+        <div className="w-full">
+          <table className="w-full table-fixed text-left border-collapse">
             <thead>
-              <tr className="bg-ohel-surface/80 border-b border-gray-800 text-xs uppercase tracking-wider text-gray-400">
-                <th className="p-4 font-medium">Ações</th>
-                <th className="p-4 font-medium">Foto</th>
-                <th className="p-4 font-medium">Código</th>
-                <th className="p-4 font-medium">Nome</th>
-                <th className="p-4 font-medium">Telefone</th>
-                <th className="p-4 font-medium">Cargo</th>
-                <th className="p-4 font-medium">Congregação</th>
-                <th className="p-4 font-medium">Status</th>
+              <tr className="bg-ohel-surface/80 border-b border-gray-800 text-[10px] sm:text-xs uppercase tracking-wider text-gray-400">
+                <th className="p-2 sm:p-3 font-medium w-[62px] sm:w-[86px]">Ações</th>
+                <th className="hidden sm:table-cell p-2 sm:p-3 font-medium w-[52px]">Foto</th>
+                <th className="hidden md:table-cell p-2 sm:p-3 font-medium w-[100px]">Código</th>
+                <th className="p-2 sm:p-3 font-medium">Nome</th>
+                <th className="hidden lg:table-cell p-2 sm:p-3 font-medium w-[145px]">Telefone</th>
+                <th className="hidden xl:table-cell p-2 sm:p-3 font-medium w-[120px]">Cargo</th>
+                <th className="hidden lg:table-cell p-2 sm:p-3 font-medium w-[150px]">Congregação</th>
+                <th className="p-2 sm:p-3 font-medium w-[92px] sm:w-[120px]">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
@@ -171,28 +171,28 @@ export default function MembrosPage() {
               ) : (
                 membrosFiltrados.map((membro) => (
                   <tr key={membro.id} className="hover:bg-white/[0.02]">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => router.push(`/secretaria/membros/editar/${membro.id}`)} className="text-gray-500 hover:text-ohel-blue"><Edit className="w-4 h-4" /></button>
-                        <button onClick={() => setMembroToDelete(membro.id)} className="text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    <td className="p-2 sm:p-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <button aria-label={`Editar ${membro.nome}`} onClick={() => router.push(`/secretaria/membros/editar/${membro.id}`)} className="text-gray-500 hover:text-ohel-blue"><Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></button>
+                        <button aria-label={`Excluir ${membro.nome}`} onClick={() => setMembroToDelete(membro.id)} className="text-gray-500 hover:text-red-500"><Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></button>
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="hidden sm:table-cell p-2 sm:p-3">
                       <div className="w-8 h-8 rounded-full bg-ohel-surface border border-gray-700 flex items-center justify-center overflow-hidden">
                         {membro.foto_url ? <Image src={membro.foto_url} alt={membro.nome} width={32} height={32} className="object-cover w-full h-full" /> : <User className="w-4 h-4 text-gray-500" />}
                       </div>
                     </td>
-                    <td className="p-4 text-gray-400 text-sm">{membro.codigo_membro || "-"}</td>
-                    <td className="p-4 text-white font-medium">{membro.nome}</td>
-                    <td className="p-4 text-gray-300">
+                    <td className="hidden md:table-cell p-2 sm:p-3 text-gray-400 text-sm break-words">{membro.codigo_membro || "-"}</td>
+                    <td className="p-2 sm:p-3 text-white font-medium text-xs sm:text-sm break-words">{membro.nome}</td>
+                    <td className="hidden lg:table-cell p-2 sm:p-3 text-gray-300">
                       {membro.telefone ? (
                         <div className="flex items-center gap-2"><span className="text-green-500 text-xs font-bold">WA</span> {membro.telefone}</div>
                       ) : "-"}
                     </td>
-                    <td className="p-4 text-gray-300 text-sm">{membro.cargo}</td>
-                    <td className="p-4 text-gray-300 text-sm">{membro.congregacoes?.nome || "-"}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
+                    <td className="hidden xl:table-cell p-2 sm:p-3 text-gray-300 text-sm break-words">{membro.cargo}</td>
+                    <td className="hidden lg:table-cell p-2 sm:p-3 text-gray-300 text-sm break-words">{membro.congregacoes?.nome || "-"}</td>
+                    <td className="p-2 sm:p-3 align-middle">
+                      <span className={`inline-flex max-w-full items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-xs leading-tight font-medium border whitespace-normal break-words
                         ${membro.status === "Ativo" ? "bg-green-500/10 text-green-400 border-green-500/20" : 
                           membro.status === "Pré-Cadastro" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : 
                           "bg-gray-500/10 text-gray-400 border-gray-500/20"}`}>
