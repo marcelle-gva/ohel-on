@@ -21,6 +21,7 @@ export default function OracoesPage() {
   const [pedidoToDelete, setPedidoToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPedidos();
@@ -59,17 +60,21 @@ export default function OracoesPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     setStatusUpdatingId(id);
+    setStatusError(null);
     try {
-      const { data, error } = await supabase
-        .from("pedidos_oracao")
-        .update({ status })
-        .eq("id", id)
-        .select("id, status")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Pedido não encontrado ou sem permissão para alterar o status.");
-      setPedidos((current) => current.map((pedido) => pedido.id === id ? { ...pedido, status: data.status } : pedido));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão expirada. Entre novamente para alterar o status.");
+      const response = await fetch("/api/oracoes/status", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
+      if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível alterar o status do pedido.");
+      setPedidos((current) => current.map((pedido) => pedido.id === id ? { ...pedido, status: result.pedido?.status || status } : pedido));
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível alterar o status do pedido.";
+      setStatusError(message);
       console.error("Erro ao atualizar status:", error);
     } finally {
       setStatusUpdatingId(null);
@@ -116,6 +121,7 @@ export default function OracoesPage() {
           <option value="Atendido">Atendidos</option>
         </select>
       </Card>
+      {statusError && <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{statusError}</div>}
 
       <Card className="overflow-hidden p-0 border-gray-800/60">
         <div className="overflow-x-auto">

@@ -266,10 +266,15 @@ export default function MonitorMidiaPage() {
   const handleApprovePrayer = async (id: string) => {
     try {
       if (!igrejaId) throw new Error("Igreja não identificada.");
-      const { data, error } = await supabase.from('pedidos_oracao').update({ status: 'Aprovado' })
-        .eq('id', id).eq('igreja_id', igrejaId).select('id').maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Pedido não encontrado ou sem permissão para aprovar.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão expirada. Entre novamente para aprovar a oração.");
+      const response = await fetch("/api/oracoes/status", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "Aprovado" }),
+      });
+      const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
+      if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível aprovar a oração.");
       const aprovado = oracoesPendentes.find(o => o.id === id);
       setOracoesPendentes((current) => current.filter(o => o.id !== id));
       if (aprovado) setOracoesSemana((current) => [{ ...aprovado, status: 'Aprovado' }, ...current]);
@@ -281,10 +286,15 @@ export default function MonitorMidiaPage() {
   const handleRejectPrayer = async (id: string) => {
     try {
       if (!igrejaId) throw new Error("Igreja não identificada.");
-      const { data, error } = await supabase.from('pedidos_oracao').update({ status: 'Rejeitado' })
-        .eq('id', id).eq('igreja_id', igrejaId).select('id').maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Pedido não encontrado ou sem permissão para rejeitar.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão expirada. Entre novamente para rejeitar a oração.");
+      const response = await fetch("/api/oracoes/status", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "Rejeitado" }),
+      });
+      const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
+      if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível rejeitar a oração.");
       setOracoesPendentes((current) => current.filter(o => o.id !== id));
     } catch (error) {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível rejeitar." });
