@@ -40,3 +40,12 @@
 - [x] Criar modelos de termo para credencial, doação de bem móvel, LGPD, imagem de adulto e autorização específica para criança/adolescente.
 - [ ] Executar `SUPABASE_SQL_EDITOR_TERMOS_CREDENCIAIS.sql` no Supabase.
 - [ ] Revisar os modelos com advogado e preencher os dados oficiais da igreja, canal de privacidade e prazos.
+
+## Histórico dos cultos
+
+- [x] Criar sessões de culto com tipo fixo, título, data/hora, link do culto ao vivo, observações, status aberto/encerrado e igreja isolada.
+- [x] Criar buscador de cultos por título, tipo e link, com abertura do diário da celebração.
+- [x] Registrar automaticamente, enquanto a sessão estiver aberta, envios de louvores, pedidos de oração, check-ins por QR/GPS, visitantes, visitas e sermões.
+- [x] Registrar no diário as palavras e louvores enviados para projeção no Monitor de Mídia.
+- [x] Exibir a quantidade, horário, tipo, título e resumo dos registros de cada culto.
+- [ ] Executar `SUPABASE_SQL_EDITOR_HISTORICO_CULTOS.sql` no Supabase antes de iniciar as sessões.

@@ -30,6 +30,9 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
     { 
       name: "Monitor de Mídia", href: "/monitor-midia", icon: MonitorPlay, modulo: "monitor-midia"
     },
+    {
+      name: "Histórico de Cultos", href: "/monitor-midia/historico-cultos", icon: Calendar, modulo: "monitor-midia"
+    },
     { 
       name: "Secretaria", icon: Users, 
       subItems: [

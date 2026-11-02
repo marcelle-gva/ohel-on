@@ -19,3 +19,9 @@ O histórico de contribuições deve reutilizar `transacoes.membro_id`, filtrand
 A entrega de credenciais passa a registrar aceites em `termos_aceites`. Cada registro guarda igreja, membro, tipo, versão, texto integral do termo, nome e CPF do assinante, data/hora e usuário responsável pela entrega. Os modelos ficam em `docs/TERMOS_CREDENCIAIS_DOACOES_IMAGEM.md` e devem ser revisados por advogado antes do uso.
 
 Os termos devem preservar as exceções legais. Um aceite pode comprovar a doação, a entrega e a informação fornecida, mas não torna automaticamente uma doação irrevogável, não elimina direitos da LGPD e não substitui o consentimento específico do responsável para dados e imagem de crianças.
+
+## Histórico dos cultos
+
+Cada celebração é uma sessão em `culto_sessoes`, com tipos fixos como domingo, quarta-feira, oração, ceia e especial. A tela `/monitor-midia/historico-cultos` inicia ou encerra a sessão, guarda o link do ao vivo e permite pesquisar cultos anteriores.
+
+A tabela `culto_registros` funciona como diário append-only para os eventos da sessão. Triggers `SECURITY DEFINER` associam automaticamente novos registros de `louvores`, `pedidos_oracao`, `checkins`, `visitantes`, `visitas` e `sermoes` ao culto aberto. O Monitor grava explicitamente as projeções de Palavra e louvor. A associação é feita pela `igreja_id` e pela sessão aberta mais recente, evitando mistura entre igrejas.

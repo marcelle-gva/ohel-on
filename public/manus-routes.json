@@ -166,6 +166,9 @@
       "path": "/monitor-midia"
     },
     {
+      "path": "/monitor-midia/historico-cultos"
+    },
+    {
       "path": "/monitor-midia/louvores"
     },
     {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
@@ -19,6 +19,7 @@ export default function MonitorMidiaPage() {
   const [escalasProximas, setEscalasProximas] = useState<any[]>([]);
 
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [cultoAtual, setCultoAtual] = useState<{ id: string; titulo: string; link_ao_vivo: string | null } | null>(null);
   
   // Permissões do Usuário
   const [podeAprovar, setPodeAprovar] = useState(false);
@@ -53,6 +54,16 @@ export default function MonitorMidiaPage() {
           
           if (user) {
             setIgrejaId(user.igreja_id);
+
+            const { data: cultoAberto } = await supabase
+              .from('culto_sessoes')
+              .select('id, titulo, link_ao_vivo')
+              .eq('igreja_id', user.igreja_id)
+              .eq('status', 'aberto')
+              .order('inicio_em', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            setCultoAtual(cultoAberto || null);
 
             // VERIFICAÇÃO DE PERMISSÕES
             if (user.role === 'admin') {
@@ -228,6 +239,16 @@ export default function MonitorMidiaPage() {
     const channel = supabase.channel(`projecao-${igrejaId}`);
     try {
       await channel.httpSend('comando_projecao', { musica_id: musicaId, status: status, slide_index: slide, transposicao: transposicao });
+      if (cultoAtual) {
+        await supabase.from('culto_registros').insert({
+          igreja_id: igrejaId,
+          culto_id: cultoAtual.id,
+          tipo: 'projecao',
+          titulo: 'Projeção de louvor',
+          resumo: `Comando ${status} enviado para a música em apresentação.`,
+          payload: { musica_id: musicaId, slide_index: slide, transposicao },
+        });
+      }
       supabase.removeChannel(channel);
       setProjecaoAtual({ musicaId, slide, transposicao });
     } catch (error) { console.error(error); }
@@ -251,6 +272,16 @@ export default function MonitorMidiaPage() {
         event: "comando_projecao",
         payload: { tipo: "palavra", titulo: payload.titulo || "Palavra", referencia: payload.referencia, slides, initial_slide: payload.initialSlide || 0, status: "Palavra" },
       });
+      if (cultoAtual) {
+        await supabase.from('culto_registros').insert({
+          igreja_id: igrejaId,
+          culto_id: cultoAtual.id,
+          tipo: 'projecao',
+          titulo: payload.titulo || 'Palavra',
+          resumo: payload.referencia || 'Palavra projetada durante o culto.',
+          payload: { tipo: 'palavra', referencia: payload.referencia, slides },
+        });
+      }
       setProjecaoAtual({ musicaId: null, slide: 0, transposicao: 0 });
     } catch (error) {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro na projeção", message: error instanceof Error ? error.message : "Não foi possível enviar a Palavra para a projeção." });
@@ -276,8 +307,10 @@ export default function MonitorMidiaPage() {
               <MonitorPlay className="w-5 h-5 text-ohel-blue" /> Monitor de Mídia
             </h1>
             <p className="text-gray-400 text-xs mt-0.5">Painel de controle rápido para a equipe técnica do culto.</p>
+            {cultoAtual ? <p className="text-[10px] text-green-400 mt-1">Culto em andamento: {cultoAtual.titulo}{cultoAtual.link_ao_vivo ? " · transmissão vinculada" : ""}</p> : <p className="text-[10px] text-yellow-500 mt-1">Nenhum culto aberto. Inicie uma sessão para guardar o diário.</p>}
           </div>
         </div>
+        <Link href="/monitor-midia/historico-cultos" className="flex items-center gap-2 bg-ohel-surface border border-gray-700 hover:border-ohel-blue text-gray-300 hover:text-white text-xs px-3 py-2 rounded-md"><History className="w-4 h-4 text-ohel-blue" /> Histórico de Cultos</Link>
       </div>
 
       {loading ? (
