@@ -4,6 +4,9 @@
       "path": "/"
     },
     {
+      "path": "/api/membros/aprovar"
+    },
+    {
       "path": "/area-membro"
     },
     {

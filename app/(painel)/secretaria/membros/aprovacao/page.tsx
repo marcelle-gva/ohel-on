@@ -47,12 +47,23 @@ export default function AprovacaoPage() {
   const handleAprovar = async (id: string) => {
     setProcessingId(id);
     try {
-      const { data, error } = await supabase.from("membros").update({ status: "Ativo" }).eq("id", id).select("id, status").maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Nenhum cadastro foi alterado. Execute a correção de permissões do pré-cadastro no Supabase.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sua sessão expirou. Entre novamente na Área Administrativa.");
+      const response = await fetch("/api/membros/aprovar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json() as { error?: string; whatsapp?: { status?: string; detalhe?: string }; link?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível aprovar o pré-cadastro.");
       
       setPreCadastros(preCadastros.filter(p => p.id !== id));
-      setModal({ isOpen: true, type: "success", title: "Aprovado", message: "O pré-cadastro foi aprovado e o membro já está ativo no sistema." });
+      const whatsappMessage = result.whatsapp?.status === "enviado"
+        ? " A mensagem do WhatsApp com o link da Área do Membro foi enviada."
+        : result.whatsapp?.status === "nao_autorizado"
+          ? " O cadastro foi aprovado, mas o membro não autorizou mensagens WhatsApp."
+          : ` O cadastro foi aprovado, mas o WhatsApp ficou pendente: ${result.whatsapp?.detalhe || "verifique as credenciais e o template da Meta."}`;
+      setModal({ isOpen: true, type: "success", title: "Aprovado", message: `O pré-cadastro foi aprovado e o membro já está ativo no sistema.${whatsappMessage} Link: ${result.link || "/login-membro"}` });
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Não foi possível aprovar", message: error instanceof Error ? error.message : "Verifique as permissões da tabela membros no Supabase." });
     } finally { setProcessingId(null); }

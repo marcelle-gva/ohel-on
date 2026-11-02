@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { User, MapPin, Church, CheckCircle, ShieldCheck } from "lucide-react";
+import { User, MapPin, Church, CheckCircle, ShieldCheck, MessageCircle } from "lucide-react";
 
 function PreCadastroForm() {
   const searchParams = useSearchParams();
@@ -20,6 +20,7 @@ function PreCadastroForm() {
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
   
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", email: "", telefone: "",
@@ -67,7 +68,9 @@ function PreCadastroForm() {
         congregacao_id: formData.congregacao_id || null,
         nome_pai: formData.nome_pai,
         nome_mae: formData.nome_mae,
-        status: "Pré-Cadastro"
+        status: "Pré-Cadastro",
+        whatsapp_opt_in: whatsappOptIn,
+        whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
       }]);
 
       if (error) throw error;
@@ -80,6 +83,7 @@ function PreCadastroForm() {
         congregacao_id: "", nome_pai: "", nome_mae: ""
       });
       setConsentAccepted(false);
+      setWhatsappOptIn(false);
       setActiveTab("pessoais");
     } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seus dados. Tente novamente." });
@@ -149,6 +153,10 @@ function PreCadastroForm() {
                   <div className="md:col-span-2">
                     <Input label="E-mail para acessar a Área do Membro *" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" required />
                   </div>
+                  <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-green-500/20 bg-green-500/5 p-3 text-xs text-gray-300 cursor-pointer">
+                    <input type="checkbox" checked={whatsappOptIn} onChange={(event) => setWhatsappOptIn(event.target.checked)} className="mt-0.5 accent-green-500" />
+                    <span><MessageCircle className="inline w-4 h-4 text-green-400 mr-1" /> Autorizo receber pelo WhatsApp a confirmação da aprovação do meu cadastro e o link de acesso à Área do Membro.</span>
+                  </label>
                 </div>
               </div>
             )}

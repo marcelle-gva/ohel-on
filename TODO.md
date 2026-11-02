@@ -58,3 +58,9 @@
 - [x] Proteger a reserva no banco com operação atômica para impedir que dois membros reservem além do estoque necessário.
 - [x] Notificar o doador autorizado e os responsáveis cadastrados por WhatsApp quando uma reserva for criada, sem expor o token Meta no navegador.
 - [ ] Executar `SUPABASE_SQL_EDITOR_CESTAS_BASICAS.sql` no Supabase e cadastrar um modelo aprovado na Meta para habilitar os envios.
+
+## WhatsApp na aprovação de membros
+
+- [x] Aprovar o pré-cadastro via API server-side e enviar o link `/login-membro` ao membro autorizado.
+- [x] Registrar consentimento específico de WhatsApp no pré-cadastro.
+- [ ] Criar/aprovar na Meta o template `membro_aprovado` e configurar as variáveis na Vercel.
