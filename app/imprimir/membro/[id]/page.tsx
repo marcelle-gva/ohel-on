@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/currency";
 
 export default function ImprimirMembroPage() {
   const params = useParams();
@@ -14,6 +15,7 @@ export default function ImprimirMembroPage() {
   const [membro, setMembro] = useState<any>(null);
   const [congregacao, setCongregacao] = useState<any>(null);
   const [igreja, setIgreja] = useState<any>(null);
+  const [doacoes, setDoacoes] = useState<{ id: string; data: string; valor: number; descricao: string | null; categorias_financeiras?: { nome: string } | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +32,21 @@ export default function ImprimirMembroPage() {
         setMembro(data);
         setCongregacao(data.congregacoes);
         setIgreja(data.igrejas);
+      }
+      const { data: receitas } = await supabase
+        .from("transacoes")
+        .select("id, data, valor, descricao, categorias_financeiras(nome)")
+        .eq("membro_id", id)
+        .eq("tipo", "Receita")
+        .order("data", { ascending: false });
+      if (receitas) {
+        setDoacoes(receitas.map((receita) => ({
+          id: String(receita.id),
+          data: String(receita.data),
+          valor: Number(receita.valor),
+          descricao: receita.descricao || null,
+          categorias_financeiras: Array.isArray(receita.categorias_financeiras) ? receita.categorias_financeiras[0] || null : receita.categorias_financeiras || null,
+        })));
       }
       setLoading(false);
     };
@@ -109,6 +126,12 @@ export default function ImprimirMembroPage() {
               <div className="col-span-3 border-b border-gray-400 flex gap-2"><span className="font-semibold">Cargo:</span> <span>{membro.cargo || "-"}</span></div>
               <div className="col-span-3 border-b border-gray-400 flex gap-2"><span className="font-semibold">Batismo:</span> <span>{formatarData(membro.data_batismo)}</span></div>
             </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="bg-gray-200 font-bold px-2 py-1 text-sm uppercase mb-3">4. Histórico de doações e contribuições</h3>
+            {doacoes.length === 0 ? <p className="text-sm text-gray-600">Nenhum lançamento financeiro vinculado a este membro.</p> : <><table className="w-full text-sm border-collapse"><thead><tr className="border-b border-gray-400 text-left"><th className="p-1">Data</th><th className="p-1">Categoria</th><th className="p-1">Descrição</th><th className="p-1 text-right">Valor</th></tr></thead><tbody>{doacoes.map((doacao) => <tr key={doacao.id} className="border-b border-gray-200"><td className="p-1">{new Date(`${doacao.data}T00:00:00`).toLocaleDateString("pt-BR")}</td><td className="p-1">{doacao.categorias_financeiras?.nome || "Receita"}</td><td className="p-1">{doacao.descricao || "-"}</td><td className="p-1 text-right">{formatCurrency(Number(doacao.valor))}</td></tr>)}</tbody></table><p className="text-right text-sm font-bold mt-2">Total registrado: {formatCurrency(doacoes.reduce((total, doacao) => total + Number(doacao.valor), 0))}</p></>}
+            <p className="text-[9px] text-gray-500 mt-2">Registro baseado nas receitas financeiras vinculadas ao membro. Guarde também os recibos e comprovantes correspondentes.</p>
           </div>
 
           {/* Assinaturas */}

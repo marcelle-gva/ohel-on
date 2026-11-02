@@ -250,6 +250,9 @@
       "path": "/secretaria/credenciais"
     },
     {
+      "path": "/secretaria/credenciais/entrega"
+    },
+    {
       "path": "/secretaria/escalas"
     },
     {

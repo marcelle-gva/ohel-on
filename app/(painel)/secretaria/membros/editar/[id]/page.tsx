@@ -7,9 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, User, Church, MapPin, Save, Upload, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, User, Church, MapPin, Save, Upload, Loader2, Printer, HandCoins } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/currency";
 
 export default function EditarMembroPage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function EditarMembroPage() {
   
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
   const [cargos, setCargos] = useState<{id: string, nome: string}[]>([]);
+  const [doacoes, setDoacoes] = useState<{ id: string; data: string; valor: number; descricao: string | null; categorias_financeiras?: { nome: string } | null }[]>([]);
 
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -73,6 +75,22 @@ export default function EditarMembroPage() {
             whatsapp_opt_in: data.whatsapp_opt_in === true,
             whatsapp_opt_in_at: data.whatsapp_opt_in_at || "",
           });
+        }
+
+        const { data: receitas } = await supabase
+          .from("transacoes")
+          .select("id, data, valor, descricao, categorias_financeiras(nome)")
+          .eq("membro_id", id)
+          .eq("tipo", "Receita")
+          .order("data", { ascending: false });
+        if (receitas) {
+          setDoacoes(receitas.map((receita) => ({
+            id: String(receita.id),
+            data: String(receita.data),
+            valor: Number(receita.valor),
+            descricao: receita.descricao || null,
+            categorias_financeiras: Array.isArray(receita.categorias_financeiras) ? receita.categorias_financeiras[0] || null : receita.categorias_financeiras || null,
+          })));
         }
       } catch {
         setModal({ isOpen: true, type: "error", title: "Erro", message: "Erro ao carregar os dados do membro." });
@@ -284,6 +302,15 @@ export default function EditarMembroPage() {
             </div>
           )}
         </form>
+      </Card>
+
+      <Card className="p-5 border-gray-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2"><HandCoins className="w-5 h-5 text-emerald-400" /><div><h2 className="text-sm font-bold text-white">Histórico de doações e contribuições</h2><p className="text-xs text-gray-500 mt-1">Receitas financeiras vinculadas a este membro.</p></div></div>
+          <div className="text-left md:text-right"><p className="text-[10px] uppercase tracking-wider text-gray-500">Total registrado</p><p className="text-lg font-bold text-emerald-300">{formatCurrency(doacoes.reduce((total, doacao) => total + Number(doacao.valor), 0))}</p></div>
+        </div>
+        {doacoes.length === 0 ? <p className="rounded-lg border border-dashed border-gray-700 p-4 text-center text-xs text-gray-500">Nenhuma doação ou contribuição vinculada a este membro.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="border-b border-gray-800 text-[10px] uppercase text-gray-500"><tr><th className="p-2">Data</th><th className="p-2">Categoria</th><th className="p-2">Descrição</th><th className="p-2 text-right">Valor</th></tr></thead><tbody className="divide-y divide-gray-800/60">{doacoes.map((doacao) => <tr key={doacao.id}><td className="p-2 text-gray-300">{new Date(`${doacao.data}T00:00:00`).toLocaleDateString("pt-BR")}</td><td className="p-2 text-gray-400">{doacao.categorias_financeiras?.nome || "Receita"}</td><td className="p-2 text-gray-400">{doacao.descricao || "-"}</td><td className="p-2 text-right font-semibold text-emerald-300">{formatCurrency(Number(doacao.valor))}</td></tr>)}</tbody></table></div>}
+        <p className="text-[10px] text-gray-600 mt-3">O histórico depende dos lançamentos financeiros marcados com este membro. Não substitui recibos, escrituração ou prestação de contas.</p>
       </Card>
     </div>
   );

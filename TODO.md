@@ -31,3 +31,12 @@
 - [x] Criar `/auth/membro/callback` para validar o código e permitir somente membros com status `Ativo`.
 - [x] Criar `/area-membro` separado do painel administrativo, com acesso ao `/checkin`.
 - [ ] Executar `SUPABASE_SQL_EDITOR_ACESSO_MEMBROS.sql` no Supabase para liberar a leitura do próprio registro ativo via RLS.
+
+## Ficha, doações e termos
+
+- [x] Exibir na ficha administrativa e na ficha imprimível as receitas financeiras vinculadas ao membro, com categoria, descrição, data e total.
+- [x] Criar a tela `/secretaria/credenciais/entrega` para registrar a entrega e os termos aceitos.
+- [x] Versionar e guardar o texto integral de cada termo aceito, assinante, CPF, data/hora e responsável interno.
+- [x] Criar modelos de termo para credencial, doação de bem móvel, LGPD, imagem de adulto e autorização específica para criança/adolescente.
+- [ ] Executar `SUPABASE_SQL_EDITOR_TERMOS_CREDENCIAIS.sql` no Supabase.
+- [ ] Revisar os modelos com advogado e preencher os dados oficiais da igreja, canal de privacidade e prazos.

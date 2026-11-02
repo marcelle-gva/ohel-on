@@ -105,6 +105,9 @@ export default function CredenciaisPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/secretaria/credenciais/entrega" className="bg-ohel-surface border border-gray-700 hover:border-ohel-blue text-gray-200 text-xs font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors">
+            <CheckSquare className="w-3.5 h-3.5" /> Entrega e termos
+          </Link>
           <button onClick={fetchData} className="bg-ohel-surface border border-gray-700 hover:border-gray-500 text-gray-300 text-xs font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors">
             <RefreshCw className="w-3.5 h-3.5" /> Recarregar
           </button>
