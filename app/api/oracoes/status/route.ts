@@ -2,8 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const ROLES_AUTORIZADOS = ["admin", "pastor", "secretaria"];
 const MODULOS_ORACAO = ["oracoes", "monitor-oracoes"];
+
+function ehGrupoLideranca(nome: unknown) {
+  return typeof nome === "string" && ["liderança", "lideranca"].includes(nome.trim().toLocaleLowerCase("pt-BR"));
+}
 
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -54,8 +57,21 @@ export async function POST(request: Request) {
     return Response.json({ error: "Perfil da igreja não encontrado." }, { status: 403 });
   }
 
-  let autorizado = ROLES_AUTORIZADOS.includes(perfil.role);
-  if (!autorizado && perfil.grupo_id) {
+  let nomeGrupo = "";
+  if (perfil.grupo_id) {
+    const { data: grupo } = await serviceClient
+      .from("grupos")
+      .select("nome")
+      .eq("id", perfil.grupo_id)
+      .eq("igreja_id", perfil.igreja_id)
+      .maybeSingle();
+    nomeGrupo = grupo?.nome || "";
+  }
+
+  // A regra de negócio da igreja é deliberadamente mais restritiva:
+  // somente usuários do grupo padrão Liderança podem tomar a decisão.
+  let autorizado = ehGrupoLideranca(nomeGrupo);
+  if (autorizado && perfil.grupo_id) {
     const { data: permissoes } = await serviceClient
       .from("grupos_permissoes")
       .select("modulo, acao")
@@ -66,7 +82,7 @@ export async function POST(request: Request) {
   }
 
   if (!autorizado) {
-    return Response.json({ error: "Você não tem permissão para alterar pedidos de oração." }, { status: 403 });
+    return Response.json({ error: "A decisão deve ser feita por um usuário autenticado do grupo Liderança com permissão para aprovar orações." }, { status: 403 });
   }
 
   const { data: pedido, error: pedidoError } = await serviceClient

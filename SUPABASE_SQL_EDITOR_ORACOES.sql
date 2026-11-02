@@ -108,8 +108,8 @@ using (
   )
 );
 
--- Usuários com permissão de edição/aprovação também podem alterar e excluir
--- somente pedidos da própria igreja.
+-- Somente usuários autenticados do grupo Liderança, com a permissão
+-- correspondente, podem tomar a decisão sobre um pedido.
 create policy ohel_oracao_permission_update
 on public.pedidos_oracao
 for update
@@ -121,6 +121,13 @@ using (
     join public.grupos_permissoes gp on gp.grupo_id = u.grupo_id
     where u.id = auth.uid()
       and u.igreja_id = pedidos_oracao.igreja_id
+      and exists (
+        select 1
+        from public.grupos g
+        where g.id = u.grupo_id
+          and g.igreja_id = u.igreja_id
+          and lower(trim(g.nome)) in ('liderança', 'lideranca')
+      )
       and gp.modulo in ('oracoes', 'monitor-oracoes')
       and gp.acao in ('editar', 'aprovar')
   )
@@ -132,6 +139,13 @@ with check (
     join public.grupos_permissoes gp on gp.grupo_id = u.grupo_id
     where u.id = auth.uid()
       and u.igreja_id = pedidos_oracao.igreja_id
+      and exists (
+        select 1
+        from public.grupos g
+        where g.id = u.grupo_id
+          and g.igreja_id = u.igreja_id
+          and lower(trim(g.nome)) in ('liderança', 'lideranca')
+      )
       and gp.modulo in ('oracoes', 'monitor-oracoes')
       and gp.acao in ('editar', 'aprovar')
   )
