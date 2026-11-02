@@ -14,7 +14,7 @@ import QRCode from "react-qr-code";
 
 interface Inscricao { id: string; nome: string; telefone: string; status: string; created_at: string; }
 interface Variacao { id: string; nome: string; preco: number; }
-interface Produto { id: string; nome: string; preco: number; variacoes: Variacao[]; }
+interface Produto { id: string; nome: string; preco: number; fornecedor_id: string | null; fornecedores?: { razao_social: string } | null; variacoes: Variacao[]; }
 interface Pedido {
   id: string; nome_comprador: string; telefone: string; quantidade: number; status: string; created_at: string;
   eventos_produtos: { nome: string } | null;
@@ -30,6 +30,7 @@ export default function GerenciarEventoPage() {
   const [evento, setEvento] = useState<any>(null);
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [fornecedores, setFornecedores] = useState<{ id: string; razao_social: string; departamento_id: string | null }[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,7 @@ export default function GerenciarEventoPage() {
   
   // Form Produto (com variações dinâmicas)
   const [novoProdutoNome, setNovoProdutoNome] = useState("");
+  const [novoProdutoFornecedorId, setNovoProdutoFornecedorId] = useState("");
   const [novasVariacoes, setNovasVariacoes] = useState<{ nome: string; preco: string }[]>([{ nome: "", preco: "" }]);
   
   // Form Pedido
@@ -66,19 +68,25 @@ export default function GerenciarEventoPage() {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
+      let igrejaIdAtual: string | null = null;
       if (session) {
         const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-        if (user) setIgrejaId(user.igreja_id);
+        igrejaIdAtual = user?.igreja_id || null;
+        if (igrejaIdAtual) setIgrejaId(igrejaIdAtual);
       }
 
       const { data: ev } = await supabase.from('eventos').select('*').eq('id', eventoId).single();
       setEvento(ev);
+      if (igrejaIdAtual) {
+        const { data: fornecedoresData } = await supabase.from('fornecedores').select('id, razao_social, departamento_id').eq('igreja_id', igrejaIdAtual).order('razao_social');
+        setFornecedores(fornecedoresData || []);
+      }
 
       const { data: ins } = await supabase.from('inscricoes_eventos').select('*').eq('evento_id', eventoId).order('created_at', { ascending: false });
       setInscricoes(ins || []);
 
       // Busca produtos e traz suas variações juntas
-      const { data: prod } = await supabase.from('eventos_produtos').select('*, eventos_produtos_variacoes(*)').eq('evento_id', eventoId).order('nome');
+      const { data: prod } = await supabase.from('eventos_produtos').select('*, fornecedores(razao_social), eventos_produtos_variacoes(*)').eq('evento_id', eventoId).order('nome');
       setProdutos(prod || []);
 
       const { data: ped } = await supabase.from('eventos_pedidos').select('*, eventos_produtos(nome), eventos_produtos_variacoes(nome, preco)').eq('evento_id', eventoId).order('created_at', { ascending: false });
@@ -112,8 +120,8 @@ export default function GerenciarEventoPage() {
     try {
       // 1. Cria o Produto Base
       const { data: prodData, error: prodError } = await supabase.from('eventos_produtos').insert([{ 
-        igreja_id: igrejaId, evento_id: eventoId, nome: novoProdutoNome 
-      }]).select().single();
+        igreja_id: igrejaId, evento_id: eventoId, nome: novoProdutoNome, fornecedor_id: novoProdutoFornecedorId || null
+      }]).select('*, fornecedores(razao_social)').single();
       if (prodError) throw prodError;
 
       // 2. Cria as Variações (Tamanhos e Preços)
@@ -133,6 +141,7 @@ export default function GerenciarEventoPage() {
 
       setIsAddProdutoModalOpen(false);
       setNovoProdutoNome("");
+      setNovoProdutoFornecedorId("");
       setNovasVariacoes([{ nome: "", preco: "" }]);
       setModalFeedback({ isOpen: true, type: "success", title: "Sucesso", message: "Produto e tamanhos cadastrados!" });
       fetchDados(); // Recarrega a lista
@@ -279,14 +288,15 @@ export default function GerenciarEventoPage() {
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="bg-ohel-surface/80 border-b border-gray-800 text-xs uppercase tracking-wider text-gray-400">
-                  <th className="p-4 font-medium">Produto</th><th className="p-4 font-medium">Tamanhos e Preços</th><th className="p-4 font-medium text-center">Ações</th>
+                  <th className="p-4 font-medium">Produto</th><th className="p-4 font-medium">Fornecedor</th><th className="p-4 font-medium">Tamanhos e Preços</th><th className="p-4 font-medium text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/50">
-                {produtos.length === 0 ? <tr><td colSpan={3} className="p-8 text-center text-gray-400">Nenhum produto cadastrado.</td></tr> : 
+                {produtos.length === 0 ? <tr><td colSpan={4} className="p-8 text-center text-gray-400">Nenhum produto cadastrado.</td></tr> :
                   produtos.map((prod) => (
                   <tr key={prod.id} className="hover:bg-white/[0.02]">
                     <td className="p-4 text-white font-medium">{prod.nome}</td>
+                    <td className="p-4 text-gray-300">{prod.fornecedores?.razao_social || "Sem fornecedor"}</td>
                     <td className="p-4 text-gray-300 text-sm flex flex-wrap gap-2">
                       {prod.variacoes?.map(v => (
                         <span key={v.id} className="bg-ohel-bg border border-gray-700 px-2 py-1 rounded text-xs">
@@ -398,6 +408,7 @@ export default function GerenciarEventoPage() {
             </div>
             <form onSubmit={handleAddProduto} className="flex flex-col gap-4">
               <Input label="Nome do Produto *" placeholder="Ex: Camisa Oficial" value={novoProdutoNome} onChange={(e) => setNovoProdutoNome(e.target.value)} required />
+              <div><label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Fornecedor</label><select value={novoProdutoFornecedorId} onChange={(e) => setNovoProdutoFornecedorId(e.target.value)} className="input-ohel w-full px-3 py-2 rounded-md text-xs mt-2"><option value="">Sem fornecedor vinculado</option>{fornecedores.map((fornecedor) => <option key={fornecedor.id} value={fornecedor.id}>{fornecedor.razao_social}</option>)}</select><p className="text-[10px] text-gray-500 mt-1">Estão disponíveis fornecedores gerais e departamentais.</p></div>
               
               <div className="border-t border-gray-800 pt-4 mt-2">
                 <p className="text-xs font-bold text-ohel-blue mb-3">Tamanhos e Preços</p>
