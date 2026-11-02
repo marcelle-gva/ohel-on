@@ -47,9 +47,9 @@ function combinarAvisos(comunicacoes: AvisoFonte[] = [], eventos: AvisoFonte[] =
     tipo: "evento",
   }));
 
-  return [...avisosComunicacoes, ...avisosEventos]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+  return [...avisosComunicacoes, ...avisosEventos].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 }
 
 export default function MonitorMidiaPage() {
@@ -134,8 +134,8 @@ export default function MonitorMidiaPage() {
             const [visitasRes, louvoresRes, muralRes, eventosMuralRes, oracoesRes, pendentesRes, escalasRes] = await Promise.all([
               supabase.from('visitantes').select('*').eq('igreja_id', user.igreja_id).eq('data_visita', hoje),
               supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
-              supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
-              supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
+              supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }),
+              supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
@@ -206,8 +206,8 @@ export default function MonitorMidiaPage() {
               })
               .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos', filter: `igreja_id=eq.${user.igreja_id}` }, async () => {
                 const [comunicacoesAtualizadas, eventosAtualizados] = await Promise.all([
-                  supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
-                  supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
+                  supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }),
+                  supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }),
                 ]);
                 setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
               })
@@ -781,7 +781,7 @@ export default function MonitorMidiaPage() {
         .fullscreen-card:fullscreen .fullscreen-text { font-size: 2rem !important; padding: 2rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text p { font-size: 2rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text span { font-size: 2rem !important; }
-        .fullscreen-card:fullscreen .event-cover { width: 100% !important; height: min(36vh, 360px) !important; min-height: 180px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+        .fullscreen-card:fullscreen .event-cover { width: 100% !important; height: min(24vh, 240px) !important; min-height: 120px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
         .fullscreen-card:fullscreen .event-cover img { width: 100% !important; height: 100% !important; object-fit: contain !important; }
         .fullscreen-card:fullscreen .event-title { display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; white-space: normal !important; line-height: 1.15 !important; font-size: clamp(2rem, 4vw, 4rem) !important; margin-bottom: 1rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text p { overflow: visible !important; }
