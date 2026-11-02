@@ -38,6 +38,12 @@ export async function POST(request: Request) {
   }
 
   const serviceClient = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  // O cliente usado na mutação mantém o JWT do usuário. Isso garante que
+  // auth.uid() esteja disponível em policies e triggers de histórico do culto.
+  const authenticatedClient = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
   const { data: perfil, error: perfilError } = await serviceClient
     .from("usuarios")
     .select("igreja_id, role, grupo_id")
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
     return Response.json({ error: `Este pedido já está ${pedido.status.toLowerCase()}.` }, { status: 409 });
   }
 
-  const { data: atualizado, error: updateError } = await serviceClient
+  const { data: atualizado, error: updateError } = await authenticatedClient
     .from("pedidos_oracao")
     .update({ status })
     .eq("id", pedido.id)
