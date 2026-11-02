@@ -416,10 +416,11 @@ export default function MonitorMidiaPage() {
                 <button onClick={() => toggleFullScreen('section-mural')} className="text-gray-400 hover:text-white transition-colors shrink-0"><Maximize className="w-4 h-4" /></button>
               </div>
               <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto fullscreen-scroll pr-1">
-                {muralRecente.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum aviso.</p> : 
+                {muralRecente.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum aviso.</p> :
                   muralRecente.map(m => (
                     <button type="button" key={m.id} onClick={async () => { if (m.tipo === "evento") { if (document.fullscreenElement) await document.exitFullscreen(); setEventoAvisoSelecionado(m); } }} className={`text-left text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800 ${m.tipo === "evento" ? "hover:border-ohel-blue hover:bg-ohel-blue/5 cursor-pointer" : ""}`}>
-                      <p className="text-white font-bold text-sm mb-1">{m.titulo}</p>
+                      {m.tipo === "evento" && m.cartaz_url && <div className="event-cover mb-4 rounded-lg overflow-hidden border border-gray-700 bg-black/40"><img src={m.cartaz_url} alt={`Capa de ${m.titulo || "evento"}`} className="w-full h-full object-contain" /></div>}
+                      <p className="event-title text-white font-bold text-sm mb-1">{m.titulo || "Evento"}</p>
                       <p className="text-gray-400 leading-relaxed line-clamp-2">{m.conteudo}</p>
                       {m.tipo === "evento" && <span className="text-[10px] text-ohel-blue mt-2 block">Clique para ver resumo e fotos</span>}
                     </button>
@@ -778,6 +779,11 @@ export default function MonitorMidiaPage() {
         .fullscreen-card:fullscreen .fullscreen-text { font-size: 2rem !important; padding: 2rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text p { font-size: 2rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text span { font-size: 2rem !important; }
+        .fullscreen-card:fullscreen .event-cover { width: 100% !important; height: min(36vh, 360px) !important; min-height: 180px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+        .fullscreen-card:fullscreen .event-cover img { width: 100% !important; height: 100% !important; object-fit: contain !important; }
+        .fullscreen-card:fullscreen .event-title { display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; white-space: normal !important; line-height: 1.15 !important; font-size: clamp(2rem, 4vw, 4rem) !important; margin-bottom: 1rem !important; }
+        .fullscreen-card:fullscreen .fullscreen-text p { overflow: visible !important; }
+        .fullscreen-card:fullscreen .fullscreen-text .line-clamp-2 { -webkit-line-clamp: unset !important; display: block !important; }
         .fullscreen-card:fullscreen .blessing-box { padding: 3rem !important; border-radius: 2rem !important; margin-top: 3rem !important; border-width: 2px !important; border-style: solid !important; }
         .fullscreen-card:fullscreen .blessing-title { font-size: 3.5rem !important; margin-bottom: 1.5rem !important; text-shadow: 0 0 20px rgba(255,255,255,0.2) !important; }
         .fullscreen-card:fullscreen .blessing-text { font-size: 2.5rem !important; color: #E5E7EB !important; margin-bottom: 2rem !important; }
