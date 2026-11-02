@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History, MapPin, Ticket, Download } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
@@ -14,6 +14,19 @@ interface AvisoFonte {
   conteudo?: string | null;
   nome?: string | null;
   descricao?: string | null;
+  cartaz_url?: string | null;
+  galeria_urls?: string[] | null;
+  preco_ingresso?: number | null;
+  pregador_convidados?: string | null;
+  informacoes_adicionais?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  usar_endereco_igreja?: boolean;
+  igrejas?: { endereco?: string | null }[] | { endereco?: string | null } | null;
+  tipo?: string;
   created_at: string;
 }
 
@@ -26,6 +39,7 @@ function combinarAvisos(comunicacoes: AvisoFonte[] = [], eventos: AvisoFonte[] =
     tipo: "comunicacao",
   }));
   const avisosEventos = eventos.map((evento) => ({
+    ...evento,
     id: `evento-${evento.id}`,
     titulo: evento.nome,
     conteudo: evento.descricao || "Confira os detalhes do nosso evento!",
@@ -59,6 +73,7 @@ export default function MonitorMidiaPage() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isPrayerQrModalOpen, setIsPrayerQrModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [eventoAvisoSelecionado, setEventoAvisoSelecionado] = useState<AvisoFonte | null>(null);
 
   const [modalFeedback, setModalFeedback] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -119,7 +134,7 @@ export default function MonitorMidiaPage() {
               supabase.from('visitantes').select('*').eq('igreja_id', user.igreja_id).eq('data_visita', hoje),
               supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
               supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
-              supabase.from('eventos').select('id, nome, descricao, created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
+              supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
@@ -191,7 +206,7 @@ export default function MonitorMidiaPage() {
               .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos', filter: `igreja_id=eq.${user.igreja_id}` }, async () => {
                 const [comunicacoesAtualizadas, eventosAtualizados] = await Promise.all([
                   supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
-                  supabase.from('eventos').select('id, nome, descricao, created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
+                  supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
                 ]);
                 setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
               })
@@ -217,6 +232,8 @@ export default function MonitorMidiaPage() {
       if (channel) supabase.removeChannel(channel);
     };
   }, [hoje]);
+
+  const enderecoDaIgreja = (igrejas: AvisoFonte["igrejas"]) => Array.isArray(igrejas) ? igrejas[0]?.endereco : igrejas?.endereco;
 
   const toggleFullScreen = (elementId: string) => {
     const element = document.getElementById(elementId);
@@ -401,10 +418,11 @@ export default function MonitorMidiaPage() {
               <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto fullscreen-scroll pr-1">
                 {muralRecente.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum aviso.</p> : 
                   muralRecente.map(m => (
-                    <div key={m.id} className="text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800">
+                    <button type="button" key={m.id} onClick={() => m.tipo === "evento" ? setEventoAvisoSelecionado(m) : undefined} className={`text-left text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800 ${m.tipo === "evento" ? "hover:border-ohel-blue hover:bg-ohel-blue/5 cursor-pointer" : ""}`}>
                       <p className="text-white font-bold text-sm mb-1">{m.titulo}</p>
-                      <p className="text-gray-400 leading-relaxed truncate">{m.conteudo}</p>
-                    </div>
+                      <p className="text-gray-400 leading-relaxed line-clamp-2">{m.conteudo}</p>
+                      {m.tipo === "evento" && <span className="text-[10px] text-ohel-blue mt-2 block">Clique para ver resumo e fotos</span>}
+                    </button>
                   ))
                 }
                 <div className="mt-4 bg-teal-500/10 border border-teal-500/30 p-4 rounded-xl text-center blessing-box">
@@ -419,6 +437,18 @@ export default function MonitorMidiaPage() {
               </div>
             </div>
           </div>
+
+          {eventoAvisoSelecionado && <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEventoAvisoSelecionado(null)}>
+            <div className="bg-ohel-surface border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-gray-800"><div><p className="text-[10px] uppercase tracking-widest text-ohel-blue font-bold">Detalhes do evento</p><h2 className="text-xl font-bold text-white">{eventoAvisoSelecionado.nome}</h2></div><button type="button" onClick={() => setEventoAvisoSelecionado(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button></div>
+              {eventoAvisoSelecionado.cartaz_url && <div className="relative h-48"><img src={eventoAvisoSelecionado.cartaz_url} alt={eventoAvisoSelecionado.nome || "Evento"} className="w-full h-full object-cover" /></div>}
+              <div className="p-5 space-y-4"><p className="text-gray-300 text-sm whitespace-pre-wrap">{eventoAvisoSelecionado.descricao || "Sem resumo informado."}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-300"><div className="flex gap-2"><Ticket className="w-4 h-4 text-ohel-blue shrink-0" />{eventoAvisoSelecionado.preco_ingresso != null ? `Ingresso: R$ ${Number(eventoAvisoSelecionado.preco_ingresso).toFixed(2).replace('.', ',')}` : "Entrada gratuita ou não informada"}</div>{eventoAvisoSelecionado.pregador_convidados && <div className="flex gap-2"><Users className="w-4 h-4 text-ohel-blue shrink-0" />{eventoAvisoSelecionado.pregador_convidados}</div>}{(eventoAvisoSelecionado.cidade || enderecoDaIgreja(eventoAvisoSelecionado.igrejas)) && <div className="flex gap-2 sm:col-span-2"><MapPin className="w-4 h-4 text-ohel-blue shrink-0" /><span>{eventoAvisoSelecionado.usar_endereco_igreja ? enderecoDaIgreja(eventoAvisoSelecionado.igrejas) : [eventoAvisoSelecionado.logradouro, eventoAvisoSelecionado.numero, eventoAvisoSelecionado.bairro, eventoAvisoSelecionado.cidade, eventoAvisoSelecionado.uf].filter(Boolean).join(', ')}</span></div>}</div>
+                {eventoAvisoSelecionado.informacoes_adicionais && <div className="rounded-lg bg-ohel-bg border border-gray-800 p-3 text-xs text-gray-300 whitespace-pre-wrap">{eventoAvisoSelecionado.informacoes_adicionais}</div>}
+                {(eventoAvisoSelecionado.galeria_urls || []).length > 0 && <div><h3 className="text-sm font-bold text-white mb-3">Fotos do evento</h3><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{(eventoAvisoSelecionado.galeria_urls || []).map((url: string, index: number) => <div key={url} className="relative group aspect-video rounded-lg overflow-hidden border border-gray-700"><img src={url} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" /><a href={url} download target="_blank" rel="noreferrer" className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100" title="Baixar foto"><Download className="w-4 h-4" /></a></div>)}</div></div>}
+              </div>
+            </div>
+          </div>}
 
           {/* COLUNA 2 */}
           <div className="flex flex-col gap-4 min-w-0">

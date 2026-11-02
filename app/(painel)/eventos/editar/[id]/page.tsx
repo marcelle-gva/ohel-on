@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, Save, Calendar, MapPin, Upload, Loader2, Image as ImageIcon, Megaphone, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Calendar, MapPin, Upload, Loader2, Image as ImageIcon, Megaphone, CheckCircle, Download, Trash2, Search } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -23,12 +23,15 @@ export default function EditarEventoPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [congregacoes, setCongregacoes] = useState<{id: string, nome: string}[]>([]);
+  const [enderecoIgreja, setEnderecoIgreja] = useState("");
+  const [galeriaUploading, setGaleriaUploading] = useState(false);
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   const [formData, setFormData] = useState({
     nome: "", descricao: "", congregacao_id: "", data_inicio: "", data_fim: "", hora_abertura: "",
     data_limite_inscricao: "", limite_participantes: "", cartaz_url: "",
+    usar_endereco_igreja: false, preco_ingresso: "", pregador_convidados: "", informacoes_adicionais: "", galeria_urls: [] as string[],
     cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
     status: "Aberto", publicar_mural: false,
     tipo: "evento",
@@ -49,6 +52,8 @@ export default function EditarEventoPage() {
         if (error) throw error;
 
         if (data) {
+          const { data: igreja } = await supabase.from('igrejas').select('endereco').eq('id', data.igreja_id).maybeSingle();
+          setEnderecoIgreja(igreja?.endereco || '');
           setFormData({
             nome: data.nome || "", descricao: data.descricao || "", congregacao_id: data.congregacao_id || "",
             data_inicio: data.data_inicio || "", data_fim: data.data_fim || "", hora_abertura: data.hora_abertura || "",
@@ -57,6 +62,11 @@ export default function EditarEventoPage() {
             numero: data.numero || "", complemento: data.complemento || "", bairro: data.bairro || "",
             cidade: data.cidade || "", uf: data.uf || "", status: data.status || "Aberto",
             publicar_mural: data.publicar_mural || false,
+            usar_endereco_igreja: data.usar_endereco_igreja || false,
+            preco_ingresso: data.preco_ingresso?.toString() || "",
+            pregador_convidados: data.pregador_convidados || "",
+            informacoes_adicionais: data.informacoes_adicionais || "",
+            galeria_urls: data.galeria_urls || [],
             tipo: data.tipo || "evento",
             valor_bilhete: data.valor_bilhete?.toString() || "10",
             total_numeros: data.total_numeros?.toString() || "100",
@@ -78,22 +88,34 @@ export default function EditarEventoPage() {
     setFormData({ ...formData, [e.target.name]: value });
   };
 
-  const handleUploadCartaz = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const consultarCep = async () => {
+    const cep = formData.cep.replace(/\D/g, "");
+    if (cep.length !== 8) return;
     try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `evento-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('cartazes').upload(fileName, file);
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('cartazes').getPublicUrl(fileName);
-      setFormData({ ...formData, cartaz_url: data.publicUrl });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Não foi possível enviar a imagem do cartaz." });
-    } finally {
-      setUploading(false);
-    }
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (data.erro) throw new Error("CEP não encontrado");
+      setFormData((prev) => ({ ...prev, cep, logradouro: data.logradouro || prev.logradouro, bairro: data.bairro || prev.bairro, cidade: data.localidade || prev.cidade, uf: data.uf || prev.uf }));
+    } catch { setModal({ isOpen: true, type: "error", title: "CEP não encontrado", message: "Confira o CEP informado e tente novamente." }); }
+  };
+  const uploadArquivo = async (file: File) => {
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `evento-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const { error } = await supabase.storage.from('cartazes').upload(fileName, file);
+    if (error) throw error;
+    return supabase.storage.from('cartazes').getPublicUrl(fileName).data.publicUrl;
+  };
+  const handleUploadCartaz = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { setUploading(true); const url = await uploadArquivo(file); setFormData((prev) => ({ ...prev, cartaz_url: url })); }
+    catch { setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: "Não foi possível enviar a imagem do cartaz." }); }
+    finally { setUploading(false); e.target.value = ""; }
+  };
+  const handleUploadGaleria = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []); if (!files.length) return;
+    try { setGaleriaUploading(true); const urls = await Promise.all(files.map(uploadArquivo)); setFormData((prev) => ({ ...prev, galeria_urls: [...prev.galeria_urls, ...urls] })); }
+    catch { setModal({ isOpen: true, type: "error", title: "Erro na galeria", message: "Não foi possível enviar uma ou mais fotos." }); }
+    finally { setGaleriaUploading(false); e.target.value = ""; }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,9 +147,12 @@ export default function EditarEventoPage() {
         data_inicio: formData.data_inicio, data_fim: formData.data_fim || null, hora_abertura: formData.hora_abertura || null,
         data_limite_inscricao: formData.data_limite_inscricao || null,
         limite_participantes: formData.limite_participantes ? parseInt(formData.limite_participantes) : null,
-        cartaz_url: formData.cartaz_url || null,
-        cep: formData.cep || null, logradouro: formData.logradouro || null, numero: formData.numero || null,
-        complemento: formData.complemento || null, bairro: formData.bairro || null, cidade: formData.cidade || null, uf: formData.uf || null,
+        cartaz_url: formData.cartaz_url || null, galeria_urls: formData.galeria_urls,
+        preco_ingresso: formData.preco_ingresso ? Number(formData.preco_ingresso) : null,
+        pregador_convidados: formData.pregador_convidados || null, informacoes_adicionais: formData.informacoes_adicionais || null,
+        usar_endereco_igreja: formData.usar_endereco_igreja,
+        cep: formData.usar_endereco_igreja ? null : (formData.cep || null), logradouro: formData.usar_endereco_igreja ? null : (formData.logradouro || null), numero: formData.usar_endereco_igreja ? null : (formData.numero || null),
+        complemento: formData.usar_endereco_igreja ? null : (formData.complemento || null), bairro: formData.usar_endereco_igreja ? null : (formData.bairro || null), cidade: formData.usar_endereco_igreja ? null : (formData.cidade || null), uf: formData.usar_endereco_igreja ? null : (formData.uf || null),
         status: formData.status, publicar_mural: formData.publicar_mural
       };
       const { error } = await supabase.from("eventos").update(payload).eq("id", id);
@@ -226,6 +251,12 @@ export default function EditarEventoPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Input label="Preço do ingresso (R$)" type="number" min="0" step="0.01" name="preco_ingresso" placeholder="Deixe vazio se for gratuito" value={formData.preco_ingresso} onChange={handleChange} />
+                <Input label="Pregador(es) / Convidado(s)" name="pregador_convidados" placeholder="Ex.: Pr. João e Banda Vida" value={formData.pregador_convidados} onChange={handleChange} />
+              </div>
+              <div className="flex flex-col gap-2"><label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Informações adicionais</label><textarea name="informacoes_adicionais" value={formData.informacoes_adicionais} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm min-h-[80px] resize-y" /></div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Congregação</label>
                   <select name="congregacao_id" value={formData.congregacao_id} onChange={handleChange} className="input-ohel w-full px-4 py-3 rounded-lg text-sm">
@@ -233,7 +264,6 @@ export default function EditarEventoPage() {
                     {congregacoes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                   </select>
                 </div>
-                <Input label="Hora Abertura" type="time" name="hora_abertura" value={formData.hora_abertura} onChange={handleChange} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-gray-800 pt-5 mt-2">
@@ -259,7 +289,7 @@ export default function EditarEventoPage() {
                   {formData.cartaz_url ? (
                     <>
                       <Image src={formData.cartaz_url} alt="Cartaz" fill className="object-cover opacity-50 group-hover:opacity-70 transition-opacity" />
-                      <div className="z-10 bg-black/60 p-2 rounded-lg flex items-center gap-2 text-white text-xs font-bold backdrop-blur-md"><ImageIcon className="w-4 h-4" /> Trocar Imagem</div>
+                      <div className="z-10 flex items-center gap-2"><span className="bg-black/60 p-2 rounded-lg flex items-center gap-2 text-white text-xs font-bold backdrop-blur-md"><ImageIcon className="w-4 h-4" /> Trocar Imagem</span><a href={formData.cartaz_url} download target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="bg-black/70 p-2 rounded-lg text-white" title="Baixar capa"><Download className="w-4 h-4" /></a></div>
                     </>
                   ) : (
                     <><Upload className="w-8 h-8 text-gray-500 mb-2 group-hover:text-ohel-blue transition-colors" /><p className="text-sm font-medium text-white">Clique para anexar o Cartaz</p></>
@@ -270,9 +300,9 @@ export default function EditarEventoPage() {
               </div>
 
               <div className="border-t border-gray-800 pt-5 mt-2">
-                <h3 className="text-sm font-semibold text-white mb-4">Endereço do Evento (Opcional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                  <Input label="CEP" name="cep" value={formData.cep} onChange={handleChange} />
+                <div className="flex items-center justify-between gap-3 mb-4"><h3 className="text-sm font-semibold text-white">Endereço do Evento</h3><label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer"><input type="checkbox" name="usar_endereco_igreja" checked={formData.usar_endereco_igreja} onChange={handleChange} /> Usar endereço da igreja</label></div>
+                <div className={`grid grid-cols-1 md:grid-cols-4 gap-5 ${formData.usar_endereco_igreja ? "opacity-50" : ""}`}>
+                  <div className="relative"><Input label="CEP" name="cep" value={formData.cep} onChange={handleChange} onBlur={consultarCep} disabled={formData.usar_endereco_igreja} /><button type="button" onClick={consultarCep} className="absolute right-2 bottom-2 p-2 text-ohel-blue" title="Buscar CEP" disabled={formData.usar_endereco_igreja}><Search className="w-4 h-4" /></button></div>
                   <div className="md:col-span-3"><Input label="Logradouro" name="logradouro" value={formData.logradouro} onChange={handleChange} /></div>
                   <Input label="Número" name="numero" value={formData.numero} onChange={handleChange} />
                   <Input label="Complemento" name="complemento" value={formData.complemento} onChange={handleChange} />
@@ -286,6 +316,8 @@ export default function EditarEventoPage() {
                   </div>
                 </div>
               </div>
+              {formData.usar_endereco_igreja && <p className="text-xs text-ohel-blue">Endereço cadastrado: {enderecoIgreja || "não informado nas configurações da igreja"}</p>}
+              <div className="border-t border-gray-800 pt-5 mt-2"><div className="flex items-center justify-between mb-3"><div><h3 className="text-sm font-semibold text-white">Fotos adicionais</h3><p className="text-xs text-gray-500">Além da capa, anexe fotos da programação e do local.</p></div><label className="cursor-pointer text-xs bg-ohel-blue/20 text-ohel-blue px-3 py-2 rounded-lg hover:bg-ohel-blue hover:text-white">{galeriaUploading ? "Enviando..." : "Adicionar fotos"}<input type="file" accept="image/*" multiple onChange={handleUploadGaleria} className="hidden" /></label></div>{formData.galeria_urls.length > 0 && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{formData.galeria_urls.map((url, index) => <div key={url} className="relative aspect-video rounded-lg overflow-hidden border border-gray-700"><Image src={url} alt={`Foto ${index + 1}`} fill sizes="200px" className="object-cover" /><div className="absolute inset-x-1 bottom-1 flex justify-between"><a href={url} download target="_blank" rel="noreferrer" className="p-1.5 rounded bg-black/70 text-white" title="Baixar"><Download className="w-3 h-3" /></a><button type="button" onClick={() => setFormData((prev) => ({ ...prev, galeria_urls: prev.galeria_urls.filter((_, i) => i !== index) }))} className="p-1.5 rounded bg-red-600/80 text-white" title="Remover"><Trash2 className="w-3 h-3" /></button></div></div>)}</div>}</div>
             </div>
           )}
         </form>

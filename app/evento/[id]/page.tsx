@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Logo } from "@/components/brand/Logo";
-import { Calendar, MapPin, Clock, CheckCircle, Ticket, ShoppingBag, X } from "lucide-react";
+import { Calendar, MapPin, Clock, CheckCircle, Ticket, ShoppingBag, X, Download } from "lucide-react";
 
 export default function InscricaoPublicaPage() {
   // Correção 1: Tipando o useParams para evitar erro de TypeScript
@@ -211,20 +211,20 @@ export default function InscricaoPublicaPage() {
             {evento.hora_abertura && (
               <div className="flex items-center gap-2 text-gray-300 text-xs">
                 <Clock className="w-4 h-4 text-ohel-blue shrink-0" />
-                <span>Abertura às {evento.hora_abertura}</span>
+                <span>Horário: {evento.hora_abertura}</span>
               </div>
             )}
+            {evento.preco_ingresso != null && <div className="flex items-center gap-2 text-gray-300 text-xs"><Ticket className="w-4 h-4 text-ohel-blue shrink-0" /><span>Ingresso: R$ {Number(evento.preco_ingresso).toFixed(2).replace('.', ',')}</span></div>}
+            {evento.pregador_convidados && <div className="flex items-center gap-2 text-gray-300 text-xs"><CheckCircle className="w-4 h-4 text-ohel-blue shrink-0" /><span>{evento.pregador_convidados}</span></div>}
             <div className="flex items-center gap-2 text-gray-300 text-xs">
               <MapPin className="w-4 h-4 text-ohel-blue shrink-0" />
-              <span>{evento.congregacoes?.nome || evento.cidade || "Local a definir"}</span>
+              <span>{evento.usar_endereco_igreja ? (evento.igrejas?.endereco || "Endereço da igreja") : ([evento.logradouro, evento.numero, evento.bairro, evento.cidade, evento.uf].filter(Boolean).join(", ") || evento.congregacoes?.nome || "Local a definir")}</span>
             </div>
           </div>
 
-          {evento.descricao && (
-            <div className="bg-ohel-bg p-3 rounded-lg border border-gray-800 mb-2">
-              <p className="text-gray-400 text-xs leading-relaxed">{evento.descricao}</p>
-            </div>
-          )}
+          {evento.descricao && <div className="bg-ohel-bg p-3 rounded-lg border border-gray-800 mb-2"><p className="text-gray-400 text-xs leading-relaxed whitespace-pre-wrap">{evento.descricao}</p></div>}
+          {evento.informacoes_adicionais && <div className="bg-ohel-bg p-3 rounded-lg border border-gray-800 mb-2"><p className="text-[11px] text-gray-300 leading-relaxed whitespace-pre-wrap">{evento.informacoes_adicionais}</p></div>}
+          {((evento.galeria_urls || []).length > 0 || evento.cartaz_url) && <div className="mt-4"><h2 className="text-sm font-bold text-white mb-3">Fotos do evento</h2><div className="grid grid-cols-2 gap-2">{[evento.cartaz_url, ...(evento.galeria_urls || [])].filter(Boolean).map((url: string, index: number) => <div key={`${url}-${index}`} className="relative aspect-video rounded-lg overflow-hidden border border-gray-800 group"><Image src={url} alt={`${evento.nome} - foto ${index + 1}`} fill sizes="250px" className="object-cover" /><a href={url} download target="_blank" rel="noreferrer" className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100" title="Baixar foto"><Download className="w-4 h-4" /></a></div>)}</div></div>}
         </div>
 
         {/* 1º: Formulário de Inscrição */}
