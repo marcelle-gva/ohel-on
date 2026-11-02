@@ -89,7 +89,7 @@ function PreCadastroForm() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-ohel-glow py-8 px-4 flex flex-col items-center justify-start">
+    <div className="w-full h-[100dvh] overflow-y-auto overscroll-contain bg-ohel-glow py-8 px-4 pb-12 flex flex-col items-center justify-start">
       
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
