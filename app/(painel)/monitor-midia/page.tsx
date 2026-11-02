@@ -797,7 +797,7 @@ export default function MonitorMidiaPage() {
         #section-oracoes:fullscreen .blessing-box { background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(3, 6, 13, 0.8) 100%) !important; border-color: rgba(239, 68, 68, 0.4) !important; box-shadow: 0 0 50px rgba(239, 68, 68, 0.2) !important; }
         #section-oracoes:fullscreen .blessing-title { color: #f87171 !important; }
         #section-oracoes:fullscreen .blessing-verse { color: #fca5a5 !important; }
-        .fullscreen-card:fullscreen button, .fullscreen-card:fullscreen a { display: none !important; }
+        .fullscreen-card:fullscreen > div:first-child button, .fullscreen-card:fullscreen > div:first-child a { display: none !important; }
         .fullscreen-card:fullscreen .fullscreen-scroll > div { width: 100% !important; max-width: 1200px !important; margin: 0 auto !important; }
       `}} />
 
