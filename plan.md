@@ -25,3 +25,7 @@ Os termos devem preservar as exceções legais. Um aceite pode comprovar a doaç
 Cada celebração é uma sessão em `culto_sessoes`, com tipos fixos como domingo, quarta-feira, oração, ceia e especial. A tela `/monitor-midia/historico-cultos` inicia ou encerra a sessão, guarda o link do ao vivo e permite pesquisar cultos anteriores.
 
 A tabela `culto_registros` funciona como diário append-only para os eventos da sessão. Triggers `SECURITY DEFINER` associam automaticamente novos registros de `louvores`, `pedidos_oracao`, `checkins`, `visitantes`, `visitas` e `sermoes` ao culto aberto. O Monitor grava explicitamente as projeções de Palavra e louvor. A associação é feita pela `igreja_id` e pela sessão aberta mais recente, evitando mistura entre igrejas.
+
+## Cestas básicas
+
+As campanhas ficam em `cestas_basicas` e seus itens em `cesta_itens`. A Área do Membro permite apenas campanhas abertas e envia a reserva para `/api/cestas/reservar`, que valida a sessão, chama a função atômica `reservar_item_cesta` e só então dispara notificações server-side. Responsáveis ficam em `cestas_responsaveis`; as reservas e o estado de cada notificação ficam em `cesta_doacoes`. A API usa um template transacional aprovado pela Meta e não envia nada se as credenciais ou o consentimento do doador não estiverem disponíveis.

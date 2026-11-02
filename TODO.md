@@ -49,3 +49,12 @@
 - [x] Registrar no diário as palavras e louvores enviados para projeção no Monitor de Mídia.
 - [x] Exibir a quantidade, horário, tipo, título e resumo dos registros de cada culto.
 - [ ] Executar `SUPABASE_SQL_EDITOR_HISTORICO_CULTOS.sql` no Supabase antes de iniciar as sessões.
+
+## Cestas básicas e doações
+
+- [x] Criar campanhas de cesta com itens, quantidade necessária e unidade, mostrando automaticamente o que falta.
+- [x] Criar área administrativa para cadastrar campanhas, itens, responsáveis e acompanhar reservas.
+- [x] Criar área do membro autenticado para visualizar campanhas abertas e marcar a quantidade que pretende doar.
+- [x] Proteger a reserva no banco com operação atômica para impedir que dois membros reservem além do estoque necessário.
+- [x] Notificar o doador autorizado e os responsáveis cadastrados por WhatsApp quando uma reserva for criada, sem expor o token Meta no navegador.
+- [ ] Executar `SUPABASE_SQL_EDITOR_CESTAS_BASICAS.sql` no Supabase e cadastrar um modelo aprovado na Meta para habilitar os envios.

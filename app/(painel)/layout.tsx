@@ -41,7 +41,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           'dashboard', 'membros', 'congregacoes', 'congregados', 
           'visitantes', 'visitas', 'eventos', 'financeiro', 'mural',
           'monitor-midia', 'monitor-oracoes', 'escalas', 'reunioes', 'oracoes',
-          'cartas', 'certificados', 'credenciais', 'fichas', 'configuracoes',
+          'cartas', 'certificados', 'credenciais', 'cestas', 'fichas', 'configuracoes',
           'patrimonio', 'gabinete', 'ensino', 'sorteios', 'kids-teens'
         ]);
       } else if (user?.grupo_id) {

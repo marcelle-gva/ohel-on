@@ -49,6 +49,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes }: SidebarProps) {
         { name: "Cartas", href: "/secretaria/cartas", modulo: "cartas" },
         { name: "Certificados", href: "/secretaria/certificados", modulo: "certificados" },
         { name: "Credenciais", href: "/secretaria/credenciais", modulo: "credenciais" },
+        { name: "Cestas Básicas", href: "/secretaria/cestas", modulo: "cestas" },
         { name: "Fichas", href: "/secretaria/fichas", modulo: "fichas" },
       ]
     },

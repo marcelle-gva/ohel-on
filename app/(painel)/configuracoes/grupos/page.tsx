@@ -21,6 +21,7 @@ const MODULOS = [
   { id: "cartas", nome: "Secretaria: Cartas" },
   { id: "certificados", nome: "Secretaria: Certificados" },
   { id: "credenciais", nome: "Secretaria: Credenciais" },
+  { id: "cestas", nome: "Secretaria: Cestas Básicas" },
   { id: "fichas", nome: "Secretaria: Fichas" },
   { id: "eventos", nome: "Eventos" },
   { id: "financeiro", nome: "Financeiro" },

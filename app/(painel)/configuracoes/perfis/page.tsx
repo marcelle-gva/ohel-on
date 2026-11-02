@@ -18,6 +18,7 @@ const MODULOS = [
   { id: "congregados", nome: "Congregados" },
   { id: "visitantes", nome: "Visitantes" },
   { id: "eventos", nome: "Eventos" },
+  { id: "cestas", nome: "Cestas Básicas" },
   { id: "financeiro", nome: "Financeiro" },
   { id: "mural", nome: "Mural de Comunicações" },
   { id: "monitor-midia", nome: "Monitor de Mídia (Acesso)" },

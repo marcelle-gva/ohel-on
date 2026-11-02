@@ -7,6 +7,9 @@
       "path": "/area-membro"
     },
     {
+      "path": "/area-membro/cestas"
+    },
+    {
       "path": "/auth/callback"
     },
     {
@@ -230,6 +233,9 @@
     },
     {
       "path": "/secretaria/certificados/modelos/novo"
+    },
+    {
+      "path": "/secretaria/cestas"
     },
     {
       "path": "/secretaria/congregacoes"
