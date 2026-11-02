@@ -8,6 +8,36 @@ import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
 
+interface AvisoFonte {
+  id: string;
+  titulo?: string | null;
+  conteudo?: string | null;
+  nome?: string | null;
+  descricao?: string | null;
+  created_at: string;
+}
+
+function combinarAvisos(comunicacoes: AvisoFonte[] = [], eventos: AvisoFonte[] = []) {
+  const avisosComunicacoes = comunicacoes.map((comunicacao) => ({
+    id: `comunicacao-${comunicacao.id}`,
+    titulo: comunicacao.titulo,
+    conteudo: comunicacao.conteudo,
+    created_at: comunicacao.created_at,
+    tipo: "comunicacao",
+  }));
+  const avisosEventos = eventos.map((evento) => ({
+    id: `evento-${evento.id}`,
+    titulo: evento.nome,
+    conteudo: evento.descricao || "Confira os detalhes do nosso evento!",
+    created_at: evento.created_at,
+    tipo: "evento",
+  }));
+
+  return [...avisosComunicacoes, ...avisosEventos]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+}
+
 export default function MonitorMidiaPage() {
   const [loading, setLoading] = useState(true);
   
@@ -85,10 +115,11 @@ export default function MonitorMidiaPage() {
             seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
 
             // Busca os dados do monitor
-            const [visitasRes, louvoresRes, muralRes, oracoesRes, pendentesRes, escalasRes] = await Promise.all([
+            const [visitasRes, louvoresRes, muralRes, eventosMuralRes, oracoesRes, pendentesRes, escalasRes] = await Promise.all([
               supabase.from('visitantes').select('*').eq('igreja_id', user.igreja_id).eq('data_visita', hoje),
               supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
               supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
+              supabase.from('eventos').select('id, nome, descricao, created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
@@ -110,6 +141,7 @@ export default function MonitorMidiaPage() {
               visitasRes.error,
               louvoresRes.error,
               muralRes.error,
+              eventosMuralRes.error,
               oracoesRes.error,
               pendentesRes.error,
               escalasRes.error,
@@ -120,7 +152,7 @@ export default function MonitorMidiaPage() {
 
             setVisitantesHoje(visitasRes.data || []);
             setLouvoresHoje(louvoresRes.data || []);
-            setMuralRecente(muralRes.data || []);
+            setMuralRecente(combinarAvisos(muralRes.data || [], eventosMuralRes.data || []));
             setOracoesSemana(oracoesRes.data || []);
             setOracoesPendentes(pendentesRes.data || []);
             setEscalasProximas(escalasRes.data || []);
@@ -155,6 +187,13 @@ export default function MonitorMidiaPage() {
                       : [payload.new, ...prev]
                     : prev.filter((pedido) => pedido.id !== payload.new.id));
                 }
+              })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos', filter: `igreja_id=eq.${user.igreja_id}` }, async () => {
+                const [comunicacoesAtualizadas, eventosAtualizados] = await Promise.all([
+                  supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }).limit(3),
+                  supabase.from('eventos').select('id, nome, descricao, created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }).limit(5),
+                ]);
+                setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
               })
               .subscribe();
           }
