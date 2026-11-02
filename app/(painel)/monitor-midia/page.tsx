@@ -418,7 +418,7 @@ export default function MonitorMidiaPage() {
               <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto fullscreen-scroll pr-1">
                 {muralRecente.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum aviso.</p> : 
                   muralRecente.map(m => (
-                    <button type="button" key={m.id} onClick={() => m.tipo === "evento" ? setEventoAvisoSelecionado(m) : undefined} className={`text-left text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800 ${m.tipo === "evento" ? "hover:border-ohel-blue hover:bg-ohel-blue/5 cursor-pointer" : ""}`}>
+                    <button type="button" key={m.id} onClick={async () => { if (m.tipo === "evento") { if (document.fullscreenElement) await document.exitFullscreen(); setEventoAvisoSelecionado(m); } }} className={`text-left text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800 ${m.tipo === "evento" ? "hover:border-ohel-blue hover:bg-ohel-blue/5 cursor-pointer" : ""}`}>
                       <p className="text-white font-bold text-sm mb-1">{m.titulo}</p>
                       <p className="text-gray-400 leading-relaxed line-clamp-2">{m.conteudo}</p>
                       {m.tipo === "evento" && <span className="text-[10px] text-ohel-blue mt-2 block">Clique para ver resumo e fotos</span>}
