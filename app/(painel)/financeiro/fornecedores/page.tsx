@@ -9,9 +9,14 @@ import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Plus, Search, Edit, Trash2, AlertTriangle, Users2, X } from "lucide-react";
 import Link from "next/link";
 
+type FornecedorForm = { razao_social: string; nome_fantasia: string; cnpj_cpf: string; email: string; telefone: string; endereco: string; departamento_id: string };
+type FornecedorRegistro = FornecedorForm & { id: string };
+
 export default function FornecedoresPage() {
   const [loading, setLoading] = useState(true);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [fornecedores, setFornecedores] = useState<FornecedorRegistro[]>([]);
+  const [departamentos, setDepartamentos] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroDepartamento, setFiltroDepartamento] = useState("");
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   
@@ -20,8 +25,8 @@ export default function FornecedoresPage() {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
   
-  const [formData, setFormData] = useState({
-    razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: ""
+  const [formData, setFormData] = useState<FornecedorForm>({
+    razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "", departamento_id: ""
   });
 
   const [fornecedorToDelete, setFornecedorToDelete] = useState<string | null>(null);
@@ -31,18 +36,21 @@ export default function FornecedoresPage() {
     initPage();
   }, []);
 
-  const initPage = async () => {
+  async function initPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
       if (user) {
         setIgrejaId(user.igreja_id);
+        setFiltroDepartamento(new URLSearchParams(window.location.search).get("departamento") || "");
+        const { data: deps } = await supabase.from("departamentos").select("id, nome").eq("igreja_id", user.igreja_id).eq("ativo", true).order("nome");
+        if (deps) setDepartamentos(deps);
         fetchFornecedores(user.igreja_id);
       }
     }
   };
 
-  const fetchFornecedores = async (id: string) => {
+  async function fetchFornecedores(id: string) {
     setLoading(true);
     const { data } = await supabase.from('fornecedores').select('*').eq('igreja_id', id).order('razao_social');
     if (data) setFornecedores(data);
@@ -74,20 +82,21 @@ export default function FornecedoresPage() {
       
       setShowModal(false);
       setEditingFornecedorId(null);
-      setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "" });
+      setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "", departamento_id: "" });
       await fetchFornecedores(igrejaId);
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: editingFornecedorId ? "Fornecedor atualizado!" : "Fornecedor cadastrado!" });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: error.message || "Não foi possível salvar o fornecedor." });
+    } catch (error: unknown) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível salvar o fornecedor." });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleEditar = (fornecedor: typeof fornecedores[number]) => {
+  const handleEditar = (fornecedor: FornecedorRegistro) => {
     setEditingFornecedorId(fornecedor.id);
     setFormData({
       razao_social: fornecedor.razao_social || "",
+      departamento_id: fornecedor.departamento_id || "",
       nome_fantasia: fornecedor.nome_fantasia || "",
       cnpj_cpf: fornecedor.cnpj_cpf || "",
       email: fornecedor.email || "",
@@ -100,7 +109,7 @@ export default function FornecedoresPage() {
   const fecharModalFornecedor = () => {
     setShowModal(false);
     setEditingFornecedorId(null);
-    setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "" });
+    setFormData({ razao_social: "", nome_fantasia: "", cnpj_cpf: "", email: "", telefone: "", endereco: "", departamento_id: "" });
   };
 
   const handleDelete = async () => {
@@ -119,18 +128,18 @@ export default function FornecedoresPage() {
       if (!data) throw new Error("Fornecedor não encontrado ou sem permissão para excluir.");
       setFornecedores((current) => current.filter((f) => f.id !== fornecedorToDelete));
       setFornecedorToDelete(null);
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Não foi possível excluir", message: error.message || "Verifique se há contas a pagar vinculadas." });
+    } catch (error: unknown) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível excluir", message: error instanceof Error ? error.message : "Verifique se há contas a pagar vinculadas." });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const fornecedoresFiltrados = fornecedores.filter(f => 
-    f.razao_social.toLowerCase().includes(busca.toLowerCase()) || 
+  const fornecedoresFiltrados = fornecedores.filter(f => (!filtroDepartamento || f.departamento_id === filtroDepartamento) && (
+    f.razao_social.toLowerCase().includes(busca.toLowerCase()) ||
     (f.nome_fantasia && f.nome_fantasia.toLowerCase().includes(busca.toLowerCase())) ||
     (f.cnpj_cpf && f.cnpj_cpf.includes(busca))
-  );
+  ));
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5 pb-10">
@@ -157,7 +166,8 @@ export default function FornecedoresPage() {
               className="w-full bg-ohel-bg border border-gray-700 text-xs text-white rounded-md pl-9 pr-3 py-2 focus:border-ohel-blue outline-none"
             />
           </div>
-          <Button onClick={() => setShowModal(true)} className="w-auto px-5 py-2 text-xs bg-ohel-blue hover:bg-blue-600 text-white">
+          <select value={filtroDepartamento} onChange={(e) => setFiltroDepartamento(e.target.value)} className="input-ohel px-3 py-2 rounded-md text-xs"><option value="">Todos os departamentos</option>{departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}</select>
+          <Button onClick={() => { setFormData((atual) => ({ ...atual, departamento_id: filtroDepartamento })); setShowModal(true); }} className="w-auto px-5 py-2 text-xs bg-ohel-blue hover:bg-blue-600 text-white">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Novo Fornecedor
           </Button>
         </div>
@@ -192,7 +202,7 @@ export default function FornecedoresPage() {
                     <p className="text-white font-medium">{forn.razao_social}</p>
                     {forn.nome_fantasia && <p className="text-[10px] text-gray-500">{forn.nome_fantasia}</p>}
                   </td>
-                  <td className="p-4 text-gray-300">{forn.cnpj_cpf || "-"}</td>
+                  <td className="p-4 text-gray-300"><p>{forn.cnpj_cpf || "-"}</p><p className="text-[10px] text-gray-500">{departamentos.find((d) => d.id === forn.departamento_id)?.nome || "Geral"}</p></td>
                   <td className="p-4 text-gray-300">
                     <p>{forn.telefone || "-"}</p>
                     <p className="text-[10px] text-gray-500">{forn.email || "-"}</p>
@@ -224,6 +234,7 @@ export default function FornecedoresPage() {
               
               <Input label="E-mail" type="email" name="email" value={formData.email} onChange={handleChange} className="py-2 text-xs" />
               <Input label="Endereço Completo" name="endereco" value={formData.endereco} onChange={handleChange} className="py-2 text-xs" />
+              <div><label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Departamento responsável</label><select name="departamento_id" value={formData.departamento_id} onChange={(e) => setFormData((atual) => ({ ...atual, departamento_id: e.target.value }))} className="input-ohel w-full px-3 py-2 rounded-md text-xs mt-2"><option value="">Fornecedor geral da igreja</option>{departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}</select></div>
 
               <div className="flex justify-end gap-2 mt-2">
                 <button type="button" onClick={fecharModalFornecedor} className="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancelar</button>

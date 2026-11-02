@@ -347,6 +347,12 @@
     },
     {
       "path": "/sorteios/novo"
+    },
+    {
+      "path": "/financeiro/departamentos"
+    },
+    {
+      "path": "/financeiro/produtos"
     }
   ]
 }

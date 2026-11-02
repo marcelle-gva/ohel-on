@@ -25,6 +25,7 @@ export default function ConfiguracoesPage() {
 
   // Departamentos e Cargos
   const [departamentos, setDepartamentos] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email: string | null }[]>([]);
   const [cargos, setCargos] = useState<any[]>([]);
   const [novoDepto, setNovoDepto] = useState("");
   const [novoCargo, setNovoCargo] = useState("");
@@ -45,8 +46,10 @@ export default function ConfiguracoesPage() {
             });
           }
 
-          const { data: deps } = await supabase.from('departamentos').select('*').eq('igreja_id', user.igreja_id).order('nome');
+          const { data: deps } = await supabase.from('departamentos').select('*, usuarios:responsavel_usuario_id(id, nome, email)').eq('igreja_id', user.igreja_id).order('nome');
           if (deps) setDepartamentos(deps);
+          const { data: users } = await supabase.from('usuarios').select('id, nome, email').eq('igreja_id', user.igreja_id).order('nome');
+          if (users) setUsuarios(users);
 
           const { data: crgs } = await supabase.from('cargos').select('*').eq('igreja_id', user.igreja_id).order('nome');
           if (crgs) setCargos(crgs);
@@ -106,6 +109,12 @@ export default function ConfiguracoesPage() {
     const { data } = await supabase.from('departamentos').insert([{ igreja_id: igrejaId, nome: novoDepto }]).select().single();
     if (data) setDepartamentos([...departamentos, data]);
     setNovoDepto("");
+  };
+
+  const handleResponsavelDepto = async (id: string, responsavel_usuario_id: string) => {
+    const { data, error } = await supabase.from('departamentos').update({ responsavel_usuario_id: responsavel_usuario_id || null }).eq('id', id).select('*, usuarios:responsavel_usuario_id(id, nome, email)').single();
+    if (error) { setModal({ isOpen: true, type: "error", title: "Erro", message: error.message }); return; }
+    setDepartamentos((current) => current.map((departamento) => departamento.id === id ? data : departamento));
   };
 
   const handleDeleteDepto = async (id: string) => {
@@ -203,9 +212,12 @@ export default function ConfiguracoesPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {departamentos.map(d => (
-                <div key={d.id} className="flex items-center gap-2 bg-ohel-bg border border-gray-700 px-3 py-1.5 rounded-lg text-xs text-white">
-                  {d.nome}
-                  <button type="button" onClick={() => handleDeleteDepto(d.id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                <div key={d.id} className="w-full bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
+                  <div className="flex items-center justify-between gap-2"><span className="font-semibold">{d.nome}</span><button type="button" onClick={() => handleDeleteDepto(d.id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button></div>
+                  <select value={d.responsavel_usuario_id || ""} onChange={(e) => void handleResponsavelDepto(d.id, e.target.value)} className="input-ohel w-full mt-2 px-2 py-1.5 rounded text-[11px]">
+                    <option value="">Sem responsável definido</option>{usuarios.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nome || usuario.email}</option>)}
+                  </select>
+                  <Link href={`/financeiro/produtos?departamento=${d.id}`} className="text-[10px] text-ohel-blue hover:underline mt-2 inline-block">Gerenciar produtos e fornecedores</Link>
                 </div>
               ))}
             </div>

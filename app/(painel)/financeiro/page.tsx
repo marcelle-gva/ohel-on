@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Wallet, TrendingUp, TrendingDown, Landmark, FileText, Users2, PieChart, Upload, Lock, Unlock } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Landmark, FileText, Users2, PieChart, Upload, Lock, Unlock, Package } from "lucide-react";
 
 export default function FinanceiroHubPage() {
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,9 @@ export default function FinanceiroHubPage() {
     { name: "Movimento Financeiro", desc: "Lançamentos de receitas e despesas.", icon: Wallet, href: "/financeiro/movimento", color: "text-blue-400", bg: "bg-blue-500/10" },
     { name: "Caixas e Bancos", desc: "Contas, saldos e transferências.", icon: Landmark, href: "/financeiro/caixas", color: "text-green-400", bg: "bg-green-500/10" },
     { name: "Contas a Pagar", desc: "Boletos, fornecedores e vencimentos.", icon: FileText, href: "/financeiro/contas-pagar", color: "text-red-400", bg: "bg-red-500/10" },
-    { name: "Fornecedores", desc: "Cadastro de empresas e prestadores.", icon: Users2, href: "/financeiro/fornecedores", color: "text-purple-400", bg: "bg-purple-500/10" },
+    { name: "Fornecedores", desc: "Cadastro geral e por departamento.", icon: Users2, href: "/financeiro/fornecedores", color: "text-purple-400", bg: "bg-purple-500/10" },
+    { name: "Produtos", desc: "Catálogo, vendas e estoque por departamento.", icon: Package, href: "/financeiro/produtos", color: "text-cyan-400", bg: "bg-cyan-500/10" },
+    { name: "Departamentos", desc: "Responsáveis e gestão dos catálogos.", icon: Users2, href: "/financeiro/departamentos", color: "text-violet-400", bg: "bg-violet-500/10" },
     { name: "Relatórios", desc: "Extratos, balancetes e dízimos.", icon: PieChart, href: "/financeiro/relatorios", color: "text-yellow-400", bg: "bg-yellow-500/10" },
   ];
 
