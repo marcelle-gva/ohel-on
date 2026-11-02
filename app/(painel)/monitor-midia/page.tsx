@@ -764,7 +764,7 @@ export default function MonitorMidiaPage() {
           background-color: #03060D !important;
           width: 100vw !important;
           height: 100vh !important;
-          padding: 4rem !important;
+          padding: 1.5rem !important;
           display: flex !important;
           flex-direction: column !important;
           margin: 0 !important;
@@ -772,24 +772,24 @@ export default function MonitorMidiaPage() {
           border-radius: 0 !important;
         }
         .fullscreen-card:fullscreen .fullscreen-scroll {
-          max-height: calc(100vh - 150px) !important;
+          max-height: calc(100vh - 105px) !important;
           overflow-y: auto !important;
           justify-content: center !important;
-          gap: 1.5rem !important;
+          gap: 0.75rem !important;
         }
-        .fullscreen-card:fullscreen h3 { font-size: 2.5rem !important; margin-bottom: 2rem !important; border-bottom: 2px solid #1f2937 !important; padding-bottom: 1rem !important; justify-content: center !important; }
-        .fullscreen-card:fullscreen .fullscreen-text { font-size: 2rem !important; padding: 2rem !important; }
-        .fullscreen-card:fullscreen .fullscreen-text p { font-size: 2rem !important; }
-        .fullscreen-card:fullscreen .fullscreen-text span { font-size: 2rem !important; }
-        .fullscreen-card:fullscreen .event-cover { width: 100% !important; height: min(24vh, 240px) !important; min-height: 120px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+        .fullscreen-card:fullscreen h3 { font-size: 1.8rem !important; margin-bottom: 0.75rem !important; border-bottom: 2px solid #1f2937 !important; padding-bottom: 1rem !important; justify-content: center !important; }
+        .fullscreen-card:fullscreen .fullscreen-text { font-size: 1.2rem !important; padding: 1rem !important; }
+        .fullscreen-card:fullscreen .fullscreen-text p { font-size: 1.2rem !important; }
+        .fullscreen-card:fullscreen .fullscreen-text span { font-size: 1.2rem !important; }
+        .fullscreen-card:fullscreen .event-cover { width: 100% !important; height: min(16vh, 150px) !important; min-height: 70px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
         .fullscreen-card:fullscreen .event-cover img { width: 100% !important; height: 100% !important; object-fit: contain !important; }
-        .fullscreen-card:fullscreen .event-title { display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; white-space: normal !important; line-height: 1.15 !important; font-size: clamp(2rem, 4vw, 4rem) !important; margin-bottom: 1rem !important; }
+        .fullscreen-card:fullscreen .event-title { display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; white-space: normal !important; line-height: 1.15 !important; font-size: clamp(1.6rem, 2.8vw, 2.5rem) !important; margin-bottom: 0.5rem !important; }
         .fullscreen-card:fullscreen .fullscreen-text p { overflow: visible !important; }
         .fullscreen-card:fullscreen .fullscreen-text .line-clamp-2 { -webkit-line-clamp: unset !important; display: block !important; }
-        .fullscreen-card:fullscreen .blessing-box { padding: 3rem !important; border-radius: 2rem !important; margin-top: 3rem !important; border-width: 2px !important; border-style: solid !important; }
-        .fullscreen-card:fullscreen .blessing-title { font-size: 3.5rem !important; margin-bottom: 1.5rem !important; text-shadow: 0 0 20px rgba(255,255,255,0.2) !important; }
-        .fullscreen-card:fullscreen .blessing-text { font-size: 2.5rem !important; color: #E5E7EB !important; margin-bottom: 2rem !important; }
-        .fullscreen-card:fullscreen .blessing-verse { font-size: 2rem !important; line-height: 1.4 !important; }
+        .fullscreen-card:fullscreen .blessing-box { padding: 1.25rem !important; border-radius: 1rem !important; margin-top: 1rem !important; border-width: 2px !important; border-style: solid !important; }
+        .fullscreen-card:fullscreen .blessing-title { font-size: 2rem !important; margin-bottom: 0.75rem !important; text-shadow: 0 0 20px rgba(255,255,255,0.2) !important; }
+        .fullscreen-card:fullscreen .blessing-text { font-size: 1.4rem !important; color: #E5E7EB !important; margin-bottom: 0.75rem !important; }
+        .fullscreen-card:fullscreen .blessing-verse { font-size: 1.2rem !important; line-height: 1.4 !important; }
         #section-visitantes:fullscreen .blessing-box { background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(3, 6, 13, 0.8) 100%) !important; border-color: rgba(168, 85, 247, 0.4) !important; box-shadow: 0 0 50px rgba(168, 85, 247, 0.2) !important; }
         #section-visitantes:fullscreen .blessing-title { color: #c084fc !important; }
         #section-visitantes:fullscreen .blessing-verse { color: #d8b4fe !important; }
