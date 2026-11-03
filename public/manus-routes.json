@@ -356,6 +356,9 @@
     },
     {
       "path": "/ipocloud"
+    },
+    {
+      "path": "/ipocloud/convites/aceitar"
     }
   ]
 }
