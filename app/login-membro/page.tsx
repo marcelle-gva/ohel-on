@@ -2,36 +2,42 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { Loader2, Mail, UserRound } from "lucide-react";
+import { Loader2, LockKeyhole, UserRound } from "lucide-react";
 
 export default function LoginMembroPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
-  const enviarLink = async (event: React.FormEvent) => {
+  const entrar = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setErro("");
     setMensagem("");
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/membro/callback`,
-        },
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (error) throw error;
-      setMensagem("Enviamos um link seguro para seu e-mail. Abra o link no mesmo dispositivo para entrar na Área do Membro.");
+      const response = await fetch("/api/membros/situacao", { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+      const situacao = await response.json() as { status?: string; aprovado?: boolean; error?: string };
+      if (!response.ok) throw new Error(situacao.error || "Seu usuário ainda não está vinculado a um membro.");
+      if (!situacao.aprovado) {
+        await supabase.auth.signOut();
+        setMensagem("Seu cadastro está aguardando a aprovação do administrador da igreja. Você receberá uma confirmação quando o acesso for liberado.");
+        return;
+      }
+      router.push("/area-membro");
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível enviar o link de acesso.");
+      setErro(error instanceof Error ? error.message : "Não foi possível entrar na Área do Membro.");
     } finally {
       setLoading(false);
     }
@@ -43,12 +49,13 @@ export default function LoginMembroPage() {
         <Logo className="h-[90px] w-[180px] mb-4" />
         <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3"><UserRound className="w-5 h-5 text-emerald-300" /></div>
         <h1 className="text-white text-lg font-bold text-center">Área do Membro</h1>
-        <p className="text-gray-400 text-xs text-center leading-relaxed mt-2 mb-5">Informe o mesmo e-mail usado no seu cadastro. Enviaremos um link seguro, sem senha.</p>
+        <p className="text-gray-400 text-xs text-center leading-relaxed mt-2 mb-5">Use o e-mail e a senha criados no pré-cadastro. O acesso só será liberado após a aprovação da igreja.</p>
 
-        <form onSubmit={enviarLink} className="w-full flex flex-col gap-4">
+        <form onSubmit={entrar} className="w-full flex flex-col gap-4">
           <Input label="E-mail cadastrado" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="seu@email.com" required className="bg-ohel-bg/50" />
+          <Input label="Senha" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" required className="bg-ohel-bg/50" />
           <Button type="submit" variant="primary" className="w-full" disabled={loading}>
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando link...</> : <><Mail className="w-4 h-4 mr-2" /> Enviar link de acesso</>}
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verificando acesso...</> : <><LockKeyhole className="w-4 h-4 mr-2" /> Entrar na Área do Membro</>}
           </Button>
         </form>
 

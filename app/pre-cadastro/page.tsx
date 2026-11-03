@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { User, MapPin, Church, CheckCircle, ShieldCheck, MessageCircle } from "lucide-react";
+import { User, MapPin, Church, CheckCircle, ShieldCheck, MessageCircle, Camera } from "lucide-react";
 
 function PreCadastroForm() {
   const searchParams = useSearchParams();
@@ -21,6 +21,9 @@ function PreCadastroForm() {
   
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [foto, setFoto] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", email: "", telefone: "",
@@ -49,33 +52,19 @@ function PreCadastroForm() {
     
     setLoading(true);
     try {
-      const { error } = await supabase.from("membros").insert([{
-        igreja_id: igrejaId,
-        nome: formData.nome,
-        data_nascimento: formData.data_nascimento || null,
-        sexo: formData.sexo,
-        estado_civil: formData.estado_civil,
-        cpf: formData.cpf,
-        email: formData.email,
-        telefone: formData.telefone,
-        cep: formData.cep,
-        logradouro: formData.logradouro,
-        numero: formData.numero,
-        complemento: formData.complemento,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        uf: formData.uf,
-        congregacao_id: formData.congregacao_id || null,
-        nome_pai: formData.nome_pai,
-        nome_mae: formData.nome_mae,
-        status: "Pré-Cadastro",
-        whatsapp_opt_in: whatsappOptIn,
-        whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
-      }]);
-
-      if (error) throw error;
+      const payload = new FormData();
+      payload.append("igreja_id", igrejaId);
+      Object.entries(formData).forEach(([campo, valor]) => payload.append(campo, valor));
+      payload.append("senha", senha);
+      payload.append("confirmar_senha", confirmarSenha);
+      payload.append("consent_accepted", String(consentAccepted));
+      payload.append("whatsapp_opt_in", String(whatsappOptIn));
+      if (foto) payload.append("foto", foto);
+      const response = await fetch("/api/membros/pre-cadastro", { method: "POST", body: payload });
+      const result = await response.json() as { error?: string; message?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível enviar seus dados.");
       
-      setModal({ isOpen: true, type: "success", title: "Recebido!", message: "Seus dados foram enviados com sucesso. Aguarde o contato da secretaria da igreja." });
+      setModal({ isOpen: true, type: "success", title: "Recebido!", message: result.message || "Seu cadastro foi recebido e está aguardando aprovação da igreja." });
       
       setFormData({
         nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", email: "", telefone: "",
@@ -84,9 +73,12 @@ function PreCadastroForm() {
       });
       setConsentAccepted(false);
       setWhatsappOptIn(false);
+      setSenha("");
+      setConfirmarSenha("");
+      setFoto(null);
       setActiveTab("pessoais");
-    } catch {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seus dados. Tente novamente." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível enviar seus dados. Tente novamente." });
     } finally {
       setLoading(false);
     }
@@ -153,6 +145,12 @@ function PreCadastroForm() {
                   <div className="md:col-span-2">
                     <Input label="E-mail para acessar a Área do Membro *" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" required />
                   </div>
+                  <Input label="Crie sua senha *" type="password" value={senha} onChange={(event) => setSenha(event.target.value)} placeholder="Mínimo de 8 caracteres" minLength={8} required />
+                  <Input label="Confirme sua senha *" type="password" value={confirmarSenha} onChange={(event) => setConfirmarSenha(event.target.value)} placeholder="Repita sua senha" minLength={8} required />
+                  <label className="md:col-span-2 flex flex-col gap-2 text-xs font-semibold text-ohel-silver uppercase tracking-wider">
+                    Foto de perfil (opcional)
+                    <span className="flex items-center gap-2 rounded-lg border border-gray-700 bg-ohel-bg px-3 py-2.5 normal-case font-normal text-gray-300"><Camera className="h-4 w-4 text-ohel-blue" /><input type="file" accept="image/*" onChange={(event) => setFoto(event.target.files?.[0] || null)} className="w-full text-xs" /></span>
+                  </label>
                   <label className="md:col-span-2 flex items-start gap-3 rounded-lg border border-green-500/20 bg-green-500/5 p-3 text-xs text-gray-300 cursor-pointer">
                     <input type="checkbox" checked={whatsappOptIn} onChange={(event) => setWhatsappOptIn(event.target.checked)} className="mt-0.5 accent-green-500" />
                     <span><MessageCircle className="inline w-4 h-4 text-green-400 mr-1" /> Autorizo receber pelo WhatsApp a confirmação da aprovação do meu cadastro e o link de acesso à Área do Membro.</span>

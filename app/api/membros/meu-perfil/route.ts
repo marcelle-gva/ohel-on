@@ -44,11 +44,13 @@ async function getMember(request: Request) {
   if (!clients) return { error: "Serviço de perfil não configurado.", status: 503 as const };
   const { data: authData, error: authError } = await clients.auth.auth.getUser(clients.token);
   const email = authData.user?.email?.trim().toLowerCase();
-  if (authError || !email) return { error: "Sessão do membro inválida ou expirada.", status: 401 as const };
+  if (authError || !email || !authData.user) return { error: "Sessão do membro inválida ou expirada.", status: 401 as const };
 
-  const { data: membro, error } = await clients.service
+  const campos = "id, auth_user_id, nome, email, status, foto_url, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in";
+  const { data: porUsuario } = await clients.service.from("membros").select(campos).eq("auth_user_id", authData.user.id).eq("status", "Ativo").maybeSingle();
+  const { data: membro, error } = porUsuario ? { data: porUsuario, error: null } : await clients.service
     .from("membros")
-    .select("id, nome, email, status, foto_url, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in")
+    .select(campos)
     .ilike("email", email)
     .eq("status", "Ativo")
     .maybeSingle();
