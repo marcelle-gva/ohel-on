@@ -3,17 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Bell, Search, LogOut } from "lucide-react";
+import { Bell, Search, LogOut, Cloud } from "lucide-react";
 
 export function Header() {
   const router = useRouter();
   const [preCadastrosPendentes, setPreCadastrosPendentes] = useState(0);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadPending = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", session.user.id).eq("ativo", true).maybeSingle();
+      if (active) setIsPlatformAdmin(Boolean(platformAdmin));
       const { data: usuario } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
       if (!usuario?.igreja_id) return;
       const { count } = await supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", usuario.igreja_id).eq("status", "Pré-Cadastro");
@@ -56,6 +59,8 @@ export function Header() {
           <Bell className="w-5 h-5" />
           {preCadastrosPendentes > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{preCadastrosPendentes > 99 ? "99+" : preCadastrosPendentes}</span>}
         </button>
+
+        {isPlatformAdmin && <button onClick={() => router.push("/ipocloud")} className="hidden items-center gap-1.5 rounded-md border border-ohel-blue/30 bg-ohel-blue/10 px-2.5 py-1.5 text-xs font-medium text-ohel-blue hover:bg-ohel-blue hover:text-white md:flex" title="Dashboard IPO CLOUD"><Cloud className="h-3.5 w-3.5" /> IPO CLOUD</button>}
 
         <div className="h-8 w-px bg-gray-700 mx-1 md:mx-2"></div>
 

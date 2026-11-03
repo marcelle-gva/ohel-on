@@ -353,6 +353,9 @@
     },
     {
       "path": "/financeiro/produtos"
+    },
+    {
+      "path": "/ipocloud"
     }
   ]
 }

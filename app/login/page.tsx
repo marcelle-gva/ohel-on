@@ -32,11 +32,14 @@ export default function Login() {
       });
 
       if (error) throw error;
+      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", (await supabase.auth.getUser()).data.user?.id || "").eq("ativo", true).maybeSingle();
       
       const { data: factors } = await supabase.auth.mfa.listFactors();
       
       if (factors && factors.totp.length > 0) {
         router.push("/mfa");
+      } else if (platformAdmin) {
+        router.push("/ipocloud");
       } else {
         router.push("/dashboard");
       }

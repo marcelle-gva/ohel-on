@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
@@ -49,8 +48,10 @@ export default function MfaChallengePage() {
       
       if (verifyError) throw verifyError;
 
-      router.push("/dashboard");
-    } catch (error: any) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", user?.id || "").eq("ativo", true).maybeSingle();
+      router.push(platformAdmin ? "/ipocloud" : "/dashboard");
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Código Inválido", message: "O código digitado está incorreto ou expirou. Tente novamente." });
       setCode("");
     } finally {
