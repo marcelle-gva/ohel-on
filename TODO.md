@@ -98,3 +98,8 @@
 
 - [x] Corrigir a falha reportada ao finalizar o pré-cadastro, identificando a causa real sem criar cadastros de teste no banco de produção. Correção pontual do trigger aplicada no Supabase em 06/11/2026; definição conferida com os três indicadores verdadeiros.
 - [x] Tratar erros do Supabase em objeto, informar a etapa da falha com segurança e registrar código técnico sem senha ou dados pessoais; manter os dados preenchidos no formulário para nova tentativa.
+
+## Pedido de oração pelo membro autenticado
+
+- [x] Permitir ao membro aprovado enviar seu pedido de oração sem sair da conta, com status Pendente e destino limitado à própria igreja; envio pelo QR Code sem login e pelo administrador continua disponível.
+- [x] Não conceder leitura de pedidos privados, edição, exclusão ou aprovação ao membro básico; preservar a regra de decisão pelo grupo Liderança e manter os dados preenchidos quando houver falha.

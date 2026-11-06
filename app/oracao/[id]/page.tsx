@@ -23,22 +23,40 @@ export default function PedidoOracaoPublicPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!igrejaId || !formData.descricao) return;
+    if (!igrejaId || !formData.descricao.trim() || loading) return;
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('pedidos_oracao').insert([{
+      const pedido = {
         igreja_id: igrejaId,
-        nome_solicitante: formData.nome || "Anônimo",
-        descricao: formData.descricao,
-        status: "Pendente"
-      }]);
+        nome_solicitante: formData.nome.trim() || "Anônimo",
+        descricao: formData.descricao.trim(),
+      };
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw new Error("Não foi possível conferir sua sessão. Entre novamente e tente enviar.");
 
-      if (error) throw error;
+      if (session?.access_token) {
+        const response = await fetch("/api/membros/oracoes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(pedido),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.ok) {
+          throw new Error(result?.error || "Não foi possível enviar seu pedido. Tente novamente.");
+        }
+      } else {
+        // O QR Code continua disponível aos visitantes sem sessão.
+        const { error } = await supabase.from("pedidos_oracao").insert([{ ...pedido, status: "Pendente" }]);
+        if (error) throw new Error("Não foi possível enviar seu pedido. Tente novamente.");
+      }
       
       setSucesso(true);
-    } catch {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seu pedido. Tente novamente." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível enviar seu pedido. Tente novamente." });
     } finally {
       setLoading(false);
     }
@@ -85,6 +103,7 @@ export default function PedidoOracaoPublicPage() {
             label="Seu Nome (Opcional)" 
             placeholder="Deixe em branco para anônimo" 
             value={formData.nome}
+            maxLength={150}
             onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
           />
           
@@ -96,6 +115,7 @@ export default function PedidoOracaoPublicPage() {
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               required
+              maxLength={5000}
               className="input-ohel w-full px-4 py-3 rounded-lg text-sm min-h-[120px] resize-y"
             />
           </div>
