@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Logo } from "@/components/brand/Logo";
+import styles from "@/components/public/public-layout.module.css";
 import { Calendar, MapPin, Clock, CheckCircle, Ticket, ShoppingBag, X, Download } from "lucide-react";
 
 export default function InscricaoPublicaPage() {
@@ -126,18 +127,18 @@ export default function InscricaoPublicaPage() {
     return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   };
 
-  if (loading) return <div className="w-full h-screen bg-ohel-bg flex items-center justify-center text-white">Carregando evento...</div>;
+  if (loading) return <div className={`${styles.viewport} w-full bg-ohel-bg flex items-center justify-center text-white`}>Carregando evento...</div>;
   
   if (!evento) return (
-    <div className="w-full h-screen bg-ohel-bg flex flex-col items-center justify-center text-white p-4 text-center">
+    <div className={`${styles.viewport} w-full bg-ohel-bg flex flex-col items-center justify-center text-white p-4 text-center`}>
       <Ticket className="w-16 h-16 text-gray-600 mb-4" />
       <h1 className="text-2xl font-bold">Evento não encontrado</h1>
     </div>
   );
 
   if (sucessoInscricao || sucessoPedido) return (
-    <div className="w-full min-h-screen bg-ohel-bg flex items-center justify-center p-4 bg-ohel-glow">
-      <Card className="w-full max-w-md p-8 flex flex-col items-center text-center animate-in zoom-in-95">
+    <div className={`${styles.viewport} w-full bg-ohel-bg flex items-center justify-start md:justify-center px-4 py-8 bg-ohel-glow`}>
+      <Card className={`${styles.panel} ${styles.compact} w-full max-w-md flex flex-col items-center text-center animate-in zoom-in-95`}>
         <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
           <CheckCircle className="w-10 h-10 text-green-500" />
         </div>
@@ -166,7 +167,7 @@ export default function InscricaoPublicaPage() {
   );
 
   return (
-    <div className="w-full min-h-screen bg-ohel-bg flex flex-col items-center pb-10">
+    <div className={`${styles.viewport} w-full bg-ohel-bg flex flex-col items-center px-4 pb-10`}>
       <FeedbackModal 
         isOpen={modal.isOpen} 
         onClose={() => setModal({ ...modal, isOpen: false })} 
@@ -175,7 +176,7 @@ export default function InscricaoPublicaPage() {
         message={modal.message} 
       />
 
-      <div className="w-full max-w-lg mx-4 md:mx-auto mt-0 md:mt-6 bg-ohel-surface md:rounded-3xl rounded-b-3xl overflow-hidden shadow-2xl">
+      <div className={`${styles.panel} w-full max-w-lg md:mx-auto mt-0 md:mt-6 bg-ohel-surface md:rounded-3xl rounded-b-3xl overflow-hidden shadow-2xl`}>
         
         {/* Banner */}
         <div className="h-48 md:h-56 w-full relative bg-gradient-to-br from-ohel-surface to-ohel-bg">
@@ -224,7 +225,7 @@ export default function InscricaoPublicaPage() {
 
           {evento.descricao && <div className="bg-ohel-bg p-3 rounded-lg border border-gray-800 mb-2"><p className="text-gray-400 text-xs leading-relaxed whitespace-pre-wrap">{evento.descricao}</p></div>}
           {evento.informacoes_adicionais && <div className="bg-ohel-bg p-3 rounded-lg border border-gray-800 mb-2"><p className="text-[11px] text-gray-300 leading-relaxed whitespace-pre-wrap">{evento.informacoes_adicionais}</p></div>}
-          {((evento.galeria_urls || []).length > 0 || evento.cartaz_url) && <div className="mt-4"><h2 className="text-sm font-bold text-white mb-3">Fotos do evento</h2><div className="grid grid-cols-2 gap-2">{[evento.cartaz_url, ...(evento.galeria_urls || [])].filter(Boolean).map((url: string, index: number) => <div key={`${url}-${index}`} className="relative aspect-video rounded-lg overflow-hidden border border-gray-800 group"><Image src={url} alt={`${evento.nome} - foto ${index + 1}`} fill sizes="250px" className="object-cover" /><a href={url} download target="_blank" rel="noreferrer" className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100" title="Baixar foto"><Download className="w-4 h-4" /></a></div>)}</div></div>}
+          {((evento.galeria_urls || []).length > 0 || evento.cartaz_url) && <div className="mt-4"><h2 className="text-sm font-bold text-white mb-3">Fotos do evento</h2><div className="grid grid-cols-2 gap-2">{[evento.cartaz_url, ...(evento.galeria_urls || [])].filter(Boolean).map((url: string, index: number) => <div key={`${url}-${index}`} className="relative aspect-video rounded-lg overflow-hidden border border-gray-800 group"><Image src={url} alt={`${evento.nome} - foto ${index + 1}`} fill sizes="250px" className="object-cover" /><a href={url} download target="_blank" rel="noreferrer" aria-label={`Baixar foto ${index + 1}`} className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/70 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Baixar foto"><Download className="w-4 h-4" /></a></div>)}</div></div>}
         </div>
 
         {/* 1º: Formulário de Inscrição */}
@@ -236,7 +237,7 @@ export default function InscricaoPublicaPage() {
               <p className="text-red-400 text-sm font-bold">As inscrições estão encerradas.</p>
             </div>
           ) : (
-            <form onSubmit={handleInscricao} className="flex flex-col gap-3">
+            <form onSubmit={handleInscricao} className={`${styles.controls} flex flex-col gap-3`}>
               <Input 
                 label="Nome Completo *" 
                 placeholder="Seu nome" 
@@ -268,16 +269,16 @@ export default function InscricaoPublicaPage() {
             </h2>
             <div className="flex flex-col gap-3">
               {produtos.map(prod => (
-                <div key={prod.id} className="bg-ohel-surface border border-gray-800 p-3 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-white">{prod.nome}</p>
-                    <p className="text-[10px] text-gray-400">
+                <div key={prod.id} className="bg-ohel-surface border border-gray-800 p-3 rounded-xl flex min-w-0 items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white break-words">{prod.nome}</p>
+                    <p className="text-[10px] text-gray-400 break-words">
                       {prod.eventos_produtos_variacoes?.length > 0 
                         ? `Tamanhos: ${prod.eventos_produtos_variacoes.map((v: any) => v.nome).join(', ')}` 
                         : "Único"}
                     </p>
                   </div>
-                  <Button onClick={() => openOrderModal(prod)} variant="secondary" className="w-auto px-4 py-1.5 text-xs">
+                  <Button onClick={() => openOrderModal(prod)} variant="secondary" className="w-auto shrink-0 px-4 py-1.5 text-xs">
                     Comprar
                   </Button>
                 </div>
@@ -295,16 +296,16 @@ export default function InscricaoPublicaPage() {
 
       {/* MODAL DE COMPRA */}
       {isOrderModalOpen && produtoSelecionado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-ohel-surface border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="order-modal-title" className={`${styles.modal} bg-ohel-surface border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Comprar: {produtoSelecionado.nome}</h3>
-              <button onClick={() => setIsOrderModalOpen(false)} className="text-gray-400 hover:text-white">
+              <h3 id="order-modal-title" className="text-lg font-bold text-white break-words pr-3">Comprar: {produtoSelecionado.nome}</h3>
+              <button type="button" onClick={() => setIsOrderModalOpen(false)} aria-label="Fechar modal de compra" className="shrink-0 text-gray-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ohel-blue rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <form onSubmit={handlePedido} className="flex flex-col gap-4">
+            <form onSubmit={handlePedido} className={`${styles.controls} flex flex-col gap-4`}>
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Escolha o Tamanho *</label>
                 <select 

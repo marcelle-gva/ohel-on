@@ -1,0 +1,61 @@
+.viewport {
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
+.panel {
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.compact {
+  padding: 1rem;
+}
+
+.flush {
+  padding: 0;
+}
+
+.controls input,
+.controls select,
+.controls textarea {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 1rem;
+}
+
+.controls input[type="file"] {
+  width: 100%;
+}
+
+.controls button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.modal {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.qr svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (min-width: 640px) {
+  .controls input,
+  .controls select,
+  .controls textarea {
+    font-size: 0.875rem;
+  }
+}

@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Input } from "@/components/ui/Input";
 import { Logo } from "@/components/brand/Logo";
+import publicLayout from "@/components/public/public-layout.module.css";
 
 const initialForm = {
   nome: "",
@@ -99,7 +100,7 @@ export default function PreCadastroKidsTeensPage() {
   };
 
   return (
-    <main className="min-h-screen bg-ohel-glow px-4 py-8 text-white">
+    <main className={`${publicLayout.viewport} bg-ohel-glow px-4 py-8 text-white`}>
       <FeedbackModal
         isOpen={feedback.isOpen}
         onClose={() => setFeedback((current) => ({ ...current, isOpen: false }))}
@@ -108,11 +109,11 @@ export default function PreCadastroKidsTeensPage() {
         message={feedback.message}
       />
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-center">
+      <div className={`${publicLayout.panel} mx-auto flex w-full max-w-2xl flex-col items-center`}>
         <Logo className="mb-3 h-20 w-40" />
 
         {submitted ? (
-          <Card className="w-full border-gray-800 p-8 text-center">
+          <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full border-gray-800 text-center`}>
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10 text-green-400">
               <CheckCircle className="h-9 w-9" />
             </div>
@@ -133,8 +134,8 @@ export default function PreCadastroKidsTeensPage() {
               </p>
             </div>
 
-            <Card className="w-full border-gray-800 p-5 sm:p-7">
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full border-gray-800`}>
+              <form onSubmit={handleSubmit} className={`${publicLayout.controls} flex flex-col gap-5`}>
                 <section className="space-y-4">
                   <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-pink-200">
                     <Baby className="h-4 w-4" /> Dados do menor
@@ -199,10 +200,11 @@ export default function PreCadastroKidsTeensPage() {
                     <Heart className="h-4 w-4" /> Cuidado e segurança
                   </h2>
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">
+                    <label htmlFor="pessoas-autorizadas" className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">
                       Pessoas autorizadas a retirar
                     </label>
                     <textarea
+                      id="pessoas-autorizadas"
                       value={form.pessoas_autorizadas}
                       onChange={(event) => setForm((current) => ({ ...current, pessoas_autorizadas: event.target.value }))}
                       maxLength={1000}
@@ -212,10 +214,11 @@ export default function PreCadastroKidsTeensPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">
+                    <label htmlFor="informacoes-saude" className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">
                       Alergias, medicamentos ou cuidados importantes
                     </label>
                     <textarea
+                      id="informacoes-saude"
                       value={form.informacoes_saude}
                       onChange={(event) => setForm((current) => ({ ...current, informacoes_saude: event.target.value }))}
                       maxLength={2000}

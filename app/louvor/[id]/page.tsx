@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
+import { useState } from "react";
+import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -11,9 +10,10 @@ import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { BibleSearchModal } from "@/components/ui/BibleSearchModal";
 import { Logo } from "@/components/brand/Logo";
 import { CheckCircle, Music, BookOpen, Search, Loader2, Wand2 } from "lucide-react";
+import publicLayout from "@/components/public/public-layout.module.css";
+import styles from "./page.module.css";
 
 export default function PublicWorshipForm() {
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const igrejaId = params.id;
 
@@ -35,7 +35,7 @@ export default function PublicWorshipForm() {
     if (!textoOriginal) return setModal({ isOpen: true, type: "error", title: "Aviso", message: "Cole algum texto primeiro." });
 
     const linhas = textoOriginal.split('\n');
-    let textoFinal: string[] = [];
+    const textoFinal: string[] = [];
     
     const isChordLine = (linha: string) => {
       const palavras = linha.trim().split(/\s+/);
@@ -89,7 +89,7 @@ export default function PublicWorshipForm() {
 
       if (error) throw error;
       setSucesso(true);
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível adicionar a música." });
     } finally {
       setLoading(false);
@@ -98,8 +98,12 @@ export default function PublicWorshipForm() {
 
   if (sucesso) {
     return (
-      <div className="w-full min-h-screen bg-ohel-bg flex items-center justify-center p-4 bg-ohel-glow">
-        <Card className="w-full max-w-md p-8 flex flex-col items-center text-center animate-in zoom-in-95">
+      <div className={`${publicLayout.viewport} flex flex-col items-center justify-start bg-ohel-bg px-4 py-8 bg-ohel-glow`}>
+        <Card
+          role="status"
+          aria-live="polite"
+          className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-md flex flex-col items-center text-center animate-in zoom-in-95`}
+        >
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
@@ -114,20 +118,22 @@ export default function PublicWorshipForm() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-ohel-bg flex flex-col items-center py-8 px-4 bg-ohel-glow">
-      <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
+    <div className={`${publicLayout.viewport} flex flex-col items-center bg-ohel-bg px-4 py-6 sm:py-8 bg-ohel-glow`}>
+      <div className={styles.modalLayer}>
+        <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
-      <BibleSearchModal 
-        isOpen={isBibleModalOpen} 
-        onClose={() => setIsBibleModalOpen(false)} 
-        onSelect={(texto) => { setFormData(prev => ({ ...prev, palavra_vinculada: texto })); setIsBibleModalOpen(false); }} 
-      />
+        <BibleSearchModal
+          isOpen={isBibleModalOpen}
+          onClose={() => setIsBibleModalOpen(false)}
+          onSelect={(texto) => { setFormData(prev => ({ ...prev, palavra_vinculada: texto })); setIsBibleModalOpen(false); }}
+        />
+      </div>
 
-      <div className="mb-6 mt-2 scale-90">
+      <div className="mb-6 mt-2 shrink-0 scale-90">
         <Logo />
       </div>
 
-      <Card className="w-full max-w-md p-6 border-gray-800">
+      <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-md border-gray-800`}>
         <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
           <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
             <Music className="w-5 h-5 text-purple-400" />
@@ -138,30 +144,30 @@ export default function PublicWorshipForm() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className={`flex flex-col gap-4 ${publicLayout.controls}`}>
           <Input label="Nome da Música *" name="titulo" placeholder="Ex: Oceanos" value={formData.titulo} onChange={handleChange} required />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Tom *" name="tom" placeholder="Ex: G" value={formData.tom} onChange={handleChange} required />
             <Input label="Ministro" name="ministro" placeholder="Quem canta?" value={formData.ministro} onChange={handleChange} />
           </div>
 
           <div className="flex justify-between items-center mt-2">
-             <label className="text-xs font-semibold text-ohel-silver uppercase">Letra / Cifra</label>
+             <label htmlFor="link_cifra" className="text-xs font-semibold text-ohel-silver uppercase">Letra / Cifra</label>
              <button type="button" onClick={transformarEmChordPro} className="text-[10px] bg-ohel-blue/10 text-ohel-blue px-2 py-1 rounded flex items-center gap-1">
                 <Wand2 className="w-3 h-3" /> Converter
              </button>
           </div>
           <textarea 
-            name="link_cifra" placeholder="Cole a cifra..." value={formData.link_cifra} onChange={handleChange}
+            id="link_cifra" name="link_cifra" placeholder="Cole a cifra..." value={formData.link_cifra} onChange={handleChange}
             className="input-ohel w-full px-4 py-3 rounded-lg text-sm min-h-[150px] font-mono resize-y"
           />
 
-          <button type="button" onClick={() => setIsBibleModalOpen(true)} className="flex items-center justify-between bg-ohel-bg border border-gray-700 text-sm text-gray-400 rounded-md px-4 py-2.5 hover:border-ohel-blue">
+          <button type="button" onClick={() => setIsBibleModalOpen(true)} aria-haspopup="dialog" aria-expanded={isBibleModalOpen} className="flex items-center justify-between bg-ohel-bg border border-gray-700 text-sm text-gray-400 rounded-md px-4 py-2.5 hover:border-ohel-blue">
              <span className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-ohel-blue" /> Palavra Vinculada</span>
              <Search className="w-4 h-4" />
           </button>
           {formData.palavra_vinculada && (
-             <p className="text-[10px] text-gray-400 line-clamp-2 italic">"{formData.palavra_vinculada}"</p>
+             <p className="text-[10px] text-gray-400 line-clamp-2 italic">&quot;{formData.palavra_vinculada}&quot;</p>
           )}
 
           <Button type="submit" variant="primary" disabled={loading} className="mt-4 py-3 w-full">

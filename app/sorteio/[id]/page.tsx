@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import publicLayout from "@/components/public/public-layout.module.css";
 import { Gift, QrCode, Ticket } from "lucide-react";
 import QRCode from "react-qr-code";
 
@@ -125,24 +126,31 @@ export default function SorteioPublicPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-ohel-bg text-gray-300">Carregando sorteio...</div>;
+  if (loading) return <div className={`${publicLayout.viewport} flex items-center justify-center bg-ohel-bg text-gray-300`}>Carregando sorteio...</div>;
 
-  if (!sorteio) return <div className="min-h-screen flex items-center justify-center bg-ohel-bg text-white">Sorteio não encontrado.</div>;
+  if (!sorteio) {
+    return (
+      <div className={`${publicLayout.viewport} flex items-center justify-center bg-ohel-bg text-white`}>
+        <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal((current) => ({ ...current, isOpen: false }))} type={modal.type} title={modal.title} message={modal.message} />
+        Sorteio não encontrado.
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-ohel-bg text-white">
+    <div className={`${publicLayout.viewport} bg-ohel-bg text-white`}>
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal((current) => ({ ...current, isOpen: false }))} type={modal.type} title={modal.title} message={modal.message} />
 
-      <div className="mx-auto max-w-6xl p-4 md:p-6">
-        <Card className="overflow-hidden border-gray-800 bg-ohel-surface/70">
+      <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
+        <Card className={`${publicLayout.panel} ${publicLayout.compact} border-gray-800 bg-ohel-surface/70`}>
           <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
-            <div className="p-6 md:p-8">
+            <div className={`${publicLayout.panel} p-6 md:p-8`}>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
                 <Gift className="w-3.5 h-3.5" /> Sorteio
               </div>
 
-              <h1 className="mb-2 text-3xl font-bold text-white">{sorteio.nome}</h1>
-              <p className="mb-5 text-sm text-gray-400">{sorteio.descricao || "Participe escolhendo um número disponível e confirme o pagamento para validar a reserva."}</p>
+              <h1 className="mb-2 break-words text-3xl font-bold text-white">{sorteio.nome}</h1>
+              <p className="mb-5 break-words text-sm text-gray-400">{sorteio.descricao || "Participe escolhendo um número disponível e confirme o pagamento para validar a reserva."}</p>
 
               <div className="mb-6 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-gray-800 bg-ohel-bg/60 p-3">
@@ -159,13 +167,13 @@ export default function SorteioPublicPage() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className={`${publicLayout.controls} space-y-4`}>
                 <Input label="Seu nome" name="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
                 <Input label="Telefone" name="telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} required />
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">Número disponível</label>
-                  <div className="grid max-h-52 grid-cols-5 gap-2 overflow-auto rounded-xl border border-gray-800 bg-ohel-bg p-3">
+                <fieldset className="flex min-w-0 flex-col gap-2">
+                  <legend className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">Número disponível</legend>
+                  <div className="grid min-w-0 max-h-52 grid-cols-5 gap-2 overflow-auto rounded-xl border border-gray-800 bg-ohel-bg p-3">
                     {numerosDisponiveis.length === 0 ? (
                       <div className="col-span-5 text-sm text-gray-400">Nenhum número livre agora.</div>
                     ) : (
@@ -174,6 +182,7 @@ export default function SorteioPublicPage() {
                           key={numero}
                           type="button"
                           onClick={() => setNumSelecionado(String(numero))}
+                          aria-pressed={numSelecionado === String(numero)}
                           className={`rounded-lg border px-2 py-2 text-sm transition ${numSelecionado === String(numero) ? "border-violet-400 bg-violet-500/20 text-violet-100" : "border-gray-700 bg-[#0f172a] text-gray-200 hover:border-violet-500/50"}`}
                         >
                           {numero}
@@ -181,7 +190,7 @@ export default function SorteioPublicPage() {
                       ))
                     )}
                   </div>
-                </div>
+                </fieldset>
 
                 <Button type="submit" variant="primary" disabled={saving} className="w-full mt-4">
                   {saving ? "Reservando..." : "Reservar número"}
@@ -189,9 +198,9 @@ export default function SorteioPublicPage() {
               </form>
             </div>
 
-            <div className="border-t border-gray-800 bg-ohel-bg/50 p-6 md:border-l md:border-t-0">
+            <div className={`${publicLayout.panel} border-t border-gray-800 bg-ohel-bg/50 p-6 md:border-l md:border-t-0`}>
               <div className="mb-4 flex items-center gap-2 text-violet-300"><QrCode className="w-5 h-5" /> <span className="text-sm font-semibold uppercase tracking-[0.2em]">Compartilhar</span></div>
-              <div className="rounded-2xl border border-gray-800 bg-white p-4 w-fit mx-auto">
+              <div role="img" aria-label="Código QR para compartilhar este sorteio" className={`${publicLayout.qr} mx-auto w-full max-w-[220px] rounded-2xl border border-gray-800 bg-white p-4`}>
                 <QRCode value={typeof window !== "undefined" ? `${window.location.origin}/sorteio/${sorteio.id}` : ""} size={180} />
               </div>
 

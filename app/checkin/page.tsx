@@ -5,8 +5,15 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
+import publicLayout from "@/components/public/public-layout.module.css";
 import { CheckCircle2, MapPin, Loader2, AlertTriangle, Clock } from "lucide-react";
-import Image from "next/image";
+
+interface Membro {
+  id: string;
+  nome: string;
+  igreja_id: string;
+  departamento?: string | null;
+}
 
 // Função matemática para calcular a distância em metros (Fórmula de Haversine)
 function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -26,8 +33,7 @@ function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: numbe
 export default function CheckinMembroPage() {
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState(false);
-  const [membro, setMembro] = useState<any>(null);
-  const [igreja, setIgreja] = useState<any>(null);
+  const [membro, setMembro] = useState<Membro | null>(null);
   
   const [status, setStatus] = useState<"inicial" | "sucesso" | "erro" | "fora_horario">("inicial");
   const [mensagem, setMensagem] = useState("");
@@ -53,14 +59,15 @@ export default function CheckinMembroPage() {
         return;
       }
       
-      setMembro(membroData);
-      setIgreja(membroData.igrejas);
+      setMembro(membroData as Membro);
       setLoading(false);
     };
     carregarDados();
   }, []);
 
   const realizarCheckin = () => {
+    const membroAtual = membro;
+    if (!membroAtual) return;
     setProcessando(true);
     setMensagem("Obtendo sua localização...");
 
@@ -77,7 +84,7 @@ export default function CheckinMembroPage() {
           const { latitude, longitude } = position.coords;
           
           // 1. Busca a configuração dos eventos e a hora do servidor
-          const { data: configs } = await supabase.from('config_checkin').select('*').eq('igreja_id', membro.igreja_id);
+          const { data: configs } = await supabase.from('config_checkin').select('*').eq('igreja_id', membroAtual.igreja_id);
           
           // Pega a hora atual do servidor para evitar fraudes
           const { data: serverTime } = await supabase.rpc('get_server_time'); 
@@ -100,7 +107,7 @@ export default function CheckinMembroPage() {
                 eventoAtual = conf;
                 
                 // Validação de Elegibilidade para Louvor
-                if (conf.nome_evento.includes('Louvor') && !membro.departamento?.toLowerCase().includes('louvor')) {
+                if (conf.nome_evento.includes('Louvor') && !membroAtual.departamento?.toLowerCase().includes('louvor')) {
                   obs = "Tentou check-in no louvor sem estar no ministério.";
                 }
                 break;
@@ -134,8 +141,8 @@ export default function CheckinMembroPage() {
 
           // 5. Salva no banco
           await supabase.from('checkins').insert([{
-            igreja_id: membro.igreja_id,
-            membro_id: membro.id,
+            igreja_id: membroAtual.igreja_id,
+            membro_id: membroAtual.id,
             tipo_evento: eventoAtual ? eventoAtual.nome_evento : "Geral",
             metodo: 'GPS',
             latitude,
@@ -144,7 +151,7 @@ export default function CheckinMembroPage() {
             observacao: obs
           }]);
 
-        } catch (error) {
+        } catch {
           setStatus("erro");
           setMensagem("Erro ao processar o check-in. Tente novamente.");
         } finally {
@@ -164,26 +171,39 @@ export default function CheckinMembroPage() {
     );
   };
 
-  if (loading) return <div className="p-10 text-center text-gray-400">Carregando sistema...</div>;
+  if (loading) {
+    return (
+      <main className={`${publicLayout.viewport} flex items-center justify-center bg-ohel-glow p-4`}>
+        <p className="text-center text-gray-400" role="status" aria-live="polite">
+          Carregando sistema...
+        </p>
+      </main>
+    );
+  }
 
   return (
-    <div className="w-full h-screen bg-ohel-glow flex flex-col items-center justify-center p-4">
-      <div className="mb-6 scale-90">
+    <main className={`${publicLayout.viewport} flex w-full flex-col items-center justify-start bg-ohel-glow px-4 py-6 sm:py-8`}>
+      <div className="mb-6 shrink-0 scale-90">
         <Logo />
       </div>
 
-      <Card className="w-full max-w-sm p-8 flex flex-col items-center text-center">
+      <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-sm flex flex-col items-center text-center`}>
         
         {status === "inicial" && (
           <>
             <div className="w-20 h-20 rounded-full bg-ohel-blue/10 flex items-center justify-center mb-4">
               <MapPin className="w-10 h-10 text-ohel-blue" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Bem-vindo, {membro?.nome.split(' ')[0]}!</h2>
+            <h1 className="max-w-full break-words text-xl font-bold text-white mb-2">Bem-vindo, {membro?.nome.split(' ')[0]}!</h1>
             <p className="text-xs text-gray-400 mb-6">Para registrar sua presença, clique no botão abaixo.</p>
             <Button onClick={realizarCheckin} disabled={processando} className="w-full py-3 bg-ohel-blue hover:bg-blue-600 text-white font-bold">
               {processando ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processando...</> : "Fazer Check-in"}
             </Button>
+            {processando && (
+              <p className="mt-3 w-full break-words text-xs text-gray-400" role="status" aria-live="polite">
+                {mensagem}
+              </p>
+            )}
           </>
         )}
 
@@ -192,9 +212,11 @@ export default function CheckinMembroPage() {
             <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-4 border border-green-500/30">
               <CheckCircle2 className="w-10 h-10 text-green-500" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Presença Confirmada!</h2>
-            <p className="text-sm text-green-400 font-medium mb-2">{eventoCheckin}</p>
-            <p className="text-xs text-gray-400">{mensagem}</p>
+            <div className="w-full" role="status" aria-live="polite" aria-atomic="true">
+              <h1 className="max-w-full break-words text-xl font-bold text-white mb-2">Presença Confirmada!</h1>
+              <p className="text-sm text-green-400 font-medium mb-2 break-words">{eventoCheckin}</p>
+              <p className="text-xs text-gray-400 break-words">{mensagem}</p>
+            </div>
             <p className="text-[10px] text-gray-500 mt-6">{new Date().toLocaleTimeString('pt-BR')}</p>
           </>
         )}
@@ -204,8 +226,10 @@ export default function CheckinMembroPage() {
             <div className="w-20 h-20 rounded-full bg-yellow-500/10 flex items-center justify-center mb-4 border border-yellow-500/30">
               <Clock className="w-10 h-10 text-yellow-500" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Check-in Registrado</h2>
-            <p className="text-xs text-gray-400">{mensagem}</p>
+            <div className="w-full" role="status" aria-live="polite" aria-atomic="true">
+              <h1 className="max-w-full break-words text-xl font-bold text-white mb-2">Check-in Registrado</h1>
+              <p className="text-xs text-gray-400 break-words">{mensagem}</p>
+            </div>
             <p className="text-[10px] text-gray-500 mt-6">{new Date().toLocaleTimeString('pt-BR')}</p>
           </>
         )}
@@ -215,8 +239,10 @@ export default function CheckinMembroPage() {
             <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/30">
               <AlertTriangle className="w-10 h-10 text-red-500" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Atenção</h2>
-            <p className="text-xs text-gray-400">{mensagem}</p>
+            <div className="w-full" role="alert" aria-atomic="true">
+              <h1 className="max-w-full break-words text-xl font-bold text-white mb-2">Atenção</h1>
+              <p className="text-xs text-gray-400 break-words">{mensagem}</p>
+            </div>
             <Button onClick={() => window.location.reload()} variant="secondary" className="mt-6 w-full py-2">
               Tentar Novamente
             </Button>
@@ -224,6 +250,6 @@ export default function CheckinMembroPage() {
         )}
 
       </Card>
-    </div>
+    </main>
   );
 }

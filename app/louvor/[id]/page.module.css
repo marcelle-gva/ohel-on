@@ -1,0 +1,24 @@
+.modalLayer :global(.fixed > div) {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.modalLayer :global(.fixed > div > div:last-child) {
+  flex-wrap: wrap;
+}
+
+.modalLayer :global(.fixed > div > div:last-child > button) {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .modalLayer :global(.fixed > div > div:last-child) {
+    justify-content: stretch;
+  }
+
+  .modalLayer :global(.fixed > div > div:last-child > button) {
+    flex: 1 1 100%;
+  }
+}

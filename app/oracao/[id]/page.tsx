@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Logo } from "@/components/brand/Logo";
+import styles from "@/components/public/public-layout.module.css";
 import { HeartHandshake, CheckCircle, Loader2 } from "lucide-react";
 
 export default function PedidoOracaoPublicPage() {
@@ -36,7 +37,7 @@ export default function PedidoOracaoPublicPage() {
       if (error) throw error;
       
       setSucesso(true);
-    } catch (error: any) {
+    } catch {
       setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível enviar seu pedido. Tente novamente." });
     } finally {
       setLoading(false);
@@ -45,8 +46,8 @@ export default function PedidoOracaoPublicPage() {
 
   if (sucesso) {
     return (
-      <div className="w-full min-h-screen bg-ohel-bg flex items-center justify-center p-4 bg-ohel-glow">
-        <Card className="w-full max-w-md p-8 flex flex-col items-center text-center animate-in zoom-in-95">
+      <main className={`${styles.viewport} w-full bg-ohel-bg flex flex-col items-center justify-start sm:justify-center p-4 bg-ohel-glow`}>
+        <Card className={`${styles.panel} ${styles.compact} w-full max-w-md flex flex-col items-center text-center animate-in zoom-in-95`}>
           <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
             <CheckCircle className="w-10 h-10 text-red-500" />
           </div>
@@ -56,19 +57,19 @@ export default function PedidoOracaoPublicPage() {
             Enviar outro pedido
           </Button>
         </Card>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-ohel-bg flex flex-col items-center py-8 px-4 bg-ohel-glow">
+    <main className={`${styles.viewport} w-full bg-ohel-bg flex flex-col items-center py-8 px-4 bg-ohel-glow`}>
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
       
       <div className="mb-8 mt-4 scale-90">
         <Logo />
       </div>
 
-      <Card className="w-full max-w-md p-6 border-gray-800">
+      <Card className={`${styles.panel} ${styles.compact} w-full max-w-md border-gray-800`}>
         <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
           <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
             <HeartHandshake className="w-5 h-5 text-red-500" />
@@ -79,7 +80,7 @@ export default function PedidoOracaoPublicPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className={`${styles.controls} flex flex-col gap-4`}>
           <Input 
             label="Seu Nome (Opcional)" 
             placeholder="Deixe em branco para anônimo" 
@@ -88,8 +89,9 @@ export default function PedidoOracaoPublicPage() {
           />
           
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Pedido de Oração *</label>
+            <label htmlFor="pedido-oracao-descricao" className="text-xs font-semibold text-ohel-silver uppercase tracking-wider">Pedido de Oração *</label>
             <textarea 
+              id="pedido-oracao-descricao"
               placeholder="Escreva aqui o motivo da sua oração..." 
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
@@ -103,6 +105,6 @@ export default function PedidoOracaoPublicPage() {
           </Button>
         </form>
       </Card>
-    </div>
+    </main>
   );
 }

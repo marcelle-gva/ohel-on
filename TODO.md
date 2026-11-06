@@ -77,3 +77,9 @@
 - [x] Exibir `Prosseguir` nas etapas Dados Pessoais e Endereço, `Voltar` nas etapas seguintes e `Finalizar Pré-Cadastro` na última etapa.
 - [x] Manter a barra de navegação visível enquanto os campos rolam e preservar dados, senha e foto ao trocar de aba.
 - [x] Validar nome, telefone, e-mail, senha e confirmação antes de avançar e exigir o aceite de privacidade para enviar, sem perder os dados em caso de erro.
+
+## Outros formulários abertos por QR Code
+
+- [x] Revisar e corrigir cortes, rolagem e botões inacessíveis nos formulários de Kids & Teens, orações, louvores, check-in, eventos e sorteios (incluindo acompanhamento).
+- [x] Manter campos, botões de envio e mensagens de resultado acessíveis em celular, telas baixas e modo horizontal; preservar as regras de autenticação, consentimentos, pagamentos e envio de cada fluxo.
+- [x] Verificar a navegação entre etapas quando existir, sem criar etapas desnecessárias em formulários de página única nem alterar links de QR Code já distribuídos.

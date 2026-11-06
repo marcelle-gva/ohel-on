@@ -7,6 +7,7 @@ import { createSignedStorageUrl } from "@/lib/storage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import publicLayout from "@/components/public/public-layout.module.css";
 import { CheckCircle, Upload, Loader2 } from "lucide-react";
 
 interface AcompanhamentoSorteio {
@@ -122,31 +123,34 @@ export default function AcompanhamentoSorteioPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-ohel-bg text-gray-300">Carregando acompanhamento...</div>;
+  if (loading) return <div className={`${publicLayout.viewport} flex items-center justify-center bg-ohel-bg text-gray-300`}>Carregando acompanhamento...</div>;
 
   if (!participante || !sorteio) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-ohel-bg p-6">
-        <Card className="max-w-md border border-gray-800 bg-ohel-surface p-8 text-center text-white">
-          <p className="text-lg font-semibold">Acompanhamento não encontrado</p>
-          <p className="mt-2 text-sm text-gray-400">Verifique o número informado ou faça uma nova inscrição.</p>
-        </Card>
+      <div className={`${publicLayout.viewport} flex items-start justify-center bg-ohel-bg p-4 sm:p-6`}>
+        <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal((current) => ({ ...current, isOpen: false }))} type={modal.type} title={modal.title} message={modal.message} />
+        <div className="w-full max-w-md pt-4 sm:pt-10">
+          <Card className={`${publicLayout.panel} ${publicLayout.compact} border border-gray-800 bg-ohel-surface text-center text-white`}>
+            <p className="text-lg font-semibold">Acompanhamento não encontrado</p>
+            <p className="mt-2 break-words text-sm text-gray-400">Verifique o link de acompanhamento ou faça uma nova inscrição.</p>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-ohel-bg text-white">
+    <div className={`${publicLayout.viewport} bg-ohel-bg text-white`}>
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal((current) => ({ ...current, isOpen: false }))} type={modal.type} title={modal.title} message={modal.message} />
 
-      <div className="mx-auto max-w-3xl p-6">
-        <Card className="border border-gray-800 bg-ohel-surface p-6">
+      <div className="mx-auto w-full max-w-3xl p-4 sm:p-6">
+        <Card className={`${publicLayout.panel} ${publicLayout.compact} border border-gray-800 bg-ohel-surface`}>
           <div className="mb-4 flex items-center gap-2 text-violet-300">
             <CheckCircle className="w-5 h-5" />
             <span className="text-sm font-semibold uppercase tracking-[0.2em]">Acompanhamento da reserva</span>
           </div>
 
-          <h1 className="text-2xl font-bold text-white">{sorteio.nome}</h1>
+          <h1 className="break-words text-2xl font-bold text-white">{sorteio.nome}</h1>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 p-4">
               <div className="text-xs uppercase tracking-wider text-gray-500">Participante</div>
@@ -159,12 +163,12 @@ export default function AcompanhamentoSorteioPage() {
           </div>
 
           <div className="mt-6 rounded-lg border border-gray-800 bg-ohel-bg/60 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0">
                 <div className="text-xs uppercase tracking-wider text-gray-500">Status</div>
-                <div className="mt-2 text-lg font-semibold text-white">{participante.status}</div>
+                <div className="mt-2 break-words text-lg font-semibold text-white">{participante.status}</div>
               </div>
-              <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-300">{participante.status}</span>
+              <span className="shrink-0 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-300">{participante.status}</span>
             </div>
           </div>
 
@@ -176,7 +180,7 @@ export default function AcompanhamentoSorteioPage() {
           </div>
 
           {participante.comprovante_url && (
-            <div className="mt-6 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
+            <div className="mt-6 break-words rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
               Comprovante anexado: <a href={participante.comprovante_url} target="_blank" rel="noreferrer" className="underline">abrir arquivo</a>
             </div>
           )}
