@@ -64,3 +64,9 @@
 - [x] Aprovar o pré-cadastro via API server-side e enviar o link `/login-membro` ao membro autorizado.
 - [x] Registrar consentimento específico de WhatsApp no pré-cadastro.
 - [ ] Criar/aprovar na Meta o template `membro_aprovado` e configurar as variáveis na Vercel.
+
+## Layout do dashboard IPO CLOUD
+
+- [x] Compactar os cards, formulários e espaçamentos de `/ipocloud` sem alterar as permissões ou as APIs existentes.
+- [x] Permitir rolagem vertical de toda a página em telas baixas e celulares, sem cortar campos, botões ou a lista de clientes e sem rolagem horizontal.
+- [x] Preservar a aparência e o comportamento das demais páginas do sistema.

@@ -1,0 +1,50 @@
+.viewport {
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* Evita competir com o p-8 padrão do Card, sem afetar outras páginas. */
+.card {
+  min-width: 0;
+  padding: 1rem;
+  border-radius: 0.75rem;
+}
+
+.card.flush {
+  padding: 0;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #c0c8d0;
+  font-size: 0.75rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+
+.field select {
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .field input,
+  .field select {
+    font-size: 0.875rem;
+  }
+}
