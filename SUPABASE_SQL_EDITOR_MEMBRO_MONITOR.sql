@@ -614,13 +614,17 @@ security invoker
 set search_path = pg_catalog, public, auth, helpers
 as $$
 declare
-  v_tenant_id uuid := helpers.current_user_tenant_id();
+  v_tenant_id uuid;
 begin
   -- SQL Editor/postgres e service_role são atores server-side. Só a role RLS
   -- authenticated deve sofrer o bloqueio de campos protegidos.
   if current_user <> 'authenticated' or (select auth.uid()) is null then
     return new;
   end if;
+
+  -- DECLARE é avaliado antes do primeiro IF: a consulta aos helpers deve ficar
+  -- depois do bypass server-side, pois service_role não possui USAGE nesse schema.
+  v_tenant_id := helpers.current_user_tenant_id();
 
   if tg_op = 'UPDATE' then
     if helpers.is_admin_for_tenant(coalesce(old.igreja_id, new.igreja_id)) then

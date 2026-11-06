@@ -93,3 +93,8 @@
 - [x] Membros aprovados ficam disponíveis para atribuição de grupos pela igreja; preservar os perfis administrativos existentes e o isolamento por igreja.
 - [x] O Monitor de membros não retorna pré-cadastros, orações pendentes, telefones de visitantes, dados financeiros ou de outras igrejas; mantém avisos, repertório, orações aprovadas e informações publicadas do culto.
 - [ ] Ativar os vínculos, provisionamento e policies em produção executando `SUPABASE_SQL_EDITOR_MEMBRO_MONITOR.sql` no Supabase correto. O código, fluxo visual e autorização foram validados com dados fictícios; a migration foi executada e reaplicada apenas em PostgreSQL isolado em memória, não em produção.
+
+## Erro ao finalizar o pré-cadastro
+
+- [x] Corrigir a falha reportada ao finalizar o pré-cadastro, identificando a causa real sem criar cadastros de teste no banco de produção. Correção pontual do trigger aplicada no Supabase em 06/11/2026; definição conferida com os três indicadores verdadeiros.
+- [x] Tratar erros do Supabase em objeto, informar a etapa da falha com segurança e registrar código técnico sem senha ou dados pessoais; manter os dados preenchidos no formulário para nova tentativa.

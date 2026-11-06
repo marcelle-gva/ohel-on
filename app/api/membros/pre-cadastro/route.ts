@@ -16,6 +16,26 @@ function texto(form: FormData, campo: string) {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
+type EtapaPreCadastro = "foto" | "cadastro";
+
+function erroPreCadastro(error: unknown, etapa: EtapaPreCadastro, referencia: string) {
+  const objeto = typeof error === "object" && error !== null ? error as { code?: unknown; message?: unknown; statusCode?: unknown } : {};
+  const codigo = typeof objeto.code === "string" && /^[a-zA-Z0-9_-]{1,40}$/.test(objeto.code) ? objeto.code : "indisponivel";
+  // A mensagem bruta e details podem conter valores enviados e dados pessoais.
+  // Registra somente a etapa, a referência e o código técnico.
+  console.error("[pre-cadastro]", { referencia, etapa, codigo });
+  const mensagem = codigo === "42501"
+    ? "Não foi possível salvar o pré-cadastro por uma configuração de acesso da igreja. Procure a secretaria."
+    : codigo === "23505"
+      ? "Já existe um cadastro com esses dados. Procure a secretaria antes de tentar novamente."
+      : codigo === "23514" || codigo === "22P02" || codigo === "23502" || codigo === "23503"
+        ? "Não foi possível salvar: alguns dados não atendem às regras do cadastro da igreja. Revise os campos ou procure a secretaria."
+        : etapa === "foto"
+          ? "Não foi possível enviar sua foto. Tente novamente ou envie o pré-cadastro sem foto."
+          : "Não foi possível salvar o pré-cadastro. Tente novamente ou informe esta referência à secretaria.";
+  return Response.json({ error: `${mensagem} Referência: ${referencia}`, etapa, referencia }, { status: codigo === "23505" ? 409 : 500 });
+}
+
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -76,6 +96,9 @@ export async function POST(request: Request) {
   });
   if (authError || !authData.user) return Response.json({ error: authError?.message || "Não foi possível criar o acesso." }, { status: 409 });
 
+  const referencia = crypto.randomUUID();
+  let etapa: EtapaPreCadastro = "foto";
+  let fotoPath: string | null = null;
   let fotoUrl: string | null = null;
   try {
     if (foto instanceof File && foto.size > 0) {
@@ -83,9 +106,11 @@ export async function POST(request: Request) {
       const path = `membros/${authData.user.id}/perfil-${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await admin.storage.from("avatars").upload(path, foto, { contentType: foto.type, upsert: false });
       if (uploadError) throw uploadError;
+      fotoPath = path;
       fotoUrl = admin.storage.from("avatars").getPublicUrl(path).data.publicUrl;
     }
 
+    etapa = "cadastro";
     const registro: Record<string, string | null | boolean> = {
       igreja_id: igrejaId,
       auth_user_id: authData.user.id,
@@ -98,8 +123,18 @@ export async function POST(request: Request) {
     const { error: membroError } = await admin.from("membros").insert(registro);
     if (membroError) throw membroError;
   } catch (error) {
-    await admin.auth.admin.deleteUser(authData.user.id);
-    return Response.json({ error: error instanceof Error ? error.message : "Não foi possível concluir o pré-cadastro." }, { status: 409 });
+    // Só remove recursos criados por esta tentativa; nunca altera contas existentes.
+    if (fotoPath) {
+      try {
+        const { error: cleanupError } = await admin.storage.from("avatars").remove([fotoPath]);
+        if (cleanupError) console.error("[pre-cadastro]", { referencia, etapa: "limpeza_foto", falhou: true });
+      } catch { console.error("[pre-cadastro]", { referencia, etapa: "limpeza_foto", falhou: true }); }
+    }
+    try {
+      const { error: cleanupError } = await admin.auth.admin.deleteUser(authData.user.id);
+      if (cleanupError) console.error("[pre-cadastro]", { referencia, etapa: "limpeza_conta", falhou: true });
+    } catch { console.error("[pre-cadastro]", { referencia, etapa: "limpeza_conta", falhou: true }); }
+    return erroPreCadastro(error, etapa, referencia);
   }
 
   return Response.json({ ok: true, status: "Pré-Cadastro", message: "Cadastro recebido. Aguarde a aprovação da igreja para acessar a Área do Membro." });
