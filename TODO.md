@@ -83,3 +83,13 @@
 - [x] Revisar e corrigir cortes, rolagem e botões inacessíveis nos formulários de Kids & Teens, orações, louvores, check-in, eventos e sorteios (incluindo acompanhamento).
 - [x] Manter campos, botões de envio e mensagens de resultado acessíveis em celular, telas baixas e modo horizontal; preservar as regras de autenticação, consentimentos, pagamentos e envio de cada fluxo.
 - [x] Verificar a navegação entre etapas quando existir, sem criar etapas desnecessárias em formulários de página única nem alterar links de QR Code já distribuídos.
+
+## Entrada do membro, Monitor online e permissões
+
+- [x] O membro aprovado entra pelo login de membros e vê por padrão o Monitor online da sua igreja; cadastro pendente ou inativo não tem acesso.
+- [x] O canto superior direito mostra foto (ou avatar substituto), acesso para editar os próprios dados e trocar a foto, e botão Sair; preservar check-in e cestas pessoais.
+- [x] O menu lateral apresenta os módulos autorizados pelo grupo atribuído pela igreja, sem conceder permissões automaticamente pelo cargo eclesiástico ou departamento declarado. Impedir renderização de módulos não autorizados ao abrir URL diretamente.
+- [x] No pré-cadastro a pessoa informa se tem cargo eclesiástico, qual cargo ou que ainda não possui; o dado vai para sua ficha, sem alterar role/grupo/permissões da conta.
+- [x] Membros aprovados ficam disponíveis para atribuição de grupos pela igreja; preservar os perfis administrativos existentes e o isolamento por igreja.
+- [x] O Monitor de membros não retorna pré-cadastros, orações pendentes, telefones de visitantes, dados financeiros ou de outras igrejas; mantém avisos, repertório, orações aprovadas e informações publicadas do culto.
+- [ ] Ativar os vínculos, provisionamento e policies em produção executando `SUPABASE_SQL_EDITOR_MEMBRO_MONITOR.sql` no Supabase correto. O código, fluxo visual e autorização foram validados com dados fictícios; a migration foi executada e reaplicada apenas em PostgreSQL isolado em memória, não em produção.

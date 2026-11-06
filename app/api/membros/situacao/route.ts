@@ -12,12 +12,13 @@ export async function GET(request: Request) {
 
   const auth = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: { user }, error: authError } = await auth.auth.getUser(token);
-  if (authError || !user?.email) return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
+  if (authError || !user?.email || !user.email_confirmed_at) return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
 
   const service = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: byAuth } = await service.from("membros").select("id, nome, status").eq("auth_user_id", user.id).maybeSingle();
-  const { data: membro } = byAuth ? { data: byAuth } : await service.from("membros").select("id, nome, status").ilike("email", user.email).maybeSingle();
+  const emailLiteral = user.email.trim().replace(/[\\%_]/g, "\\$&");
+  const { data: membro } = byAuth ? { data: byAuth } : await service.from("membros").select("id, nome, status").is("auth_user_id", null).ilike("email", emailLiteral).maybeSingle();
   if (!membro) return Response.json({ error: "Seu usuário ainda não está vinculado a um cadastro de membro." }, { status: 403 });
 
-  return Response.json({ id: membro.id, nome: membro.nome, status: membro.status, aprovado: membro.status === "Ativo" });
+  return Response.json({ id: membro.id, nome: membro.nome, status: membro.status, aprovado: membro.status === "Ativo" }, { headers: { "Cache-Control": "private, no-store" } });
 }

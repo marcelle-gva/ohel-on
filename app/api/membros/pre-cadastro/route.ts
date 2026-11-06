@@ -6,8 +6,10 @@ export const maxDuration = 20;
 const CAMPOS_TEXTO = [
   "nome", "data_nascimento", "sexo", "estado_civil", "cpf", "email", "telefone",
   "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
-  "congregacao_id", "nome_pai", "nome_mae",
+  "congregacao_id", "nome_pai", "nome_mae", "cargo",
 ] as const;
+const CAMPOS_PERMISSAO_NAO_ACEITOS = ["role", "group", "tipo"] as const;
+const LIMITE_CARGO = 80;
 
 function texto(form: FormData, campo: string) {
   const valor = form.get(campo);
@@ -29,6 +31,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Dados do pré-cadastro inválidos." }, { status: 400 });
   }
 
+  if (CAMPOS_PERMISSAO_NAO_ACEITOS.some((campo) => form.has(campo))) {
+    return Response.json({ error: "Campos de permissão não são aceitos no pré-cadastro." }, { status: 400 });
+  }
+
   const igrejaId = texto(form, "igreja_id");
   const nome = texto(form, "nome");
   const email = texto(form, "email").toLowerCase();
@@ -38,6 +44,14 @@ export async function POST(request: Request) {
   const consentAccepted = texto(form, "consent_accepted") === "true";
   const whatsappOptIn = texto(form, "whatsapp_opt_in") === "true";
   const foto = form.get("foto");
+  const cargoInformado = form.get("cargo");
+  if (cargoInformado !== null && typeof cargoInformado !== "string") {
+    return Response.json({ error: "Cargo eclesiástico inválido." }, { status: 400 });
+  }
+  const cargo = (typeof cargoInformado === "string" ? cargoInformado.trim() : "") || "Membro";
+  if (cargo.length > LIMITE_CARGO) {
+    return Response.json({ error: "O cargo eclesiástico deve ter no máximo 80 caracteres." }, { status: 400 });
+  }
 
   if (!/^[0-9a-f-]{36}$/i.test(igrejaId)) return Response.json({ error: "Igreja não identificada." }, { status: 400 });
   if (nome.length < 3 || !email || !telefone) return Response.json({ error: "Preencha nome, e-mail e telefone." }, { status: 400 });
@@ -80,7 +94,7 @@ export async function POST(request: Request) {
       whatsapp_opt_in: whatsappOptIn,
       whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
     };
-    for (const campo of CAMPOS_TEXTO) registro[campo] = campo === "email" ? email : (texto(form, campo) || null);
+    for (const campo of CAMPOS_TEXTO) registro[campo] = campo === "email" ? email : campo === "cargo" ? cargo : (texto(form, campo) || null);
     const { error: membroError } = await admin.from("membros").insert(registro);
     if (membroError) throw membroError;
   } catch (error) {

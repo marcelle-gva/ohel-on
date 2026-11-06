@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { resolverAcesso, AcessoError } from "@/lib/access-server";
 
 export const runtime = "nodejs";
 
@@ -26,42 +26,23 @@ type MembroPerfil = Record<CampoPermitido, string | boolean | null> & {
   status: string;
 };
 
-function getClients(request: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!url || !anonKey || !serviceKey || !token) return null;
-  return {
-    token,
-    auth: createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } }),
-    service: createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } }),
-  };
-}
-
 async function getMember(request: Request) {
-  const clients = getClients(request);
-  if (!clients) return { error: "Serviço de perfil não configurado.", status: 503 as const };
-  const { data: authData, error: authError } = await clients.auth.auth.getUser(clients.token);
-  const email = authData.user?.email?.trim().toLowerCase();
-  if (authError || !email || !authData.user) return { error: "Sessão do membro inválida ou expirada.", status: 401 as const };
-
-  const campos = "id, auth_user_id, nome, email, status, foto_url, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in";
-  const { data: porUsuario } = await clients.service.from("membros").select(campos).eq("auth_user_id", authData.user.id).eq("status", "Ativo").maybeSingle();
-  const { data: membro, error } = porUsuario ? { data: porUsuario, error: null } : await clients.service
-    .from("membros")
-    .select(campos)
-    .ilike("email", email)
-    .eq("status", "Ativo")
-    .maybeSingle();
-  if (error || !membro) return { error: "Membro ativo não encontrado para esta sessão.", status: 403 as const };
-  return { clients, membro: membro as MembroPerfil };
+  try {
+    const { service, contexto } = await resolverAcesso(request, true);
+    const { data: membro, error } = await service.from("membros")
+      .select("id, nome, email, status, foto_url, cargo, departamento, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in")
+      .eq("id", contexto.membro!.id).eq("igreja_id", contexto.igrejaId).eq("status", "Ativo").single();
+    if (error || !membro) return { error: "Membro ativo não encontrado para esta sessão.", status: 403 };
+    return { clients: { service }, membro: membro as MembroPerfil };
+  } catch (error) {
+    return { error: error instanceof AcessoError ? error.message : "Serviço de perfil indisponível.", status: error instanceof AcessoError ? error.status : 503 };
+  }
 }
 
 export async function GET(request: Request) {
   const result = await getMember(request);
   if ("error" in result) return Response.json({ error: result.error }, { status: result.status });
-  return Response.json({ membro: result.membro });
+  return Response.json({ membro: result.membro }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function PATCH(request: Request) {
@@ -92,7 +73,7 @@ export async function PATCH(request: Request) {
     .update(update)
     .eq("id", result.membro.id)
     .eq("status", "Ativo")
-    .select("id, nome, email, status, foto_url, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in")
+    .select("id, nome, email, status, foto_url, cargo, departamento, data_nascimento, sexo, estado_civil, telefone, cep, logradouro, numero, bairro, cidade, uf, whatsapp_opt_in")
     .single();
   if (error) return Response.json({ error: error.message }, { status: 409 });
   return Response.json({ membro });

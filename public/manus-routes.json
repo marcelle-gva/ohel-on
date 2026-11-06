@@ -359,6 +359,10 @@
     },
     {
       "path": "/ipocloud/convites/aceitar"
+    },
+    {
+      "path": "/area-membro/perfil",
+      "title": "Meu perfil de membro"
     }
   ]
 }

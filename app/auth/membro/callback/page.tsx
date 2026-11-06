@@ -38,19 +38,13 @@ export default function MembroAuthCallbackPage() {
         return;
       }
 
-      const { data: membro, error: memberError } = await supabase
-        .from("membros")
-        .select("id, status")
-        .eq("email", email)
-        .eq("status", "Ativo")
-        .maybeSingle();
-
-      if (memberError || !membro) {
+      const response = await fetch("/api/acesso?tipo=membro", { headers: { Authorization: `Bearer ${session!.access_token}` }, cache: "no-store" });
+      if (!response.ok) {
+        const result = await response.json() as { error?: string };
         await supabase.auth.signOut();
-        setMessage("Seu e-mail ainda não está vinculado a um membro ativo. Aguarde a aprovação da secretaria.");
+        setMessage(result.error || "Seu cadastro ainda não possui acesso ativo. Procure a secretaria.");
         return;
       }
-
       router.replace("/area-membro");
     };
 

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { resolverAcesso, respostaErroAcesso } from "@/lib/access-server";
 import { normalizeBrazilianPhone } from "@/lib/whatsapp-server";
 
 export const runtime = "nodejs";
@@ -61,6 +62,15 @@ export async function POST(request: Request) {
   if (!/^[0-9a-f-]{36}$/i.test(itemId) || !Number.isInteger(quantidade) || quantidade < 1 || quantidade > 100) {
     return Response.json({ error: "Item ou quantidade inválida." }, { status: 400 });
   }
+
+  let acesso;
+  try {
+    acesso = await resolverAcesso(request, true);
+    const { data: item, error } = await acesso.service.from("cesta_itens").select("id, cesta_id").eq("id", itemId).eq("igreja_id", acesso.contexto.igrejaId).maybeSingle();
+    if (error || !item) return Response.json({ error: "Item não disponível na sua igreja." }, { status: 404 });
+    const { data: cesta } = await acesso.service.from("cestas_basicas").select("id").eq("id", item.cesta_id).eq("igreja_id", acesso.contexto.igrejaId).eq("status", "aberta").maybeSingle();
+    if (!cesta) return Response.json({ error: "Esta campanha não está aberta." }, { status: 409 });
+  } catch (error) { return respostaErroAcesso(error); }
 
   const authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
   const { data: reserva, error: reservaError } = await authClient.rpc("reservar_item_cesta", { p_item_id: itemId, p_quantidade: quantidade });

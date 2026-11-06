@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { resolverAcesso, respostaErroAcesso } from "@/lib/access-server";
+import { podeAcessar } from "@/lib/access";
 import { normalizeBrazilianPhone } from "@/lib/whatsapp-server";
 
 export const runtime = "nodejs";
@@ -43,24 +44,17 @@ async function enviarAvisoAprovacao(telefone: string, nome: string, link: string
 }
 
 export async function POST(request: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!url || !anonKey || !token || !serviceKey) return Response.json({ error: "Serviço de aprovação não configurado." }, { status: 503 });
-
   let body: { id?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: "Corpo da solicitação inválido." }, { status: 400 }); }
   const membroId = typeof body.id === "string" ? body.id : "";
   if (!/^[0-9a-f-]{36}$/i.test(membroId)) return Response.json({ error: "Identificador de membro inválido." }, { status: 400 });
 
-  const authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data: { user }, error: authError } = await authClient.auth.getUser(token);
-  if (authError || !user) return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
-
-  const serviceClient = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data: perfil, error: perfilError } = await serviceClient.from("usuarios").select("igreja_id, role").eq("id", user.id).maybeSingle();
-  if (perfilError || !perfil?.igreja_id || !["admin", "pastor", "secretaria"].includes(perfil.role)) return Response.json({ error: "Você não tem permissão para aprovar pré-cadastros." }, { status: 403 });
+  let acesso;
+  try { acesso = await resolverAcesso(request); }
+  catch (error) { return respostaErroAcesso(error); }
+  const { contexto, service: serviceClient } = acesso;
+  if (!["admin", "pastor", "secretaria"].includes(contexto.role) && !podeAcessar(contexto, "membros", "aprovar")) return Response.json({ error: "Você não tem permissão para aprovar pré-cadastros." }, { status: 403 });
+  const perfil = { igreja_id: contexto.igrejaId };
 
   const { data: membro, error: membroError } = await serviceClient.from("membros").select("id, nome, telefone, email, whatsapp_opt_in, status").eq("id", membroId).eq("igreja_id", perfil.igreja_id).maybeSingle();
   if (membroError || !membro) return Response.json({ error: "Pré-cadastro não encontrado nesta igreja." }, { status: 404 });

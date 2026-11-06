@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -13,6 +12,8 @@ import styles from "./form.module.css";
 
 type Etapa = "pessoais" | "endereco" | "adicionais";
 interface ErroCampo { etapa: Etapa; campo: string; mensagem: string }
+interface OpcaoCatalogo { id: string; nome: string }
+interface OpcoesPreCadastroResponse { cargos?: OpcaoCatalogo[]; congregacoes?: OpcaoCatalogo[] }
 const ETAPAS = [
   { id: "pessoais" as const, titulo: "Dados Pessoais", curto: "Pessoais", icone: User },
   { id: "endereco" as const, titulo: "Endereço", curto: "Endereço", icone: MapPin },
@@ -21,16 +22,20 @@ const ETAPAS = [
 const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const DADOS_INICIAIS = {
   nome: "", data_nascimento: "", sexo: "", estado_civil: "", cpf: "", email: "", telefone: "",
-  cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
+  cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cargo: "Membro",
   congregacao_id: "", nome_pai: "", nome_mae: "",
 };
+const OUTRO_CARGO_VALUE = "__outro_cargo__";
 
 function PreCadastroForm() {
   const searchParams = useSearchParams();
   const igrejaId = searchParams.get("igreja");
   const [activeTab, setActiveTab] = useState<Etapa>("pessoais");
   const [loading, setLoading] = useState(false);
-  const [congregacoes, setCongregacoes] = useState<{ id: string; nome: string }[]>([]);
+  const [congregacoes, setCongregacoes] = useState<OpcaoCatalogo[]>([]);
+  const [cargos, setCargos] = useState<OpcaoCatalogo[]>([]);
+  const [isOutroCargo, setIsOutroCargo] = useState(false);
+  const [outroCargo, setOutroCargo] = useState("");
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
@@ -43,12 +48,24 @@ function PreCadastroForm() {
   const indice = ETAPAS.findIndex((etapa) => etapa.id === activeTab);
 
   useEffect(() => {
-    const fetchCongregacoes = async () => {
+    let ativo = true;
+    const fetchOpcoes = async () => {
+      setCongregacoes([]);
+      setCargos([]);
       if (!igrejaId) return;
-      const { data } = await supabase.from("congregacoes").select("id, nome").eq("igreja_id", igrejaId).order("nome");
-      if (data) setCongregacoes(data);
+      try {
+        const response = await fetch(`/api/membros/opcoes-pre-cadastro?igreja=${encodeURIComponent(igrejaId)}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as OpcoesPreCadastroResponse;
+        if (!ativo) return;
+        setCongregacoes(Array.isArray(result.congregacoes) ? result.congregacoes : []);
+        setCargos(Array.isArray(result.cargos) ? result.cargos : []);
+      } catch {
+        // O pré-cadastro continua disponível com as opções padrão se o catálogo não responder.
+      }
     };
-    void fetchCongregacoes();
+    void fetchOpcoes();
+    return () => { ativo = false; };
   }, [igrejaId]);
 
   useEffect(() => {
@@ -66,6 +83,25 @@ function PreCadastroForm() {
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData((atual) => ({ ...atual, [event.target.name]: event.target.value }));
+  };
+
+  const handleCargoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const valor = event.target.value;
+    if (valor === OUTRO_CARGO_VALUE) {
+      setIsOutroCargo(true);
+      setOutroCargo("");
+      setFormData((atual) => ({ ...atual, cargo: "" }));
+      return;
+    }
+    setIsOutroCargo(false);
+    setOutroCargo("");
+    setFormData((atual) => ({ ...atual, cargo: valor || "Membro" }));
+  };
+
+  const handleOutroCargoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = event.target.value;
+    setOutroCargo(valor);
+    setFormData((atual) => ({ ...atual, cargo: valor }));
   };
 
   const validarPessoais = (): ErroCampo | null => {
@@ -107,6 +143,7 @@ function PreCadastroForm() {
     if (!igrejaId) return setModal({ isOpen: true, type: "error", title: "Erro", message: "Link de pré-cadastro inválido. Solicite o QR Code à secretaria da sua igreja." });
     const falha = validarPessoais();
     if (falha) return mostrarErro(falha);
+    if (isOutroCargo && !formData.cargo.trim()) return mostrarErro({ etapa: "adicionais", campo: "outro_cargo", mensagem: "Informe qual é o outro cargo eclesiástico." });
     if (!consentAccepted) return mostrarErro({ etapa: "adicionais", campo: "consent_accepted", mensagem: "Aceite o Termo de Consentimento e Privacidade para finalizar o pré-cadastro." });
     setErro(null);
     setLoading(true);
@@ -124,6 +161,8 @@ function PreCadastroForm() {
       if (!response.ok) throw new Error(result.error || "Não foi possível enviar seus dados.");
       setModal({ isOpen: true, type: "success", title: "Recebido!", message: result.message || "Seu cadastro foi recebido e está aguardando aprovação da igreja." });
       setFormData(DADOS_INICIAIS);
+      setIsOutroCargo(false);
+      setOutroCargo("");
       setConsentAccepted(false);
       setWhatsappOptIn(false);
       setSenha("");
@@ -239,6 +278,17 @@ function PreCadastroForm() {
                         <option value="">Selecione (opcional)</option>{congregacoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                       </select>
                     </div>
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <label htmlFor="cargo" className="text-xs font-semibold uppercase tracking-wider text-ohel-silver">Cargo eclesiástico</label>
+                      <select id="cargo" name="cargo" value={isOutroCargo ? OUTRO_CARGO_VALUE : formData.cargo} onChange={handleCargoChange} aria-invalid={invalid("cargo")} className="input-ohel w-full rounded-lg px-4 py-3">
+                        <option value="Membro">Não tenho cargo eclesiástico ainda</option>
+                        {cargos.filter((cargo) => cargo.nome.trim() && cargo.nome.trim().toLowerCase() !== "membro").map((cargo) => <option key={cargo.id} value={cargo.nome}>{cargo.nome}</option>)}
+                        <option value={OUTRO_CARGO_VALUE}>Outro cargo</option>
+                      </select>
+                      <p className="text-xs leading-relaxed text-gray-500">Selecione “Membro” se ainda não possui um cargo cadastrado.</p>
+                      {isOutroCargo && <Input id="outro_cargo" label="Informe o cargo" name="outro_cargo" value={outroCargo} onChange={handleOutroCargoChange} aria-invalid={invalid("outro_cargo")} maxLength={80} placeholder="Digite o cargo eclesiástico" required />}
+                    </div>
+                    <p className="rounded-lg border border-ohel-blue/20 bg-ohel-blue/5 p-3 text-xs leading-relaxed text-gray-400 sm:col-span-2">A informação sobre cargo será conferida pela secretaria e não concede acesso administrativo.</p>
                     <div className="rounded-xl border border-gray-700/50 bg-ohel-bg/50 p-4">
                       <div className="mb-2 flex items-start gap-2"><ShieldCheck className="h-4 w-4 shrink-0 text-ohel-blue" /><h3 className="text-xs font-bold text-white">Termo de Consentimento e Privacidade</h3></div>
                       <p className="mb-3 text-xs leading-relaxed text-gray-400">A proteção dos seus dados é uma prioridade. O <strong className="text-white">OHEL ON</strong> está em conformidade com a LGPD. Suas informações serão utilizadas exclusivamente para fins de organização interna. <a href="#" className="text-ohel-blue hover:underline">clique aqui</a> para ver o termo completo.</p>

@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import publicLayout from "@/components/public/public-layout.module.css";
 import { Loader2, LockKeyhole, UserRound } from "lucide-react";
 
 export default function LoginMembroPage() {
@@ -32,7 +33,7 @@ export default function LoginMembroPage() {
       if (!response.ok) throw new Error(situacao.error || "Seu usuário ainda não está vinculado a um membro.");
       if (!situacao.aprovado) {
         await supabase.auth.signOut();
-        setMensagem("Seu cadastro está aguardando a aprovação do administrador da igreja. Você receberá uma confirmação quando o acesso for liberado.");
+        setMensagem(situacao.status === "Pré-Cadastro" ? "Seu cadastro está aguardando a aprovação do administrador da igreja. Você receberá uma confirmação quando o acesso for liberado." : "Seu cadastro não está ativo. Procure a secretaria da igreja.");
         return;
       }
       router.push("/area-membro");
@@ -44,14 +45,14 @@ export default function LoginMembroPage() {
   };
 
   return (
-    <main className="w-full min-h-screen flex items-center justify-center bg-ohel-glow p-4">
-      <Card className="w-full max-w-[420px] flex flex-col items-center px-8 pt-7 pb-8 border-gray-800">
+    <main className={`${publicLayout.viewport} flex flex-col items-center justify-start bg-ohel-glow p-4 py-6`}>
+      <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-[420px] flex flex-col items-center px-8 pt-7 pb-8 border-gray-800`}>
         <Logo className="h-[90px] w-[180px] mb-4" />
         <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3"><UserRound className="w-5 h-5 text-emerald-300" /></div>
         <h1 className="text-white text-lg font-bold text-center">Área do Membro</h1>
         <p className="text-gray-400 text-xs text-center leading-relaxed mt-2 mb-5">Use o e-mail e a senha criados no pré-cadastro. O acesso só será liberado após a aprovação da igreja.</p>
 
-        <form onSubmit={entrar} className="w-full flex flex-col gap-4">
+        <form onSubmit={entrar} className={`${publicLayout.controls} w-full flex flex-col gap-4`}>
           <Input label="E-mail cadastrado" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="seu@email.com" required className="bg-ohel-bg/50" />
           <Input label="Senha" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" required className="bg-ohel-bg/50" />
           <Button type="submit" variant="primary" className="w-full" disabled={loading}>
