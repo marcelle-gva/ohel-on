@@ -1,0 +1,76 @@
+.viewport {
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  padding: 0.75rem;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.container {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.form {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.fields {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding: 1rem;
+}
+
+.fields input:not([type="checkbox"]),
+.fields select {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 1rem;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #1f2937;
+  background: #080e1b;
+}
+
+.footer button {
+  min-width: 0;
+  min-height: 2.75rem;
+}
+
+@media (min-width: 640px) {
+  .fields input:not([type="checkbox"]),
+  .fields select {
+    font-size: 0.875rem;
+  }
+}

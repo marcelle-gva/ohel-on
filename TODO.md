@@ -70,3 +70,10 @@
 - [x] Compactar os cards, formulários e espaçamentos de `/ipocloud` sem alterar as permissões ou as APIs existentes.
 - [x] Permitir rolagem vertical de toda a página em telas baixas e celulares, sem cortar campos, botões ou a lista de clientes e sem rolagem horizontal.
 - [x] Preservar a aparência e o comportamento das demais páginas do sistema.
+
+## Pré-cadastro de membros pelo QR Code
+
+- [x] Permitir preencher todos os campos em celulares e telas baixas, sem cortes ou rolagem horizontal.
+- [x] Exibir `Prosseguir` nas etapas Dados Pessoais e Endereço, `Voltar` nas etapas seguintes e `Finalizar Pré-Cadastro` na última etapa.
+- [x] Manter a barra de navegação visível enquanto os campos rolam e preservar dados, senha e foto ao trocar de aba.
+- [x] Validar nome, telefone, e-mail, senha e confirmação antes de avançar e exigir o aceite de privacidade para enviar, sem perder os dados em caso de erro.
