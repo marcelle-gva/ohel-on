@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CreditCard, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Users } from "lucide-react";
+import { Building2, CreditCard, Loader2, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Upload, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/brand/Logo";
@@ -34,6 +34,8 @@ export default function IpoCloudDashboardPage() {
   const [feedback, setFeedback] = useState<{ tipo: "success" | "error"; mensagem: string } | null>(null);
   const [convite, setConvite] = useState(conviteInicial);
   const [enviandoConvite, setEnviandoConvite] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [salvandoLogo, setSalvandoLogo] = useState(false);
 
   useEffect(() => {
     const carregar = async () => {
@@ -69,6 +71,29 @@ export default function IpoCloudDashboardPage() {
   const sair = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
+  };
+
+  const alterarLogo = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSalvandoLogo(true);
+    setFeedback(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada.");
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/ipocloud/logo", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar a logo.");
+      window.dispatchEvent(new Event("ohel:logo-atualizada"));
+      setFeedback({ tipo: "success", mensagem: "Logo IPO CLOUD atualizada com sucesso." });
+    } catch (error) {
+      setFeedback({ tipo: "error", mensagem: error instanceof Error ? error.message : "Não foi possível atualizar a logo." });
+    } finally {
+      setSalvandoLogo(false);
+      event.target.value = "";
+    }
   };
 
   const criarCliente = async (event: React.FormEvent) => {
@@ -139,7 +164,13 @@ export default function IpoCloudDashboardPage() {
       <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-3 pb-4">
         <header className="flex min-w-0 items-center justify-between gap-3 border-b border-gray-800 pb-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Logo className="h-10 w-16 shrink-0 sm:w-20" />
+            <div className="relative shrink-0">
+              <input ref={logoInputRef} type="file" accept="image/*" onChange={alterarLogo} className="hidden" />
+              <button type="button" onClick={() => logoInputRef.current?.click()} disabled={salvandoLogo} className="group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Alterar logo IPO CLOUD">
+                <Logo className="h-10 w-16 sm:w-20" />
+                <span className="pointer-events-none absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-ohel-blue/30 bg-ohel-bg/90 px-1.5 py-0.5 text-[8px] text-ohel-blue opacity-0 transition group-hover:opacity-100">{salvandoLogo ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Upload className="h-2.5 w-2.5" />} editar</span>
+              </button>
+            </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ohel-blue">IPO CLOUD</p>
               <h1 className="mt-0.5 break-words text-lg font-bold sm:text-xl">Olá, {nome}</h1>
