@@ -54,7 +54,7 @@ export function Header() {
       {/* Esquerda: Identidade da Igreja */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative h-10 w-12 shrink-0 overflow-hidden flex items-center justify-center">
-          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="48px" className="object-contain" style={{ transform: `translate(${igreja.logo_position_x || 0}px, ${igreja.logo_position_y || 0}px) scale(${(igreja.logo_scale || 100) / 100})` }} /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
+          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="48px" quality={100} className="object-contain" style={{ transform: `translate(${igreja.logo_position_x || 0}px, ${igreja.logo_position_y || 0}px) scale(${(igreja.logo_scale || 100) / 100})`, filter: "brightness(1.2) contrast(1.22) saturate(1.3) drop-shadow(0 0 8px rgba(0, 174, 255, 0.5))" }} /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
         </div>
         <div className="min-w-0">
           <span className="block truncate text-white font-medium text-sm md:text-base">{igreja?.nome || "Igreja Matriz"}</span>

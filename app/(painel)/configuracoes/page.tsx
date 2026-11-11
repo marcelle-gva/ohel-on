@@ -323,7 +323,7 @@ export default function ConfiguracoesPage() {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-40 h-24 bg-ohel-bg rounded-lg border border-dashed border-gray-700 flex items-center justify-center overflow-hidden relative cursor-grab active:cursor-grabbing" onPointerDown={handleLogoPointerDown} onPointerMove={handleLogoPointerMove} onPointerUp={handleLogoPointerUp} onPointerCancel={handleLogoPointerUp}>
               {formData.logo_url ? (
-                <div className="relative w-full h-full" style={{ transform: `translate(${formData.logo_position_x}px, ${formData.logo_position_y}px) scale(${formData.logo_scale / 100})` }}><Image src={formData.logo_url} alt="Logo" fill className="object-contain p-2 pointer-events-none" /></div>
+                <div className="relative w-full h-full" style={{ transform: `translate(${formData.logo_position_x}px, ${formData.logo_position_y}px) scale(${formData.logo_scale / 100})` }}><Image src={formData.logo_url} alt="Logo" fill quality={100} className="object-contain p-2 pointer-events-none" style={{ filter: "brightness(1.2) contrast(1.22) saturate(1.3) drop-shadow(0 0 8px rgba(0, 174, 255, 0.5))" }} /></div>
               ) : (
                 <span className="text-xs text-gray-500">Sem Logo</span>
               )}
