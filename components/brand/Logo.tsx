@@ -9,7 +9,7 @@ interface LogoProps {
 }
 
 export function Logo({ className = "h-[140px] w-[140px]" }: LogoProps) {
-  const [logoUrl, setLogoUrl] = useState("/logo.png");
+  const [logoUrl, setLogoUrl] = useState("/ipo-cloud-art.png");
 
   useEffect(() => {
     let active = true;
@@ -26,16 +26,17 @@ export function Logo({ className = "h-[140px] w-[140px]" }: LogoProps) {
   }, []);
 
   return (
-    <div className={`group relative flex justify-center items-center ${className}`}>
+    <div className={`group relative flex justify-center items-center overflow-visible ${className}`}>
       {/* Efeito de brilho de fundo (Neon) */}
-      <div className="absolute inset-0 bg-ohel-blue rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+      <div className="absolute -inset-3 rounded-full bg-ohel-blue/50 blur-2xl opacity-35 transition-opacity duration-500 group-hover:opacity-65" />
+      <div className="absolute -inset-1 rounded-[2rem] bg-cyan-400/20 blur-xl opacity-60" />
 
       <Image
         src={logoUrl}
-        alt="OHEL ON Logo"
+        alt="IPO CLOUD"
         fill
         sizes="200px"
-        className="object-contain relative z-10 transition-all duration-500 group-hover:scale-105 drop-shadow-[0_0_12px_rgba(0,123,255,0.3)]"
+        className="relative z-10 object-contain transition-all duration-500 group-hover:scale-105 drop-shadow-[0_0_18px_rgba(0,156,255,0.65)]"
         style={{ 
           mixBlendMode: 'screen', // Faz o fundo preto da imagem (se houver) desaparecer
           filter: 'brightness(1.3) contrast(1.2)' // Deixa a logo mais viva e nítida

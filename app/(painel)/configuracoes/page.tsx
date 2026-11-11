@@ -310,7 +310,7 @@ export default function ConfiguracoesPage() {
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <div className="relative flex h-16 w-28 items-center justify-center overflow-hidden rounded-lg border border-gray-700 bg-ohel-bg">
-                  {formData.logo_sistema_url ? <Image src={formData.logo_sistema_url} alt="Logo OHEL ON personalizada" fill sizes="112px" className="object-contain p-2" /> : <Image src="/logo.png" alt="Logo OHEL ON padrão" fill sizes="112px" className="object-contain p-2" />}
+                  {formData.logo_sistema_url ? <Image src={formData.logo_sistema_url} alt="Logo OHEL ON personalizada" fill sizes="112px" className="object-contain p-2" /> : <Image src="/ipo-cloud-art.png" alt="Logo IPO CLOUD padrão" fill sizes="112px" className="object-contain p-2" />}
                 </div>
                 <input type="file" accept="image/*" ref={sistemaLogoInputRef} onChange={handleUploadSistemaLogo} className="hidden" />
                 <Button type="button" variant="secondary" onClick={() => sistemaLogoInputRef.current?.click()} disabled={uploading} className="w-auto px-4 py-2 text-xs">
