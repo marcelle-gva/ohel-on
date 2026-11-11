@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
@@ -66,14 +66,12 @@ export default function MonitorMidiaPage() {
   const [cultoAtual, setCultoAtual] = useState<{ id: string; titulo: string; link_ao_vivo: string | null } | null>(null);
   
   // Permissões do Usuário
-  const [podeAprovar, setPodeAprovar] = useState(false);
   const [podeVerEscala, setPodeVerEscala] = useState(false);
   
   // Estados dos Modais
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isVisitorQrModalOpen, setIsVisitorQrModalOpen] = useState(false);
   const [isPrayerQrModalOpen, setIsPrayerQrModalOpen] = useState(false);
-  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [eventoAvisoSelecionado, setEventoAvisoSelecionado] = useState<AvisoFonte | null>(null);
   const [fotoSelecionada, setFotoSelecionada] = useState<string | null>(null);
 
@@ -115,7 +113,6 @@ export default function MonitorMidiaPage() {
 
             // VERIFICAÇÃO DE PERMISSÕES
             if (user.role === 'admin') {
-              setPodeAprovar(true);
               setPodeVerEscala(true);
             } else if (user.grupo_id) {
               const { data: perms } = await supabase
@@ -124,7 +121,6 @@ export default function MonitorMidiaPage() {
                 .eq('grupo_id', user.grupo_id);
               
               if (perms) {
-                setPodeAprovar(perms.some(p => p.modulo === 'monitor-oracoes' && p.acao === 'aprovar'));
                 setPodeVerEscala(perms.some(p => p.modulo === 'escalas' && p.acao === 'ler'));
               }
             }
@@ -262,44 +258,6 @@ export default function MonitorMidiaPage() {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível excluir." });
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const handleApprovePrayer = async (id: string) => {
-    try {
-      if (!igrejaId) throw new Error("Igreja não identificada.");
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão expirada. Entre novamente para aprovar a oração.");
-      const response = await fetch("/api/oracoes/status", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "Em Oração" }),
-      });
-      const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
-      if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível aprovar a oração.");
-      const aprovado = oracoesPendentes.find(o => o.id === id);
-      setOracoesPendentes((current) => current.filter(o => o.id !== id));
-      if (aprovado) setOracoesSemana((current) => [{ ...aprovado, status: 'Em Oração' }, ...current]);
-    } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível aprovar." });
-    }
-  };
-
-  const handleRejectPrayer = async (id: string) => {
-    try {
-      if (!igrejaId) throw new Error("Igreja não identificada.");
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão expirada. Entre novamente para rejeitar a oração.");
-      const response = await fetch("/api/oracoes/status", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "Rejeitado" }),
-      });
-      const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
-      if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível rejeitar a oração.");
-      setOracoesPendentes((current) => current.filter(o => o.id !== id));
-    } catch (error) {
-      setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível rejeitar." });
     }
   };
 
@@ -672,18 +630,6 @@ export default function MonitorMidiaPage() {
                     <QrCode className="w-3 h-3 shrink-0" />
                   </button>
                   
-                  <button 
-                    onClick={() => { 
-                      if (podeAprovar) setIsApprovalModalOpen(true); 
-                      else setModalFeedback({ isOpen: true, type: "error", title: "Acesso Negado", message: "Seu grupo não tem permissão para aprovar orações." });
-                    }} 
-                    className={`text-[10px] px-2 py-1 rounded transition-colors flex items-center gap-1 font-medium ${podeAprovar ? 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`} 
-                    title={podeAprovar ? "Aprovar Pedidos" : "Sem permissão"}
-                  >
-                    <Lock className="w-3 h-3 shrink-0" /> <span className="hidden sm:inline">Aprovar</span>
-                    {oracoesPendentes.length > 0 && <span className="bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center ml-1">{oracoesPendentes.length}</span>}
-                  </button>
-                  
                   <span className="bg-red-500/10 text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">{oracoesSemana.length}</span>
                   <button onClick={() => toggleFullScreen('section-oracoes')} className="text-gray-400 hover:text-white transition-colors"><Maximize className="w-4 h-4" /></button>
                 </div>
@@ -776,46 +722,6 @@ export default function MonitorMidiaPage() {
             <div className="flex gap-3 w-full">
               <button onClick={() => setIsPrayerQrModalOpen(false)} className="flex-1 px-4 py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-md transition-colors">Fechar</button>
               <button onClick={() => { navigator.clipboard.writeText(prayerUrl); setModalFeedback({ isOpen: true, type: "success", title: "Copiado!", message: "Link copiado." }); }} className="flex-1 bg-ohel-blue hover:bg-blue-600 text-white font-medium py-3 rounded-md text-sm transition-colors shadow-lg">Copiar Link</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: APROVAR PEDIDOS */}
-      {isApprovalModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-ohel-surface border border-gray-800 rounded-2xl p-6 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2"><HeartHandshake className="w-5 h-5 text-red-500"/> Aprovar Pedidos de Oração</h3>
-              <button onClick={() => setIsApprovalModalOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3">
-              {oracoesPendentes.length === 0 ? (
-                <p className="text-center text-gray-500 py-10">Nenhum pedido pendente.</p>
-              ) : (
-                oracoesPendentes.map(o => (
-                  <div key={o.id} className="bg-ohel-bg border border-gray-800 p-4 rounded-xl flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-white font-bold text-sm mb-1">{o.nome_solicitante}</p>
-                      <p className="text-gray-300 text-sm">{o.descricao}</p>
-                      <p className="text-[10px] text-gray-500 mt-2">{new Date(o.created_at).toLocaleString('pt-BR')}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => handleRejectPrayer(o.id)} className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors" title="Rejeitar">
-                        <Trash className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleApprovePrayer(o.id)} className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-lg transition-colors" title="Aprovar para o Telão">
-                        <Check className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end">
-              <button onClick={() => setIsApprovalModalOpen(false)} className="bg-ohel-blue text-white font-medium py-2 px-6 rounded-md text-sm hover:bg-blue-600">Concluir</button>
             </div>
           </div>
         </div>
