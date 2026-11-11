@@ -163,8 +163,11 @@ export default function ConfiguracoesPage() {
       const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+      const { error: saveError } = await supabase.from('igrejas').update({ logo_sistema_url: data.publicUrl }).eq('id', igrejaId);
+      if (saveError) throw saveError;
       setFormData((current) => ({ ...current, logo_sistema_url: data.publicUrl }));
-      setModal({ isOpen: true, type: "success", title: "Logo OHEL ON enviada", message: "Clique em Salvar Configurações para aplicar a nova marca." });
+      window.dispatchEvent(new Event("ohel:logo-atualizada"));
+      setModal({ isOpen: true, type: "success", title: "Logo OHEL ON salva", message: "A nova logo já está ativa nas telas de login e navegação." });
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: error instanceof Error ? error.message : "Verifique se o bucket 'logos' está público." });
     } finally {
@@ -183,6 +186,7 @@ export default function ConfiguracoesPage() {
       }).eq('id', igrejaId);
 
       if (error) throw error;
+      window.dispatchEvent(new Event("ohel:logo-atualizada"));
       setModal({ isOpen: true, type: "success", title: "Sucesso", message: "Configurações salvas!" });
     } catch (error: any) {
       setModal({ isOpen: true, type: "error", title: "Erro", message: error.message });
