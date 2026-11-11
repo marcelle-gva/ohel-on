@@ -34,8 +34,9 @@ export default function ConfiguracoesPage() {
 
   // Dados da Igreja
   const [formData, setFormData] = useState({
-    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: "", logo_scale: 100
+    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: "", logo_scale: 100, logo_position_x: 0, logo_position_y: 0
   });
+  const logoDragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
 
   // Departamentos e Cargos
@@ -60,7 +61,7 @@ export default function ConfiguracoesPage() {
           if (igreja) {
             setFormData({
               nome: igreja.nome || "", cnpj: igreja.cnpj || "", cep: igreja.cep || "", endereco: igreja.endereco || "",
-              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || "", logo_scale: Number(igreja.logo_scale) || 100
+              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || "", logo_scale: Number(igreja.logo_scale) || 100, logo_position_x: Number(igreja.logo_position_x) || 0, logo_position_y: Number(igreja.logo_position_y) || 0
             });
           }
 
@@ -85,6 +86,26 @@ export default function ConfiguracoesPage() {
       ? e.target.value.replace(/\D/g, "").slice(0, 8).replace(/^(\d{5})(\d)/, "$1-$2")
       : e.target.value;
     setFormData({ ...formData, [e.target.name]: value });
+  };
+
+  const handleLogoPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!formData.logo_url) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    logoDragRef.current = { startX: event.clientX, startY: event.clientY, x: formData.logo_position_x, y: formData.logo_position_y };
+  };
+
+  const handleLogoPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = logoDragRef.current;
+    if (!drag) return;
+    setFormData((current) => ({
+      ...current,
+      logo_position_x: Math.max(-80, Math.min(80, drag.x + event.clientX - drag.startX)),
+      logo_position_y: Math.max(-60, Math.min(60, drag.y + event.clientY - drag.startY)),
+    }));
+  };
+
+  const handleLogoPointerUp = () => {
+    logoDragRef.current = null;
   };
 
   const buscarCep = async () => {
@@ -138,7 +159,7 @@ export default function ConfiguracoesPage() {
     try {
       const { error } = await supabase.from('igrejas').update({
         nome: formData.nome, cnpj: formData.cnpj, cep: formData.cep.replace(/\D/g, "") || null, endereco: formData.endereco,
-        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url, logo_scale: formData.logo_scale
+        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url, logo_scale: formData.logo_scale, logo_position_x: formData.logo_position_x, logo_position_y: formData.logo_position_y
       }).eq('id', igrejaId);
 
       if (error) throw error;
@@ -218,8 +239,15 @@ export default function ConfiguracoesPage() {
       const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      const { error } = await supabase.from('usuarios').update({ foto_url: data.publicUrl }).eq('id', usuario.id).eq('igreja_id', igrejaId || '');
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sua sessão expirou. Entre novamente para salvar a foto.");
+      const response = await fetch("/api/configuracoes/monitor-foto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ usuarioId: usuario.id, fotoUrl: data.publicUrl }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar a foto.");
       setUsuarios((current) => current.map((item) => item.id === usuario.id ? { ...item, foto_url: data.publicUrl } : item));
       setModal({ isOpen: true, type: "success", title: "Foto atualizada", message: "A foto do perfil do Monitor foi salva." });
     } catch (error) {
@@ -255,9 +283,9 @@ export default function ConfiguracoesPage() {
           </h3>
           
           <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="w-40 h-24 bg-ohel-bg rounded-lg border border-dashed border-gray-700 flex items-center justify-center overflow-hidden relative">
+            <div className="w-40 h-24 bg-ohel-bg rounded-lg border border-dashed border-gray-700 flex items-center justify-center overflow-hidden relative cursor-grab active:cursor-grabbing" onPointerDown={handleLogoPointerDown} onPointerMove={handleLogoPointerMove} onPointerUp={handleLogoPointerUp} onPointerCancel={handleLogoPointerUp}>
               {formData.logo_url ? (
-                <div className="relative w-full h-full" style={{ transform: `scale(${formData.logo_scale / 100})` }}><Image src={formData.logo_url} alt="Logo" fill className="object-contain p-2" /></div>
+                <div className="relative w-full h-full" style={{ transform: `translate(${formData.logo_position_x}px, ${formData.logo_position_y}px) scale(${formData.logo_scale / 100})` }}><Image src={formData.logo_url} alt="Logo" fill className="object-contain p-2 pointer-events-none" /></div>
               ) : (
                 <span className="text-xs text-gray-500">Sem Logo</span>
               )}
@@ -268,6 +296,7 @@ export default function ConfiguracoesPage() {
                 {uploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> Enviando...</> : <><Upload className="w-3.5 h-3.5 mr-2" /> Alterar Logo</>}
               </Button>
               <label className="block mt-4 text-[11px] text-gray-400">Tamanho da logo: <span className="text-white font-semibold">{formData.logo_scale}%</span><input type="range" min="50" max="150" step="5" value={formData.logo_scale} onChange={(event) => setFormData((current) => ({ ...current, logo_scale: Number(event.target.value) }))} className="mt-2 w-full accent-[#007BFF]" /></label>
+              <p className="text-[10px] text-gray-500 mt-2">Arraste a imagem na prévia para ajustar o enquadramento.</p>
             </div>
           </div>
         </Card>

@@ -10,6 +10,8 @@ interface IgrejaResumo {
   nome: string;
   logo_url: string | null;
   logo_scale: number;
+  logo_position_x: number;
+  logo_position_y: number;
 }
 
 export function Header() {
@@ -28,7 +30,7 @@ export function Header() {
       if (active) setIsPlatformAdmin(Boolean(platformAdmin));
       const { data: usuario } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
       if (!usuario?.igreja_id) return;
-      const { data: igrejaAtual } = await supabase.from("igrejas").select("nome, logo_url, logo_scale").eq("id", usuario.igreja_id).maybeSingle();
+      const { data: igrejaAtual } = await supabase.from("igrejas").select("nome, logo_url, logo_scale, logo_position_x, logo_position_y").eq("id", usuario.igreja_id).maybeSingle();
       if (active && igrejaAtual) setIgreja(igrejaAtual as IgrejaResumo);
       const { data: congregacoes } = await supabase.from("congregacoes").select("nome").eq("igreja_id", usuario.igreja_id).order("created_at").limit(20);
       if (active && congregacoes?.length) setCongregacaoNome(congregacoes.length === 1 ? "Matriz" : congregacoes[0].nome);
@@ -52,7 +54,7 @@ export function Header() {
       {/* Esquerda: Identidade da Igreja */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="relative h-10 w-12 shrink-0 overflow-hidden flex items-center justify-center">
-          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="48px" className="object-contain" style={{ transform: `scale(${(igreja.logo_scale || 100) / 100})` }} /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
+          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="48px" className="object-contain" style={{ transform: `translate(${igreja.logo_position_x || 0}px, ${igreja.logo_position_y || 0}px) scale(${(igreja.logo_scale || 100) / 100})` }} /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
         </div>
         <div className="min-w-0">
           <span className="block truncate text-white font-medium text-sm md:text-base">{igreja?.nome || "Igreja Matriz"}</span>
