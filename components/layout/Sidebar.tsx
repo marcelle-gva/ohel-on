@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay, Gift } from "lucide-react";
-import { Logo } from "../brand/Logo";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -91,11 +91,11 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false, role }:
         <div className="h-20 flex items-center justify-between px-4 border-b border-gray-800/50">
           {role === "admin" ? (
             <button type="button" onClick={() => window.location.href = "/configuracoes"} className="scale-75 rounded-xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Editar logo OHEL ON">
-              <Logo />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={140} height={96} className="h-[140px] w-[140px] object-contain" priority />
             </button>
           ) : (
             <a href="https://www.ipocloud.com.br" target="_blank" rel="noopener noreferrer" className="scale-75 rounded-xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Visitar IPO Cloud">
-              <Logo />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={140} height={96} className="h-[140px] w-[140px] object-contain" priority />
             </a>
           )}
           <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsOpen(false)}>

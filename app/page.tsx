@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import {
   ArrowRight,
   Baby,
@@ -14,6 +15,7 @@ import {
   HeartHandshake,
   MonitorPlay,
   Music,
+  MessageCircle,
   QrCode,
   ShieldCheck,
   UsersRound,
@@ -58,6 +60,11 @@ const modules = [
     icon: BarChart3,
     title: "Mural e gestão",
     description: "Publique comunicados e reúna rotinas administrativas em uma plataforma acessível pela nuvem.",
+  },
+  {
+    icon: MessageCircle,
+    title: "WhatsApp integrado",
+    description: "Aproxime a comunicação da igreja com links e contatos prontos para conversar com membros, visitantes e equipe.",
   },
 ];
 
@@ -124,9 +131,9 @@ export default async function HomePage({
               </span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-gray-300 md:text-lg">
-              A Igreja Pentecostal Ohel abriu seu sistema de gestão para servir também outras igrejas.
-              Pela tecnologia na nuvem, compartilhamos facilidades de gestão e conhecimento,
-              fortalecemos a comunhão e colocamos a inovação a serviço do Reino.
+              O OHEL ON nasceu da necessidade real de ter um sistema mais completo para a gestão da igreja.
+              Hoje, essa experiência também serve outras comunidades, com tecnologia na nuvem,
+              WhatsApp integrado e ferramentas que fortalecem a comunhão e colocam a inovação a serviço do Reino.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -150,6 +157,7 @@ export default async function HomePage({
               <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Módulos integrados</span>
               <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Acesso pelo navegador</span>
               <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Gestão multiárea</span>
+              <span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-emerald-400" /> WhatsApp integrado</span>
             </div>
           </div>
 
@@ -300,6 +308,23 @@ export default async function HomePage({
                 <p className="text-[11px] text-gray-500">do cuidado e da organização</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[0.08] bg-[#050A15]">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 py-12 md:px-8 md:py-16 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="relative overflow-hidden rounded-3xl border border-blue-300/20 bg-[#080E1B] shadow-2xl shadow-blue-950/30">
+            <Image src="/ipo-cloud-logo.png" alt="OHEL ON e IPO CLOUD: juntas por uma igreja ainda mais conectada" width={1672} height={941} className="h-auto w-full object-cover" sizes="(max-width: 1024px) 100vw, 70vw" />
+          </div>
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Conexão que aproxima
+            </div>
+            <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">Uma gestão mais completa, nascida de uma necessidade real.</h2>
+            <p className="mt-4 text-sm leading-7 text-gray-300 md:text-base">OHEL ON e IPO CLOUD unem organização, comunicação e tecnologia para apoiar a igreja no dia a dia. Com WhatsApp integrado, sua equipe ganha agilidade para acolher pessoas, compartilhar informações e manter cada rotina mais próxima.</p>
+            <a href={quoteLink} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#03130B] transition hover:bg-emerald-400"><MessageCircle className="h-4 w-4" /> Falar pelo WhatsApp <ArrowRight className="h-4 w-4" /></a>
           </div>
         </div>
       </section>
