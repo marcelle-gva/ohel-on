@@ -6,6 +6,7 @@ import { Baby, Check, CheckCircle, Copy, QrCode, ShieldAlert, X } from "lucide-r
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { criarLinkPublicoKids } from "@/lib/public-site";
 
 interface KidsTeensRegistration {
   id: string;
@@ -78,9 +79,7 @@ export default function KidsTeensPage() {
     void initialize();
   }, []);
 
-  const publicUrl = typeof window !== "undefined" && igrejaId
-    ? `${window.location.origin}/pre-cadastro-kids-teens/${igrejaId}`
-    : "";
+  const publicUrl = criarLinkPublicoKids(igrejaId);
   const filtered = registrations.filter((item) => filter === "todos" || item.status === filter);
   const pendingCount = registrations.filter((item) => item.status === "pendente").length;
 
@@ -233,13 +232,14 @@ export default function KidsTeensPage() {
       </Card>
 
       {qrOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <Card className="flex w-full max-w-md flex-col items-center border-gray-700 p-6 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+          <Card role="dialog" aria-modal="true" aria-labelledby="kids-qr-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col items-center overflow-y-auto border-gray-700 p-6 text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-pink-500/10 text-pink-300"><QrCode className="h-6 w-6" /></div>
-            <h2 className="text-xl font-bold text-white">Pré-cadastro Kids & Teens</h2>
+            <h2 id="kids-qr-title" className="text-xl font-bold text-white">Pré-cadastro Kids & Teens</h2>
             <p className="mt-2 text-sm text-gray-400">Compartilhe este QR Code com as famílias. O formulário identifica automaticamente Kids ou Teens pela idade.</p>
-            <div className="my-5 rounded-xl bg-white p-4">{publicUrl && <QRCode value={publicUrl} size={210} />}</div>
+            <div className="my-5 w-full max-w-[242px] shrink-0 rounded-xl bg-white p-4">{publicUrl && <QRCode value={publicUrl} size={210} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />}</div>
             <div className="mb-5 w-full break-all rounded-lg border border-gray-800 bg-ohel-bg p-3 text-left text-xs text-gray-400">{publicUrl}</div>
+            <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="mb-4 inline-flex min-h-10 items-center text-sm text-blue-300 hover:underline">Abrir formulário público</a>
             <div className="flex w-full gap-3">
               <button type="button" onClick={() => setQrOpen(false)} className="flex-1 rounded-md border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:text-white">Fechar</button>
               <button type="button" onClick={() => void copyLink()} className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-ohel-blue px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"><Copy className="h-4 w-4" /> Copiar link</button>

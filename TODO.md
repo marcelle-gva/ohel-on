@@ -111,3 +111,8 @@
 - [x] Organizar saudação, ações rápidas, culto em andamento quando houver, avisos/eventos com busca/filtro/expansão, resumo e todas as fotos ampliáveis, orações aprovadas, repertório e Palavra em blocos compactos, responsivos e sem cortes.
 - [x] Oferecer no bloco Visitantes o endereço oficial e mapa da própria igreja, convite preparado para WhatsApp e cópia da mensagem; não enviar automaticamente nem expor nome/telefone de visitantes, não inventar endereço ausente.
 - [x] Manter seleção de dados segura no servidor, isolamento por igreja, atualização visível sem requisições sobrepostas e feedback de carregamento/erro/cópia; usar estilos exclusivos sem regredir as demais páginas.
+
+## QR Code público de Kids & Teens
+
+- [x] Gerar o QR Code e o link de Kids & Teens com o domínio público HTTPS configurado em `NEXT_PUBLIC_APP_URL` (IPO CLOUD como padrão), sem copiar endereços temporários ou protegidos da Vercel da barra do navegador.
+- [x] Preservar a identificação da igreja, o formulário público, o consentimento do responsável e os controles de acesso internos; validar a abertura sem login e avisar que QR Codes antigos com endereço temporário devem ser substituídos.
