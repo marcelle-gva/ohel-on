@@ -68,10 +68,10 @@ export async function POST(request: Request) {
     nomeGrupo = grupo?.nome || "";
   }
 
-  // A regra de negócio da igreja é deliberadamente mais restritiva:
-  // somente usuários do grupo padrão Liderança podem tomar a decisão.
-  let autorizado = ehGrupoLideranca(nomeGrupo);
-  if (autorizado && perfil.grupo_id) {
+  // Administradores e usuários do grupo padrão Liderança podem tomar a decisão.
+  // Para os demais usuários, a permissão explícita de aprovação continua obrigatória.
+  let autorizado = perfil.role === "admin" || ehGrupoLideranca(nomeGrupo);
+  if (autorizado && perfil.role !== "admin" && perfil.grupo_id) {
     const { data: permissoes } = await serviceClient
       .from("grupos_permissoes")
       .select("modulo, acao")
