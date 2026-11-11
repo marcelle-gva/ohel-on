@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History, MapPin, Ticket, Download } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Check, Trash, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
@@ -80,6 +80,7 @@ export default function MonitorMidiaPage() {
 
   const [louvorToDelete, setLouvorToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [salvandoHistorico, setSalvandoHistorico] = useState(false);
 
   const [projecaoAtual, setProjecaoAtual] = useState<{ musicaId: string | null; slide: number; transposicao: number }>({
     musicaId: null,
@@ -357,6 +358,48 @@ export default function MonitorMidiaPage() {
     }
   };
 
+  const salvarHistoricoCulto = async () => {
+    if (!igrejaId || !cultoAtual) {
+      setModalFeedback({ isOpen: true, type: "error", title: "Nenhum culto aberto", message: "Inicie uma sessão de culto antes de salvar o histórico." });
+      return;
+    }
+    try {
+      setSalvandoHistorico(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: registrosAtuais, error: registrosError } = await supabase
+        .from("culto_registros")
+        .select("tipo, titulo, resumo, payload, criado_em")
+        .eq("culto_id", cultoAtual.id)
+        .order("criado_em", { ascending: true });
+      if (registrosError) throw registrosError;
+      const payload = {
+        culto: cultoAtual,
+        visitantes: visitantesHoje,
+        louvores: louvoresHoje,
+        avisos: muralRecente,
+        pedidos_oracao: oracoesSemana,
+        pedidos_pendentes: oracoesPendentes,
+        escalas: escalasProximas,
+        registros: registrosAtuais || [],
+      };
+      const { error } = await supabase.from("culto_registros").insert({
+        igreja_id: igrejaId,
+        culto_id: cultoAtual.id,
+        tipo: "resumo_culto",
+        titulo: `Resumo do culto: ${cultoAtual.titulo}`,
+        resumo: `${louvoresHoje.length} louvor(es), ${oracoesSemana.length} oração(ões) em andamento, ${muralRecente.length} aviso(s) e ${registrosAtuais?.length || 0} registro(s).`,
+        payload,
+        criado_por: session?.user.id || null,
+      });
+      if (error) throw error;
+      setModalFeedback({ isOpen: true, type: "success", title: "Histórico salvo", message: "Louvores, avisos, orações, escala, transmissão e registros da Palavra foram consolidados neste culto." });
+    } catch (error) {
+      setModalFeedback({ isOpen: true, type: "error", title: "Não foi possível salvar", message: error instanceof Error ? error.message : "Tente novamente." });
+    } finally {
+      setSalvandoHistorico(false);
+    }
+  };
+
   const publicUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/louvor/${igrejaId}` : "";
   const projecaoUrl = typeof window !== "undefined" ? `${window.location.origin}/projecao` : "";
   const prayerUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/oracao/${igrejaId}` : "";
@@ -377,18 +420,21 @@ export default function MonitorMidiaPage() {
             {cultoAtual ? <p className="text-[10px] text-green-400 mt-1">Culto em andamento: {cultoAtual.titulo}{cultoAtual.link_ao_vivo ? " · transmissão vinculada" : ""}</p> : <p className="text-[10px] text-yellow-500 mt-1">Nenhum culto aberto. Inicie uma sessão para guardar o diário.</p>}
           </div>
         </div>
-        <Link href="/monitor-midia/historico-cultos" className="flex items-center gap-2 bg-ohel-surface border border-gray-700 hover:border-ohel-blue text-gray-300 hover:text-white text-xs px-3 py-2 rounded-md"><History className="w-4 h-4 text-ohel-blue" /> Histórico de Cultos</Link>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => void salvarHistoricoCulto()} disabled={salvandoHistorico || !cultoAtual} className="flex items-center gap-2 bg-ohel-surface border border-gray-700 hover:border-green-400 text-gray-300 hover:text-white text-xs px-3 py-2 rounded-md disabled:opacity-50" title="Consolidar todos os dados deste culto"><Save className="w-4 h-4 text-green-400" /> {salvandoHistorico ? "Salvando..." : "Salvar histórico"}</button>
+          <Link href="/monitor-midia/historico-cultos" className="flex items-center gap-2 bg-ohel-surface border border-gray-700 hover:border-ohel-blue text-gray-300 hover:text-white text-xs px-3 py-2 rounded-md"><History className="w-4 h-4 text-ohel-blue" /> Histórico de Cultos</Link>
+        </div>
       </div>
 
       {loading ? (
         <div className="text-center py-10 text-gray-400 text-sm">Sincronizando painel de mídia...</div>
       ) : (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           
           {/* COLUNA 1 */}
-          <div className="flex flex-col gap-4 min-w-0">
-            <div id="section-visitantes" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
+          <div className="flex flex-col gap-4 min-w-0 lg:contents">
+            <div id="section-visitantes" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card lg:col-span-2 lg:order-1">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
                   <Users className="w-4 h-4 text-purple-500 shrink-0" /> Visitantes
@@ -419,14 +465,14 @@ export default function MonitorMidiaPage() {
               </div>
             </div>
 
-            <div id="section-mural" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
+            <div id="section-mural" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card lg:col-span-3 lg:order-4">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
                   <MessageSquare className="w-4 h-4 text-teal-500 shrink-0" /> Avisos
                 </h3>
                 <button onClick={() => toggleFullScreen('section-mural')} className="text-gray-400 hover:text-white transition-colors shrink-0"><Maximize className="w-4 h-4" /></button>
               </div>
-              <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto fullscreen-scroll pr-1">
+              <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto fullscreen-scroll pr-1">
                 {muralRecente.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum aviso.</p> :
                   muralRecente.map(m => (
                     <button type="button" key={m.id} onClick={async () => { if (m.tipo === "evento") { if (document.fullscreenElement) await document.exitFullscreen(); setEventoAvisoSelecionado(m); } }} className={`text-left text-xs fullscreen-text bg-ohel-bg p-3 rounded-lg border border-gray-800 ${m.tipo === "evento" ? "hover:border-ohel-blue hover:bg-ohel-blue/5 cursor-pointer" : ""}`}>
@@ -464,8 +510,8 @@ export default function MonitorMidiaPage() {
 
           {fotoSelecionada && <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setFotoSelecionada(null)}><div className="relative max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}><img src={fotoSelecionada} alt="Foto ampliada do evento" className="max-w-[95vw] max-h-[90vh] w-auto h-auto object-contain rounded-lg" /><button type="button" onClick={() => setFotoSelecionada(null)} className="absolute -top-3 -right-3 rounded-full bg-ohel-surface border border-gray-600 p-2 text-white hover:bg-gray-700" title="Fechar foto ampliada"><X className="w-5 h-5" /></button></div></div>}
           {/* COLUNA 2 */}
-          <div className="flex flex-col gap-4 min-w-0">
-            <div id="section-louvores" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
+          <div className="flex flex-col gap-4 min-w-0 lg:contents">
+            <div id="section-louvores" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card lg:col-span-2 lg:order-2">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
                   <Music className="w-4 h-4 text-ohel-blue shrink-0" /> Repertório
@@ -555,7 +601,7 @@ export default function MonitorMidiaPage() {
               </div>
             </div>
 
-            <div id="section-escala" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card">
+            <div id="section-escala" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col fullscreen-card lg:col-span-2 lg:order-3">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
                   <CalendarDays className="w-4 h-4 text-yellow-500 shrink-0" /> Escala
@@ -610,8 +656,8 @@ export default function MonitorMidiaPage() {
           </div>
 
           {/* COLUNA 3 */}
-          <div className="flex flex-col gap-4 min-w-0">
-            <div id="section-oracoes" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col h-full fullscreen-card">
+          <div className="flex flex-col gap-4 min-w-0 lg:contents">
+            <div id="section-oracoes" className="bg-ohel-surface rounded-xl border border-gray-800 p-4 flex flex-col h-full fullscreen-card lg:col-span-3 lg:order-5">
               <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2 gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap truncate">
                   <HeartHandshake className="w-4 h-4 text-red-500 shrink-0" /> Orações
