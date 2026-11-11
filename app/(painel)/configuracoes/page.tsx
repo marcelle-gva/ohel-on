@@ -34,7 +34,7 @@ export default function ConfiguracoesPage() {
 
   // Dados da Igreja
   const [formData, setFormData] = useState({
-    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: ""
+    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: "", logo_scale: 100
   });
   const [buscandoCep, setBuscandoCep] = useState(false);
 
@@ -60,7 +60,7 @@ export default function ConfiguracoesPage() {
           if (igreja) {
             setFormData({
               nome: igreja.nome || "", cnpj: igreja.cnpj || "", cep: igreja.cep || "", endereco: igreja.endereco || "",
-              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || ""
+              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || "", logo_scale: Number(igreja.logo_scale) || 100
             });
           }
 
@@ -138,7 +138,7 @@ export default function ConfiguracoesPage() {
     try {
       const { error } = await supabase.from('igrejas').update({
         nome: formData.nome, cnpj: formData.cnpj, cep: formData.cep.replace(/\D/g, "") || null, endereco: formData.endereco,
-        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url
+        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url, logo_scale: formData.logo_scale
       }).eq('id', igrejaId);
 
       if (error) throw error;
@@ -257,16 +257,17 @@ export default function ConfiguracoesPage() {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-40 h-24 bg-ohel-bg rounded-lg border border-dashed border-gray-700 flex items-center justify-center overflow-hidden relative">
               {formData.logo_url ? (
-                <Image src={formData.logo_url} alt="Logo" fill className="object-contain p-2" />
+                <div className="relative w-full h-full" style={{ transform: `scale(${formData.logo_scale / 100})` }}><Image src={formData.logo_url} alt="Logo" fill className="object-contain p-2" /></div>
               ) : (
                 <span className="text-xs text-gray-500">Sem Logo</span>
               )}
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <input type="file" accept="image/*" ref={fileInputRef} onChange={handleUploadLogo} className="hidden" />
               <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-auto px-5 py-2 text-xs">
                 {uploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> Enviando...</> : <><Upload className="w-3.5 h-3.5 mr-2" /> Alterar Logo</>}
               </Button>
+              <label className="block mt-4 text-[11px] text-gray-400">Tamanho da logo: <span className="text-white font-semibold">{formData.logo_scale}%</span><input type="range" min="50" max="150" step="5" value={formData.logo_scale} onChange={(event) => setFormData((current) => ({ ...current, logo_scale: Number(event.target.value) }))} className="mt-2 w-full accent-[#007BFF]" /></label>
             </div>
           </div>
         </Card>
