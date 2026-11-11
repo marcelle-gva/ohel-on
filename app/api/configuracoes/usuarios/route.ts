@@ -39,12 +39,15 @@ export async function GET(request: Request) {
         .map((authUser) => [authUser.email!.trim().toLowerCase(), authUser]),
     );
     const usuarioIds = new Set(usuarios.map((usuario) => usuario.id));
+    const idsTecnicos = new Set(usuarios.filter((usuario) => usuario.role === "monitor").map((usuario) => usuario.id));
 
     for (const membro of membros) {
+      if (membro.auth_user_id && idsTecnicos.has(membro.auth_user_id)) continue;
       const email = membro.email?.trim().toLowerCase();
       if (!email) continue;
       const authUser = porEmail.get(email);
       if (!authUser) continue;
+      if (idsTecnicos.has(authUser.id)) continue;
 
       if (!membro.auth_user_id) {
         await service
