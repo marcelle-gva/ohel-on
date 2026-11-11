@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, Users, Save, Mail, Loader2, RefreshCw, Clock3 } from "lucide-react";
+import { ArrowLeft, Users, Save, Mail, Loader2, RefreshCw, Clock3, KeyRound } from "lucide-react";
 
 interface Usuario {
   id: string;
@@ -39,6 +39,7 @@ export default function UsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [modal, setModal] = useState<Feedback>({ isOpen: false, type: "success", title: "", message: "" });
 
   const fetchDados = async () => {
@@ -89,6 +90,22 @@ export default function UsuariosPage() {
     }
   };
 
+  const handleResetSenha = async (usuario: Usuario) => {
+    if (!usuario.email) return;
+    setResettingId(usuario.id);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(usuario.email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/redefinir-senha?origem=membro`,
+      });
+      if (error) throw error;
+      setModal({ isOpen: true, type: "success", title: "Link enviado", message: `Enviamos um link para zerar a senha de ${usuario.nome}.` });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível enviar", message: error instanceof Error ? error.message : "Tente novamente em alguns instantes." });
+    } finally {
+      setResettingId(null);
+    }
+  };
+
   const membrosSemUsuario = membros.filter((membro) => !membro.auth_user_id || !usuarios.some((usuario) => usuario.id === membro.auth_user_id));
 
   if (loading) return <div className="p-10 text-center text-gray-400">Sincronizando membros e usuários...</div>;
@@ -117,7 +134,7 @@ export default function UsuariosPage() {
                 {usuarios.map((usuario) => <tr key={usuario.id} className="hover:bg-white/[0.02]">
                   <td className="p-4"><p className="text-sm font-bold text-white">{usuario.nome}</p><p className="mt-0.5 flex items-center gap-1 text-xs text-gray-400"><Mail className="h-3 w-3" /> {usuario.email}</p></td>
                   <td className="p-4"><select value={usuario.perfil_id || ""} onChange={(event) => handleChangePerfil(usuario.id, event.target.value)} className="input-ohel w-full max-w-xs rounded-lg px-3 py-2 text-sm"><option value="">Sem Perfil (Acesso Restrito)</option>{perfis.map((perfil) => <option key={perfil.id} value={perfil.id}>{perfil.nome}</option>)}</select></td>
-                  <td className="p-4 text-center"><Button variant="primary" onClick={() => void handleSavePerfil(usuario)} disabled={savingId === usuario.id} className="w-auto px-4 py-2 text-xs">{savingId === usuario.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="mr-1.5 h-3.5 w-3.5" /> Salvar</>}</Button></td>
+                  <td className="p-4 text-center"><div className="flex items-center justify-center gap-2"><Button variant="primary" onClick={() => void handleSavePerfil(usuario)} disabled={savingId === usuario.id} className="w-auto px-4 py-2 text-xs">{savingId === usuario.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="mr-1.5 h-3.5 w-3.5" /> Salvar</>}</Button>{membros.some((membro) => membro.auth_user_id === usuario.id) && <button type="button" onClick={() => void handleResetSenha(usuario)} disabled={resettingId === usuario.id} className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-amber-300 transition-colors hover:border-amber-400 hover:bg-amber-500/20 hover:text-amber-100 disabled:opacity-50" title="Enviar link para zerar senha" aria-label={`Zerar senha de ${usuario.nome}`}>{resettingId === usuario.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}</button>}</div></td>
                 </tr>)}
                 {membrosSemUsuario.map((membro) => <tr key={`membro-${membro.id}`} className="bg-amber-500/[0.03] hover:bg-amber-500/[0.06]"><td className="p-4"><p className="text-sm font-bold text-white">{membro.nome}</p><p className="mt-0.5 flex items-center gap-1 text-xs text-gray-400"><Mail className="h-3 w-3" /> {membro.email || "E-mail não informado"}</p></td><td colSpan={2} className="p-4"><span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200"><Clock3 className="h-3.5 w-3.5" /> Acesso será criado automaticamente no primeiro login</span></td></tr>)}
               </>}
