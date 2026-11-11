@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   Baby,
@@ -60,7 +61,23 @@ const modules = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const oauthKeys = ["code", "state", "error", "error_description", "error_code"];
+  if (oauthKeys.some((key) => params[key])) {
+    const callbackParams = new URLSearchParams();
+    for (const key of oauthKeys) {
+      const value = params[key];
+      if (Array.isArray(value)) value.forEach((item) => callbackParams.append(key, item));
+      else if (value) callbackParams.set(key, value);
+    }
+    redirect(`/auth/callback?${callbackParams.toString()}`);
+  }
+
   return (
     <main className="h-screen overflow-y-auto bg-[#03060D] text-white selection:bg-blue-500/30">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#03060D]/85 backdrop-blur-xl">
