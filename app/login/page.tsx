@@ -54,22 +54,16 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Remove um verifier PKCE antigo que pode ter ficado interrompido
-      // por uma tentativa anterior no celular.
-      Object.keys(window.localStorage)
-        .filter((key) => key.includes("-code-verifier"))
-        .forEach((key) => window.localStorage.removeItem(key));
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      // O Supabase grava o verifier PKCE e redireciona no mesmo fluxo.
+      // Evitamos montar a URL e navegar manualmente para não criar uma
+      // condição de corrida na primeira tentativa, especialmente no mobile.
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          skipBrowserRedirect: true,
         },
       });
       if (error) throw error;
-      if (!data.url) throw new Error("URL do Google não gerada.");
-      window.location.assign(data.url);
     } catch {
       setModal({ isOpen: true, type: "error", title: "Erro no Google", message: "Não foi possível conectar com o Google." });
       setLoading(false);
