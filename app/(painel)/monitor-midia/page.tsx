@@ -71,6 +71,7 @@ export default function MonitorMidiaPage() {
   
   // Estados dos Modais
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isVisitorQrModalOpen, setIsVisitorQrModalOpen] = useState(false);
   const [isPrayerQrModalOpen, setIsPrayerQrModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [eventoAvisoSelecionado, setEventoAvisoSelecionado] = useState<AvisoFonte | null>(null);
@@ -403,6 +404,7 @@ export default function MonitorMidiaPage() {
   const publicUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/louvor/${igrejaId}` : "";
   const projecaoUrl = typeof window !== "undefined" ? `${window.location.origin}/projecao` : "";
   const prayerUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/oracao/${igrejaId}` : "";
+  const visitorUrl = typeof window !== "undefined" && igrejaId ? `${window.location.origin}/visitante/${igrejaId}` : "";
 
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col gap-5 pb-10">
@@ -442,6 +444,7 @@ export default function MonitorMidiaPage() {
                 </h3>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="bg-purple-500/10 text-purple-400 text-xs font-bold px-2 py-0.5 rounded-full">{visitantesHoje.length}</span>
+                  <button onClick={() => setIsVisitorQrModalOpen(true)} className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500 hover:text-white transition-colors flex items-center gap-1 font-medium" title="QR Code para cadastro de visitantes"><QrCode className="w-3 h-3" /><span className="hidden sm:inline">QR</span></button>
                   <button onClick={() => toggleFullScreen('section-visitantes')} className="text-gray-400 hover:text-white transition-colors" title="Expandir para o Telão"><Maximize className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -731,6 +734,27 @@ export default function MonitorMidiaPage() {
             <div className="flex gap-3 w-full">
               <button onClick={() => setIsQrModalOpen(false)} className="flex-1 px-4 py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-md transition-colors">Fechar</button>
               <button onClick={() => { navigator.clipboard.writeText(publicUrl); setModalFeedback({ isOpen: true, type: "success", title: "Copiado!", message: "Link copiado." }); }} className="flex-1 bg-ohel-blue hover:bg-blue-600 text-white font-medium py-3 rounded-md text-sm transition-colors shadow-lg">Copiar Link</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: QR CODE DE VISITANTES */}
+      {isVisitorQrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:hidden">
+          <div className="bg-ohel-surface border border-gray-800 rounded-2xl p-8 w-full max-w-md shadow-2xl flex flex-col items-center animate-in zoom-in-95">
+            <div className="flex items-center justify-between w-full mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-purple-400" /> Cadastro de Visitante</h3>
+              <button onClick={() => setIsVisitorQrModalOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-gray-400 text-sm text-center mb-6">Aponte a câmera para o visitante preencher seus dados no celular.</p>
+            <div className="bg-white p-4 rounded-xl mb-6">
+              {visitorUrl && <QRCode value={visitorUrl} size={220} level="H" />}
+            </div>
+            <div className="w-full bg-ohel-bg border border-gray-800 rounded-lg p-3 text-xs text-gray-400 break-all mb-6 text-center">{visitorUrl}</div>
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setIsVisitorQrModalOpen(false)} className="flex-1 px-4 py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-md transition-colors">Fechar</button>
+              <button onClick={() => { navigator.clipboard.writeText(visitorUrl); setModalFeedback({ isOpen: true, type: "success", title: "Copiado!", message: "Link de visitantes copiado." }); }} className="flex-1 bg-ohel-blue hover:bg-blue-600 text-white font-medium py-3 rounded-md text-sm transition-colors shadow-lg">Copiar Link</button>
             </div>
           </div>
         </div>
