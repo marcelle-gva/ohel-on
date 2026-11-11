@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { supabaseOAuth } from "@/lib/supabase-oauth";
 
 export default function AuthCallbackPage() {
@@ -46,7 +47,17 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const { data: factors, error: factorError } = await supabaseOAuth.auth.mfa.listFactors();
+      const { session } = sessionData;
+      const { error: syncError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (syncError) {
+        setMessage("A sessão do Google foi criada, mas não pôde ser sincronizada com o painel.");
+        return;
+      }
+
+      const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors();
       if (factorError) {
         setMessage("A sessão foi iniciada, mas não foi possível verificar a autenticação em duas etapas.");
         return;

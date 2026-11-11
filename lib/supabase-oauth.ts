@@ -7,6 +7,7 @@ export const supabaseOAuth = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     flowType: "implicit",
     detectSessionInUrl: true,
+    storageKey: "ohel-admin-oauth-token",
     persistSession: true,
     autoRefreshToken: true,
   },
