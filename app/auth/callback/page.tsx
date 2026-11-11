@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabaseOAuth } from "@/lib/supabase-oauth";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function AuthCallbackPage() {
       }
 
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { error } = await supabaseOAuth.auth.exchangeCodeForSession(code);
         if (error) {
           setMessage("Não foi possível validar a sessão do Google. Tente novamente.");
           return;
@@ -36,13 +36,17 @@ export default function AuthCallbackPage() {
       // Em alguns navegadores móveis o Supabase conclui a sessão antes
       // de a página de callback terminar de carregar. Reaproveitamos essa
       // sessão em vez de mandar o usuário voltar ao login.
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
+      let sessionData = (await supabaseOAuth.auth.getSession()).data;
+      for (let attempt = 0; !sessionData.session && attempt < 10; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 200));
+        sessionData = (await supabaseOAuth.auth.getSession()).data;
+      }
+      if (!sessionData.session) {
         setMessage("Não foi possível iniciar a sessão do Google. Tente novamente.");
         return;
       }
 
-      const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors();
+      const { data: factors, error: factorError } = await supabaseOAuth.auth.mfa.listFactors();
       if (factorError) {
         setMessage("A sessão foi iniciada, mas não foi possível verificar a autenticação em duas etapas.");
         return;
