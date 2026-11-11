@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/brand/Logo";
@@ -12,8 +11,11 @@ import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 export default function RecuperarSenhaPage() {
-  const searchParams = useSearchParams();
-  const origemMembro = searchParams.get("origem") === "membro";
+  const [origemMembro, setOrigemMembro] = useState(false);
+
+  useEffect(() => {
+    setOrigemMembro(new URLSearchParams(window.location.search).get("origem") === "membro");
+  }, []);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });

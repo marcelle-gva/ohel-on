@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/brand/Logo";
@@ -13,8 +13,11 @@ import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function RedefinirSenhaPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const origemMembro = searchParams.get("origem") === "membro";
+  const [origemMembro, setOrigemMembro] = useState(false);
+
+  useEffect(() => {
+    setOrigemMembro(new URLSearchParams(window.location.search).get("origem") === "membro");
+  }, []);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
