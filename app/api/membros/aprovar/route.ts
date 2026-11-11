@@ -56,12 +56,31 @@ export async function POST(request: Request) {
   if (!["admin", "pastor", "secretaria"].includes(contexto.role) && !podeAcessar(contexto, "membros", "aprovar")) return Response.json({ error: "Você não tem permissão para aprovar pré-cadastros." }, { status: 403 });
   const perfil = { igreja_id: contexto.igrejaId };
 
-  const { data: membro, error: membroError } = await serviceClient.from("membros").select("id, nome, telefone, email, whatsapp_opt_in, status").eq("id", membroId).eq("igreja_id", perfil.igreja_id).maybeSingle();
+  const { data: membro, error: membroError } = await serviceClient.from("membros").select("id, nome, telefone, email, auth_user_id, whatsapp_opt_in, status").eq("id", membroId).eq("igreja_id", perfil.igreja_id).maybeSingle();
   if (membroError || !membro) return Response.json({ error: "Pré-cadastro não encontrado nesta igreja." }, { status: 404 });
   if (membro.status !== "Pré-Cadastro") return Response.json({ error: "Este cadastro já foi processado." }, { status: 409 });
 
   const { data: atualizado, error: updateError } = await serviceClient.from("membros").update({ status: "Ativo" }).eq("id", membro.id).eq("igreja_id", perfil.igreja_id).select("id, status").maybeSingle();
   if (updateError || !atualizado) return Response.json({ error: updateError?.message || "Não foi possível atualizar o status do membro." }, { status: 409 });
+
+  if (membro.auth_user_id) {
+    const { data: usuarioExistente } = await serviceClient
+      .from("usuarios")
+      .select("id")
+      .eq("id", membro.auth_user_id)
+      .maybeSingle();
+    if (!usuarioExistente) {
+      const { error: usuarioError } = await serviceClient.from("usuarios").insert({
+        id: membro.auth_user_id,
+        igreja_id: perfil.igreja_id,
+        nome: membro.nome,
+        email: membro.email,
+        role: "membro",
+        grupo_id: null,
+      });
+      if (usuarioError) return Response.json({ error: "Membro aprovado, mas não foi possível criar o acesso automaticamente." }, { status: 503 });
+    }
+  }
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, "");
   const link = `${appUrl}/login-membro`;
