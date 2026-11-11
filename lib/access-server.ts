@@ -32,11 +32,12 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
   if (authError || !user?.email)
     throw new AcessoError("Sessão inválida ou expirada.", 401);
 
-  const { data: usuario, error: usuarioError } = await service
+  const { data: usuarioInicial, error: usuarioError } = await service
     .from("usuarios")
     .select("id, igreja_id, role, grupo_id")
     .eq("id", user.id)
     .maybeSingle();
+  let usuario = usuarioInicial;
   if (usuarioError)
     throw new AcessoError(
       "Não foi possível conferir as permissões. Tente novamente.",
@@ -125,6 +126,45 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
       403,
     );
   }
+
+  if (membro?.status === "Ativo") {
+    // Pré-cadastros já criam a conta Auth, mas versões antigas não garantiam
+    // o espelho em usuarios. Corrigimos somente esse vínculo no primeiro login
+    // e nunca sobrescrevemos grupo, perfil ou permissões existentes.
+    if (!membro.auth_user_id) {
+      const { data: vinculo, error: vinculoError } = await service
+        .from("membros")
+        .update({ auth_user_id: user.id })
+        .eq("id", membro.id)
+        .is("auth_user_id", null)
+        .select("id, auth_user_id")
+        .maybeSingle();
+      if (vinculoError || !vinculo) {
+        throw new AcessoError("Não foi possível vincular seu acesso ao cadastro de membro.", 503);
+      }
+      membro.auth_user_id = vinculo.auth_user_id;
+    }
+
+    if (!usuario) {
+      const { data: sincronizado, error: sincronizacaoError } = await service
+        .from("usuarios")
+        .insert({
+          id: user.id,
+          igreja_id: membro.igreja_id,
+          nome: membro.nome,
+          email: user.email,
+          role: "membro",
+          grupo_id: null,
+        })
+        .select("id, igreja_id, role, grupo_id")
+        .maybeSingle();
+      if (sincronizacaoError || !sincronizado) {
+        throw new AcessoError("Não foi possível sincronizar seu acesso à igreja.", 503);
+      }
+      usuario = sincronizado;
+    }
+  }
+
   const igrejaId = exigirMembro
     ? membro?.igreja_id
     : usuario?.igreja_id || membro?.igreja_id;
