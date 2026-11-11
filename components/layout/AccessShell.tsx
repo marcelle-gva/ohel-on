@@ -104,6 +104,12 @@ export function AccessShell({
     };
   }, [carregar, membro, router]);
 
+  useEffect(() => {
+    if (!loading && contexto?.role === "monitor" && !pathname.startsWith("/monitor-midia")) {
+      router.replace("/monitor-midia");
+    }
+  }, [contexto, loading, pathname, router]);
+
   if (loading)
     return (
       <div className="flex h-dvh items-center justify-center gap-2 bg-ohel-bg text-sm text-gray-300">

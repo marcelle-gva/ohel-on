@@ -14,7 +14,6 @@ import {
   Music,
   RefreshCw,
   Search,
-  ShieldCheck,
   ShoppingBasket,
   Sparkles,
   Video,
@@ -83,7 +82,6 @@ export function MemberDashboard() {
   const [filtro, setFiltro] = useState<"todos" | "evento" | "aviso">("todos");
   const [busca, setBusca] = useState("");
   const [avisosVisiveis, setAvisosVisiveis] = useState(4);
-  const [oracoesVisiveis, setOracoesVisiveis] = useState(3);
   const [louvoresVisiveis, setLouvoresVisiveis] = useState(3);
   const [slide, setSlide] = useState(0);
   const emAndamento = useRef<AbortController | null>(null);
@@ -207,7 +205,7 @@ export function MemberDashboard() {
       <div className={styles.welcome}>
         <div>
           <p className={styles.eyebrow}>Meu dashboard · Área do Membro</p>
-          <h1 className={styles.title}>Olá, {primeiroNome}.</h1>
+          <h1 className={styles.title}>A paz do Senhor, {primeiroNome}.</h1>
           <p className={styles.subtitle}>
             Sua igreja, mais perto de você. Acompanhe, participe e acolha.
           </p>
@@ -343,7 +341,7 @@ export function MemberDashboard() {
                       className={styles.notice}
                       key={`${item.tipo}-${item.id}`}
                       onClick={() => setSelecionado(item)}
-                      aria-label={`Ver ${item.tipo === "evento" ? "evento" : "aviso"}: ${item.titulo}`}
+                      aria-label={`Ver ${item.categoria === "oracao" ? "oração" : item.tipo === "evento" ? "evento" : "aviso"}: ${item.titulo}`}
                     >
                       {urlSegura(item.imagem_url) && (
                         <img
@@ -356,12 +354,14 @@ export function MemberDashboard() {
                       <div className={styles.noticeText}>
                         <div className={styles.noticeMeta}>
                           <span className={styles.tag}>
-                            {item.tipo === "evento" ? (
+                            {item.categoria === "oracao" ? (
+                              <HeartHandshake size={10} />
+                            ) : item.tipo === "evento" ? (
                               <CalendarDays size={10} />
                             ) : (
                               <MessageSquare size={10} />
                             )}
-                            {item.tipo === "evento" ? "Evento" : "Aviso"}
+                            {item.categoria === "oracao" ? "Oração" : item.tipo === "evento" ? "Evento" : "Aviso"}
                           </span>
                           {diaEvento(item) && (
                             <span>
@@ -411,52 +411,9 @@ export function MemberDashboard() {
                 igreja={dashboard.igreja}
                 visitantes={dashboard.visitantes}
               />
-              <Bloco
-                titulo="Vamos orar juntos"
-                descricao="Uma comunidade que cuida e intercede."
-                icone={<HeartHandshake size={17} className="text-rose-300" />}
-                total={dashboard.oracoes.length}
-              >
-                {dashboard.oracoes.slice(0, oracoesVisiveis).map((item) => (
-                  <details key={item.id} className={styles.prayer}>
-                    <summary>
-                      <p className={styles.prayerName}>
-                        {item.nome_solicitante || "Anônimo"}
-                      </p>
-                      <p className={styles.prayerPreview}>{item.descricao}</p>
-                      <span className={styles.noticeLink}>
-                        Ler pedido completo <ChevronDown size={11} />
-                      </span>
-                    </summary>
-                    <p className={styles.prayerFull}>{item.descricao}</p>
-                  </details>
-                ))}
-                {!dashboard.oracoes.length &&
-                  vazio(
-                    "Ainda não há pedidos publicados.",
-                    "Você pode enviar uma oração para a equipe pastoral.",
-                  )}
-                {dashboard.oracoes.length > oracoesVisiveis && (
-                  <button
-                    type="button"
-                    className={styles.more}
-                    onClick={() => setOracoesVisiveis((n) => n + 6)}
-                  >
-                    Ver mais pedidos (
-                    {dashboard.oracoes.length - oracoesVisiveis})
-                  </button>
-                )}
-                <Link
-                  href={`/oracao/${contexto?.igrejaId}`}
-                  className={styles.smallLink}
-                >
-                  Enviar pedido de oração <ArrowRight size={13} />
-                </Link>
-                <p className={styles.privacy}>
-                  <ShieldCheck size={12} className="shrink-0 mt-0.5" /> Somente
-                  pedidos aprovados pela igreja são exibidos.
-                </p>
-              </Bloco>
+              <Link href={`/oracao/${contexto?.igrejaId}`} className={styles.smallLink}>
+                Enviar pedido de oração <ArrowRight size={13} />
+              </Link>
             </div>
           </div>
 

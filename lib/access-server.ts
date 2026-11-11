@@ -64,6 +64,44 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
     };
     return { contexto, service, user };
   }
+  if (usuario?.role === "monitor") {
+    if (exigirMembro)
+      throw new AcessoError("A conta Monitor não possui Área do Membro.", 403);
+    if (!usuario.igreja_id)
+      throw new AcessoError("O acesso Monitor ainda não possui uma igreja.", 403);
+    const { data: grupo, error: groupError } = await service
+      .from("grupos")
+      .select("id, nome")
+      .eq("id", usuario.grupo_id || "")
+      .eq("igreja_id", usuario.igreja_id)
+      .maybeSingle();
+    if (groupError || !grupo)
+      throw new AcessoError("O grupo Monitor não está configurado.", 403);
+    const { data: perms, error: permsError } = await service
+      .from("grupos_permissoes")
+      .select("modulo, acao")
+      .eq("grupo_id", grupo.id);
+    if (permsError)
+      throw new AcessoError("Não foi possível consultar as permissões do Monitor.", 503);
+    const { data: igreja, error: churchError } = await service
+      .from("igrejas")
+      .select("nome")
+      .eq("id", usuario.igreja_id)
+      .maybeSingle();
+    if (churchError || !igreja)
+      throw new AcessoError("Igreja não encontrada para este acesso.", 403);
+    const contexto: ContextoAcesso = {
+      usuarioId: user.id,
+      igrejaId: usuario.igreja_id,
+      igrejaNome: igreja.nome,
+      role: "monitor",
+      grupoId: grupo.id,
+      grupoNome: grupo.nome,
+      membro: null,
+      permissoes: (perms || []) as PermissaoAcesso[],
+    };
+    return { contexto, service, user };
+  }
   if (!user.email_confirmed_at)
     throw new AcessoError(
       "Confirme seu e-mail para acessar a Área do Membro.",

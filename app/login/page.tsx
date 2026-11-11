@@ -32,12 +32,16 @@ export default function Login() {
       });
 
       if (error) throw error;
-      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", (await supabase.auth.getUser()).data.user?.id || "").eq("ativo", true).maybeSingle();
+      const currentUserId = (await supabase.auth.getUser()).data.user?.id || "";
+      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", currentUserId).eq("ativo", true).maybeSingle();
+      const { data: usuario } = await supabase.from("usuarios").select("role").eq("id", currentUserId).maybeSingle();
       
       const { data: factors } = await supabase.auth.mfa.listFactors();
       
       if (factors && factors.totp.length > 0) {
         router.push("/mfa");
+      } else if (usuario?.role === "monitor") {
+        router.push("/monitor-midia");
       } else if (platformAdmin) {
         router.push("/ipocloud");
       } else {

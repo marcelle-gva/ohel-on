@@ -30,8 +30,10 @@ export default function Dashboard() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const { data: userData } = await supabase.from("usuarios").select("nome").eq("id", session.user.id).maybeSingle();
-        if (userData?.nome) setNomeUsuario(userData.nome.split(" ")[0]);
+        const { data: userData } = await supabase.from("usuarios").select("nome, role").eq("id", session.user.id).maybeSingle();
+        if (userData?.role === "admin") setNomeUsuario("Admin");
+        else if (userData?.role === "monitor") setNomeUsuario("Monitor de Mídia");
+        else if (userData?.nome) setNomeUsuario(userData.nome.split(" ")[0]);
 
         const hoje = new Date();
         const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;

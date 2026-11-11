@@ -87,7 +87,7 @@ export async function GET(request: Request) {
         lerListaCompleta((inicio, fim) =>
           service
             .from("pedidos_oracao")
-            .select("id, nome_solicitante, descricao")
+            .select("id, nome_solicitante, descricao, created_at")
             .eq("igreja_id", igrejaId)
             .eq("status", "Em Oração")
             .gte("created_at", semana)
@@ -167,6 +167,7 @@ export async function GET(request: Request) {
     const comunicacoes: AvisoDashboard[] = (avisos.data || []).map((item) => ({
       id: item.id,
       tipo: "aviso",
+      categoria: "aviso",
       titulo: item.titulo,
       conteudo: item.conteudo,
       imagem_url: item.imagem_url,
@@ -177,6 +178,7 @@ export async function GET(request: Request) {
       (item) => ({
         id: item.id,
         tipo: "evento",
+        categoria: "evento",
         titulo: item.nome,
         conteudo: item.descricao,
         imagem_url: item.cartaz_url,
@@ -192,6 +194,16 @@ export async function GET(request: Request) {
         hora_abertura: item.hora_abertura,
       }),
     );
+    const oracoesPublicadas: AvisoDashboard[] = (oracoes.data || []).map((item) => ({
+      id: `oracao-${item.id}`,
+      tipo: "aviso",
+      categoria: "oracao",
+      titulo: `Pedido de oração · ${item.nome_solicitante || "Anônimo"}`,
+      conteudo: item.descricao,
+      imagem_url: null,
+      fotos: [],
+      created_at: item.created_at,
+    }));
 
     const igrejaNome =
       typeof igreja.data.nome === "string" && igreja.data.nome.trim()
@@ -202,7 +214,7 @@ export async function GET(request: Request) {
         ? igreja.data.endereco.trim()
         : null;
     const dashboard: DashboardMembroData = {
-      avisos: [...comunicacoes, ...eventosPublicados].sort((a, b) =>
+      avisos: [...comunicacoes, ...eventosPublicados, ...oracoesPublicadas].sort((a, b) =>
         b.created_at.localeCompare(a.created_at),
       ),
       louvores: louvores.data || [],

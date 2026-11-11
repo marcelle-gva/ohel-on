@@ -417,6 +417,7 @@ export default function MonitorMidiaPage() {
               <MonitorPlay className="w-5 h-5 text-ohel-blue" /> Monitor de Mídia
             </h1>
             <p className="text-gray-400 text-xs mt-0.5">Painel de controle rápido para a equipe técnica do culto.</p>
+            <p className="text-[10px] text-ohel-blue mt-1">A paz do Senhor, Monitor de Mídia.</p>
             {cultoAtual ? <p className="text-[10px] text-green-400 mt-1">Culto em andamento: {cultoAtual.titulo}{cultoAtual.link_ao_vivo ? " · transmissão vinculada" : ""}</p> : <p className="text-[10px] text-yellow-500 mt-1">Nenhum culto aberto. Inicie uma sessão para guardar o diário.</p>}
           </div>
         </div>
