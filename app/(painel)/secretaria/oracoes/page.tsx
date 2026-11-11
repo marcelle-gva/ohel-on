@@ -115,7 +115,7 @@ export default function OracoesPage() {
         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-ohel-bg border border-gray-700 text-sm text-white rounded-md px-4 py-2.5 outline-none w-full lg:w-48">
           <option value="todos">Todos os Status</option>
           <option value="Pendente">Pendentes</option>
-          <option value="Aprovado">Aprovados</option>
+          <option value="Em Oração">Em Oração</option>
           <option value="Rejeitado">Rejeitados</option>
           <option value="Em Oração">Em Oração</option>
           <option value="Atendido">Atendidos</option>
@@ -149,7 +149,7 @@ export default function OracoesPage() {
                         <button onClick={() => router.push(`/secretaria/oracoes/editar/${pedido.id}`)} className="text-gray-500 hover:text-ohel-blue transition-colors"><Edit className="w-4 h-4" /></button>
                         {pedido.status === "Pendente" && (
                           <>
-                            <button onClick={() => void handleStatusChange(pedido.id, "Aprovado")} disabled={statusUpdatingId === pedido.id} className="text-gray-500 hover:text-green-400 disabled:opacity-50 transition-colors" title="Aprovar"><CheckCircle className="w-4 h-4" /></button>
+                            <button onClick={() => void handleStatusChange(pedido.id, "Em Oração")} disabled={statusUpdatingId === pedido.id} className="text-gray-500 hover:text-green-400 disabled:opacity-50 transition-colors" title="Colocar em oração"><CheckCircle className="w-4 h-4" /></button>
                             <button onClick={() => void handleStatusChange(pedido.id, "Rejeitado")} disabled={statusUpdatingId === pedido.id} className="text-gray-500 hover:text-red-400 disabled:opacity-50 transition-colors" title="Rejeitar"><XCircle className="w-4 h-4" /></button>
                           </>
                         )}
@@ -171,7 +171,7 @@ export default function OracoesPage() {
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
                         ${pedido.status === "Pendente" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
-                          pedido.status === "Aprovado" || pedido.status === "Em Oração" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                          pedido.status === "Em Oração" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                           pedido.status === "Rejeitado" ? "bg-red-500/10 text-red-400 border-red-500/20" :
                           "bg-green-500/10 text-green-400 border-green-500/20"}`}>
                         {pedido.status}

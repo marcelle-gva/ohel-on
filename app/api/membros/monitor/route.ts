@@ -43,7 +43,7 @@ export async function GET(request: Request) {
           .from("pedidos_oracao")
           .select("id, nome_solicitante, descricao")
           .eq("igreja_id", igrejaId)
-          .eq("status", "Aprovado")
+          .eq("status", "Em Oração")
           .gte("created_at", semana)
           .order("created_at", { ascending: false })
           .limit(100),

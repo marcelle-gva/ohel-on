@@ -136,7 +136,7 @@ export default function MonitorMidiaPage() {
               supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
               supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }),
               supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }),
-              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Aprovado').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
+              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Em Oração').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
               supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
               // Busca as próximas 3 escalas com os membros escalados
               supabase.from('escalas')
@@ -197,7 +197,7 @@ export default function MonitorMidiaPage() {
                       ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
                       : [payload.new, ...prev]
                     : prev.filter((pedido) => pedido.id !== payload.new.id));
-                  setOracoesSemana((prev) => payload.new.status === 'Aprovado'
+                  setOracoesSemana((prev) => payload.new.status === 'Em Oração'
                     ? prev.some((pedido) => pedido.id === payload.new.id)
                       ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
                       : [payload.new, ...prev]
@@ -271,13 +271,13 @@ export default function MonitorMidiaPage() {
       const response = await fetch("/api/oracoes/status", {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "Aprovado" }),
+        body: JSON.stringify({ id, status: "Em Oração" }),
       });
       const result = await response.json() as { error?: string; pedido?: { id: string; status: string } };
       if (!response.ok || !result.pedido) throw new Error(result.error || "Não foi possível aprovar a oração.");
       const aprovado = oracoesPendentes.find(o => o.id === id);
       setOracoesPendentes((current) => current.filter(o => o.id !== id));
-      if (aprovado) setOracoesSemana((current) => [{ ...aprovado, status: 'Aprovado' }, ...current]);
+      if (aprovado) setOracoesSemana((current) => [{ ...aprovado, status: 'Em Oração' }, ...current]);
     } catch (error) {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível aprovar." });
     }

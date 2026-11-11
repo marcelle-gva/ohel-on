@@ -2,12 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const MODULOS_ORACAO = ["oracoes", "monitor-oracoes"];
-
-function ehGrupoLideranca(nome: unknown) {
-  return typeof nome === "string" && ["liderança", "lideranca"].includes(nome.trim().toLocaleLowerCase("pt-BR"));
-}
-
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -29,94 +23,37 @@ export async function POST(request: Request) {
   }
 
   const pedidoId = typeof body.id === "string" ? body.id : "";
-  const status = body.status === "Aprovado" || body.status === "Rejeitado" ? body.status : "";
+  const status = body.status === "Em Oração" || body.status === "Rejeitado" ? body.status : "";
   if (!/^[0-9a-f-]{36}$/i.test(pedidoId) || !status) {
-    return Response.json({ error: "Pedido ou status inválido." }, { status: 400 });
+    return Response.json({ error: "Pedido ou decisão inválida." }, { status: 400 });
   }
 
-  const authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const authClient = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   const { data: { user }, error: authError } = await authClient.auth.getUser(token);
   if (authError || !user) {
     return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
   }
 
-  const serviceClient = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data: perfil, error: perfilError } = await serviceClient
-    .from("usuarios")
-    .select("igreja_id, role, grupo_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const serviceClient = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await serviceClient.rpc("approve_prayer_request", {
+    p_pedido_id: pedidoId,
+    p_ator_id: user.id,
+    p_status: status,
+  });
 
-  if (perfilError || !perfil?.igreja_id) {
-    return Response.json({ error: "Perfil da igreja não encontrado." }, { status: 403 });
+  if (error) {
+    const statusCode = error.code === "42501" ? 403 : error.code === "P0002" ? 409 : 400;
+    return Response.json({ error: error.message || "Não foi possível atualizar o pedido." }, { status: statusCode });
   }
 
-  let nomeGrupo = "";
-  if (perfil.grupo_id) {
-    const { data: grupo } = await serviceClient
-      .from("grupos")
-      .select("nome")
-      .eq("id", perfil.grupo_id)
-      .eq("igreja_id", perfil.igreja_id)
-      .maybeSingle();
-    nomeGrupo = grupo?.nome || "";
+  const pedido = Array.isArray(data) ? data[0] : data;
+  if (!pedido) {
+    return Response.json({ error: "Pedido não encontrado ou já processado." }, { status: 409 });
   }
 
-  // Administradores e usuários do grupo padrão Liderança podem tomar a decisão.
-  // Para os demais usuários, a permissão explícita de aprovação continua obrigatória.
-  let autorizado = perfil.role === "admin" || ehGrupoLideranca(nomeGrupo);
-  if (autorizado && perfil.role !== "admin" && perfil.grupo_id) {
-    const { data: permissoes } = await serviceClient
-      .from("grupos_permissoes")
-      .select("modulo, acao")
-      .eq("grupo_id", perfil.grupo_id)
-      .in("modulo", MODULOS_ORACAO)
-      .in("acao", ["aprovar", "editar"]);
-    autorizado = Boolean(permissoes?.length);
-  }
-
-  if (!autorizado) {
-    return Response.json({ error: "A decisão deve ser feita por um usuário autenticado do grupo Liderança com permissão para aprovar orações." }, { status: 403 });
-  }
-
-  const { data: pedido, error: pedidoError } = await serviceClient
-    .from("pedidos_oracao")
-    .select("id, igreja_id, status")
-    .eq("id", pedidoId)
-    .eq("igreja_id", perfil.igreja_id)
-    .maybeSingle();
-
-  if (pedidoError || !pedido) {
-    return Response.json({ error: "Pedido de oração não encontrado nesta igreja." }, { status: 404 });
-  }
-  if (pedido.status !== "Pendente") {
-    return Response.json({ error: `Este pedido já está ${pedido.status.toLowerCase()}.` }, { status: 409 });
-  }
-
-  let updateError: { message?: string } | null = null;
-  if (perfil.role === "admin") {
-    const { error } = await serviceClient.rpc("finalize_prayer_request", {
-      p_pedido_id: pedido.id,
-      p_igreja_id: perfil.igreja_id,
-      p_ator_id: user.id,
-      p_acao: status,
-      p_metodo: "admin",
-    });
-    updateError = error;
-  } else {
-    // A liderança já foi validada acima. O cliente server-side é necessário
-    // porque o banco bloqueia updates de status feitos por JWT comum.
-    const { error } = await serviceClient
-      .from("pedidos_oracao")
-      .update({ status })
-      .eq("id", pedido.id)
-      .eq("igreja_id", perfil.igreja_id);
-    updateError = error;
-  }
-
-  if (updateError) {
-    return Response.json({ error: updateError.message || "Não foi possível atualizar o pedido." }, { status: 409 });
-  }
-
-  return Response.json({ ok: true, pedido: { id: pedido.id, status } });
+  return Response.json({ ok: true, pedido });
 }
