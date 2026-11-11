@@ -4,11 +4,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Bell, Search, LogOut, Cloud } from "lucide-react";
+import Image from "next/image";
+
+interface IgrejaResumo {
+  nome: string;
+  logo_url: string | null;
+}
 
 export function Header() {
   const router = useRouter();
   const [preCadastrosPendentes, setPreCadastrosPendentes] = useState(0);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [igreja, setIgreja] = useState<IgrejaResumo | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -19,6 +26,8 @@ export function Header() {
       if (active) setIsPlatformAdmin(Boolean(platformAdmin));
       const { data: usuario } = await supabase.from("usuarios").select("igreja_id").eq("id", session.user.id).maybeSingle();
       if (!usuario?.igreja_id) return;
+      const { data: igrejaAtual } = await supabase.from("igrejas").select("nome, logo_url").eq("id", usuario.igreja_id).maybeSingle();
+      if (active && igrejaAtual) setIgreja(igrejaAtual as IgrejaResumo);
       const { count } = await supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", usuario.igreja_id).eq("status", "Pré-Cadastro");
       if (active) setPreCadastrosPendentes(count || 0);
     };
@@ -36,9 +45,15 @@ export function Header() {
   return (
     <header className="h-16 bg-ohel-surface border-b border-gray-800 flex items-center justify-between px-4 md:px-6 pl-16 md:pl-6">
       
-      {/* Esquerda: Nome da Igreja */}
-      <div className="flex items-center gap-4">
-        <span className="text-white font-medium text-sm md:text-base">Igreja Matriz</span>
+      {/* Esquerda: Identidade da Igreja */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-gray-700 bg-ohel-bg flex items-center justify-center">
+          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="40px" className="object-contain p-1" /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
+        </div>
+        <div className="min-w-0">
+          <span className="block truncate text-white font-medium text-sm md:text-base">{igreja?.nome || "Igreja Matriz"}</span>
+          <span className="block text-[10px] text-gray-500 uppercase tracking-wider">Igreja</span>
+        </div>
         <span className="hidden md:inline-block text-xs bg-ohel-blue/20 text-ohel-blue px-2 py-1 rounded-full border border-ohel-blue/30">
           Plano Mensal
         </span>
