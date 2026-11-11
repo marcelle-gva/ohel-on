@@ -26,6 +26,7 @@ interface MonitorUsuario {
 
 export default function ConfiguracoesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sistemaLogoInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -34,7 +35,7 @@ export default function ConfiguracoesPage() {
 
   // Dados da Igreja
   const [formData, setFormData] = useState({
-    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: "", logo_scale: 100, logo_position_x: 0, logo_position_y: 0
+    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: "", logo_sistema_url: "", logo_scale: 100, logo_position_x: 0, logo_position_y: 0
   });
   const logoDragRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
@@ -61,7 +62,7 @@ export default function ConfiguracoesPage() {
           if (igreja) {
             setFormData({
               nome: igreja.nome || "", cnpj: igreja.cnpj || "", cep: igreja.cep || "", endereco: igreja.endereco || "",
-              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || "", logo_scale: Number(igreja.logo_scale) || 100, logo_position_x: Number(igreja.logo_position_x) || 0, logo_position_y: Number(igreja.logo_position_y) || 0
+              telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || "", logo_sistema_url: igreja.logo_sistema_url || "", logo_scale: Number(igreja.logo_scale) || 100, logo_position_x: Number(igreja.logo_position_x) || 0, logo_position_y: Number(igreja.logo_position_y) || 0
             });
           }
 
@@ -152,6 +153,25 @@ export default function ConfiguracoesPage() {
     }
   };
 
+  const handleUploadSistemaLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !igrejaId) return;
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `logo-sistema-${igrejaId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+      setFormData((current) => ({ ...current, logo_sistema_url: data.publicUrl }));
+      setModal({ isOpen: true, type: "success", title: "Logo OHEL ON enviada", message: "Clique em Salvar Configurações para aplicar a nova marca." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro no Upload", message: error instanceof Error ? error.message : "Verifique se o bucket 'logos' está público." });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!igrejaId) return;
@@ -159,7 +179,7 @@ export default function ConfiguracoesPage() {
     try {
       const { error } = await supabase.from('igrejas').update({
         nome: formData.nome, cnpj: formData.cnpj, cep: formData.cep.replace(/\D/g, "") || null, endereco: formData.endereco,
-        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url, logo_scale: formData.logo_scale, logo_position_x: formData.logo_position_x, logo_position_y: formData.logo_position_y
+        telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url, logo_sistema_url: formData.logo_sistema_url, logo_scale: formData.logo_scale, logo_position_x: formData.logo_position_x, logo_position_y: formData.logo_position_y
       }).eq('id', igrejaId);
 
       if (error) throw error;
@@ -281,6 +301,24 @@ export default function ConfiguracoesPage() {
           <h3 className="text-[11px] font-bold text-ohel-blue uppercase tracking-wider mb-4 border-b border-gray-800 pb-2 flex items-center gap-2">
             <Building2 className="w-4 h-4" /> Identidade Visual
           </h3>
+
+          <div className="mb-5 rounded-xl border border-ohel-blue/20 bg-ohel-blue/5 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-white">Logo OHEL ON do painel</p>
+                <p className="mt-1 text-[11px] leading-5 text-gray-400">Imagem exibida nas telas de login e na navegação. A logo padrão será usada enquanto nenhuma personalizada for salva.</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <div className="relative flex h-16 w-28 items-center justify-center overflow-hidden rounded-lg border border-gray-700 bg-ohel-bg">
+                  {formData.logo_sistema_url ? <Image src={formData.logo_sistema_url} alt="Logo OHEL ON personalizada" fill sizes="112px" className="object-contain p-2" /> : <Image src="/logo.png" alt="Logo OHEL ON padrão" fill sizes="112px" className="object-contain p-2" />}
+                </div>
+                <input type="file" accept="image/*" ref={sistemaLogoInputRef} onChange={handleUploadSistemaLogo} className="hidden" />
+                <Button type="button" variant="secondary" onClick={() => sistemaLogoInputRef.current?.click()} disabled={uploading} className="w-auto px-4 py-2 text-xs">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Upload className="mr-1.5 h-3.5 w-3.5" /> Alterar logo OHEL ON</>}
+                </Button>
+              </div>
+            </div>
+          </div>
           
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-40 h-24 bg-ohel-bg rounded-lg border border-dashed border-gray-700 flex items-center justify-center overflow-hidden relative cursor-grab active:cursor-grabbing" onPointerDown={handleLogoPointerDown} onPointerMove={handleLogoPointerMove} onPointerUp={handleLogoPointerUp} onPointerCancel={handleLogoPointerUp}>
