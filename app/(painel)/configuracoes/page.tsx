@@ -20,8 +20,9 @@ export default function ConfiguracoesPage() {
 
   // Dados da Igreja
   const [formData, setFormData] = useState({
-    nome: "", cnpj: "", endereco: "", telefone: "", email: "", logo_url: ""
+    nome: "", cnpj: "", cep: "", endereco: "", telefone: "", email: "", logo_url: ""
   });
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   // Departamentos e Cargos
   const [departamentos, setDepartamentos] = useState<any[]>([]);
@@ -42,7 +43,7 @@ export default function ConfiguracoesPage() {
           const { data: igreja } = await supabase.from('igrejas').select('*').eq('id', user.igreja_id).single();
           if (igreja) {
             setFormData({
-              nome: igreja.nome || "", cnpj: igreja.cnpj || "", endereco: igreja.endereco || "",
+              nome: igreja.nome || "", cnpj: igreja.cnpj || "", cep: igreja.cep || "", endereco: igreja.endereco || "",
               telefone: igreja.telefone || "", email: igreja.email || "", logo_url: igreja.logo_url || ""
             });
           }
@@ -62,7 +63,33 @@ export default function ConfiguracoesPage() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.name === "cep"
+      ? e.target.value.replace(/\D/g, "").slice(0, 8).replace(/^(\d{5})(\d)/, "$1-$2")
+      : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
+  };
+
+  const buscarCep = async () => {
+    const cep = formData.cep.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+    try {
+      setBuscandoCep(true);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!response.ok) throw new Error("Não foi possível consultar o CEP.");
+      const data = await response.json() as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
+      if (data.erro) {
+        setModal({ isOpen: true, type: "error", title: "CEP não encontrado", message: "Confira o CEP informado e tente novamente." });
+        return;
+      }
+      const endereco = [data.logradouro, data.bairro, data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade || data.uf]
+        .filter(Boolean)
+        .join(", ");
+      setFormData((current) => ({ ...current, endereco }));
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao consultar CEP", message: error instanceof Error ? error.message : "Não foi possível preencher o endereço automaticamente." });
+    } finally {
+      setBuscandoCep(false);
+    }
   };
 
   const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +119,7 @@ export default function ConfiguracoesPage() {
     setSaving(true);
     try {
       const { error } = await supabase.from('igrejas').update({
-        nome: formData.nome, cnpj: formData.cnpj, endereco: formData.endereco,
+        nome: formData.nome, cnpj: formData.cnpj, cep: formData.cep.replace(/\D/g, "") || null, endereco: formData.endereco,
         telefone: formData.telefone, email: formData.email, logo_url: formData.logo_url
       }).eq('id', igrejaId);
 
@@ -191,6 +218,11 @@ export default function ConfiguracoesPage() {
             <div className="relative">
               <Phone className="w-3.5 h-3.5 absolute left-3 top-8 text-gray-500" />
               <Input label="Telefone / WhatsApp" name="telefone" placeholder="(00) 0000-0000" value={formData.telefone} onChange={handleChange} className="py-2 text-xs pl-9" />
+            </div>
+            <div className="relative">
+              <Input label="CEP" name="cep" placeholder="00000-000" value={formData.cep} onChange={handleChange} onBlur={() => void buscarCep()} inputMode="numeric" autoComplete="postal-code" className="py-2 text-xs pr-10" />
+              {buscandoCep && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-8 text-ohel-blue" aria-label="Consultando CEP" />}
+              <p className="text-[10px] text-gray-500 mt-1">Ao preencher, a rua, bairro, cidade e UF serão buscados automaticamente.</p>
             </div>
             <div className="md:col-span-2">
               <Input label="E-mail de Contato" type="email" name="email" placeholder="contato@igreja.com" value={formData.email} onChange={handleChange} className="py-2 text-xs" />
