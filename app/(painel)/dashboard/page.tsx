@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Users, UserPlus, HeartHandshake, Church, DollarSign, CalendarDays, CheckSquare, Bell, MonitorPlay, ArrowRight } from "lucide-react";
 
+interface AvisoMural {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [nomeUsuario, setNomeUsuario] = useState("Líder");
@@ -22,6 +29,7 @@ export default function Dashboard() {
   const [aniversariantes, setAniversariantes] = useState(0);
   const [preCadastros, setPreCadastros] = useState(0);
   const [totalAvisos, setTotalAvisos] = useState(0);
+  const [avisosMural, setAvisosMural] = useState<AvisoMural[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -30,7 +38,8 @@ export default function Dashboard() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const { data: userData } = await supabase.from("usuarios").select("nome, role").eq("id", session.user.id).maybeSingle();
+        const { data: userData } = await supabase.from("usuarios").select("nome, role, igreja_id").eq("id", session.user.id).maybeSingle();
+        if (!userData?.igreja_id) return;
         if (userData?.role === "admin") setNomeUsuario("Admin");
         else if (userData?.role === "monitor") setNomeUsuario("Monitor de Mídia");
         else if (userData?.nome) setNomeUsuario(userData.nome.split(" ")[0]);
@@ -45,25 +54,25 @@ export default function Dashboard() {
           membrosRes, congregadosRes, visitantesRes, congregacoesRes,
           transacoesRes, oracoesRes, preCadastrosRes, muralRes, membrosNascRes
         ] = await Promise.all([
-          supabase.from("membros").select("*", { count: "exact", head: true }),
-          supabase.from("congregados").select("*", { count: "exact", head: true }),
-          supabase.from("visitantes").select("*", { count: "exact", head: true }),
-          supabase.from("congregacoes").select("*", { count: "exact", head: true }),
+          supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
+          supabase.from("congregados").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
+          supabase.from("visitantes").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
+          supabase.from("congregacoes").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           
           // Transações do mês atual para calcular saldo
-          supabase.from("transacoes").select("tipo, valor").eq("mes_referencia", mesRef),
+          supabase.from("transacoes").select("tipo, valor").eq("igreja_id", userData.igreja_id).eq("mes_referencia", mesRef),
           
           // Orações pendentes
-          supabase.from("pedidos_oracao").select("*", { count: "exact", head: true }).in('status', ['Pendente', 'Em Oração']),
+          supabase.from("pedidos_oracao").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).in('status', ['Pendente', 'Em Oração']),
           
           // Pré-cadastros pendentes
-          supabase.from("membros").select("*", { count: "exact", head: true }).eq("status", "Pré-Cadastro"),
+          supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).eq("status", "Pré-Cadastro"),
           
           // Avisos no mural
-          supabase.from("comunicacoes").select("*", { count: "exact", head: true }),
+          supabase.from("comunicacoes").select("id, titulo, conteudo, created_at", { count: "exact" }).eq("igreja_id", userData.igreja_id).order("created_at", { ascending: false }).limit(3),
           
           // Buscar todas as datas de nascimento para filtrar no JS (mais leve que RPC)
-          supabase.from("membros").select("data_nascimento").eq("status", "Ativo")
+          supabase.from("membros").select("data_nascimento").eq("igreja_id", userData.igreja_id).eq("status", "Ativo")
         ]);
 
         setTotalMembros(membrosRes.count || 0);
@@ -74,6 +83,7 @@ export default function Dashboard() {
         setPedidosOracao(oracoesRes.count || 0);
         setPreCadastros(preCadastrosRes.count || 0);
         setTotalAvisos(muralRes.count || 0);
+        setAvisosMural((muralRes.data || []) as AvisoMural[]);
 
         // Cálculo do Saldo Financeiro
         if (transacoesRes.data) {
@@ -116,7 +126,7 @@ export default function Dashboard() {
 
       {/* MONITOR DE MÍDIA */}
       <Link href="/monitor-midia" className="block outline-none">
-        <Card className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-ohel-blue/20 to-ohel-surface border-ohel-blue/40 hover:border-ohel-blue transition-all duration-300 cursor-pointer group shadow-[0_0_20px_rgba(0,123,255,0.15)]">
+        <Card className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-ohel-blue/20 to-ohel-surface border-ohel-blue/40 hover:border-ohel-blue hover:shadow-[0_0_30px_rgba(0,123,255,0.4)] transition-all duration-300 cursor-pointer group shadow-[0_0_20px_rgba(0,123,255,0.15)]">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-ohel-blue flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
               <MonitorPlay className="w-6 h-6 text-white" />
@@ -135,7 +145,7 @@ export default function Dashboard() {
       {/* LINHA 1 DE KPIs (SECRETARIA) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Link href="/secretaria/membros" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-ohel-blue/50 hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
+          <Card className="p-4 flex flex-col justify-between group hover:border-ohel-blue/50 hover:shadow-[0_0_24px_rgba(0,123,255,0.35)] hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Membros</p>
               <div className="w-8 h-8 rounded-full bg-ohel-blue/10 flex items-center justify-center"><Users className="w-4 h-4 text-ohel-blue" /></div>
@@ -144,7 +154,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         <Link href="/secretaria/congregados" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
+          <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:shadow-[0_0_24px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Congregados</p>
               <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center"><UserPlus className="w-4 h-4 text-green-500" /></div>
@@ -153,7 +163,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         <Link href="/secretaria/visitantes" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-purple-500/50 hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
+          <Card className="p-4 flex flex-col justify-between group hover:border-purple-500/50 hover:shadow-[0_0_24px_rgba(168,85,247,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Visitantes</p>
               <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center"><HeartHandshake className="w-4 h-4 text-purple-500" /></div>
@@ -162,7 +172,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         <Link href="/secretaria/congregacoes" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-yellow-500/50 hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
+          <Card className="p-4 flex flex-col justify-between group hover:border-yellow-500/50 hover:shadow-[0_0_24px_rgba(234,179,8,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full shadow-lg">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Congregações</p>
               <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center"><Church className="w-4 h-4 text-yellow-500" /></div>
@@ -175,7 +185,7 @@ export default function Dashboard() {
       {/* LINHA 2 DE KPIs (OPERACIONAL / FINANCEIRO) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Link href="/financeiro/movimento" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
+          <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:shadow-[0_0_24px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Saldo do Mês</p>
               <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center"><DollarSign className="w-4 h-4 text-green-500" /></div>
@@ -187,7 +197,7 @@ export default function Dashboard() {
         </Link>
 
         <Link href="/secretaria/oracoes" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-red-500/50 hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
+          <Card className="p-4 flex flex-col justify-between group hover:border-red-500/50 hover:shadow-[0_0_24px_rgba(239,68,68,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
             <div className="flex justify-between items-start mb-2">
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Pedidos de Oração</p>
               <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center"><HeartHandshake className="w-4 h-4 text-red-500" /></div>
@@ -196,7 +206,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         
-        <Card className="p-4 flex flex-col justify-between h-full bg-ohel-surface/40 border-gray-800">
+        <Card className="p-4 flex flex-col justify-between h-full bg-ohel-surface/40 border-gray-800 hover:border-orange-500/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.3)] transition-all">
           <div className="flex justify-between items-start mb-2">
             <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Aniversariantes</p>
             <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center"><CalendarDays className="w-4 h-4 text-orange-500" /></div>
@@ -230,13 +240,19 @@ export default function Dashboard() {
         </Link>
 
         <Link href="/secretaria/mural" className="block outline-none">
-          <Card className="p-5 flex flex-col min-h-[250px] group hover:border-teal-500/50 hover:scale-[1.01] transition-all cursor-pointer">
+          <Card className="p-5 flex flex-col min-h-[250px] group hover:border-teal-500/50 hover:shadow-[0_0_24px_rgba(20,184,166,0.3)] hover:scale-[1.01] transition-all cursor-pointer">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center"><Bell className="w-3.5 h-3.5 text-teal-500" /></div>
               <h3 className="text-sm font-bold text-white">Mural / Avisos</h3>
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-              <p className="text-xs">Há {loading ? "-" : totalAvisos} avisos publicados no mural.</p>
+            <div className="flex-1 flex flex-col justify-center text-gray-400 gap-2">
+              {loading ? <p className="text-xs text-center">Carregando avisos...</p> : avisosMural.length === 0 ? <p className="text-xs text-center">Nenhum aviso publicado no mural.</p> : avisosMural.map((aviso) => (
+                <div key={aviso.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">
+                  <p className="text-xs font-semibold text-white truncate">{aviso.titulo}</p>
+                  <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{aviso.conteudo}</p>
+                </div>
+              ))}
+              <p className="text-[10px] text-teal-400 text-center mt-1">{totalAvisos} aviso(s) publicado(s)</p>
             </div>
           </Card>
         </Link>

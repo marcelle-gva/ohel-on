@@ -16,6 +16,7 @@ export function Header() {
   const [preCadastrosPendentes, setPreCadastrosPendentes] = useState(0);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [igreja, setIgreja] = useState<IgrejaResumo | null>(null);
+  const [congregacaoNome, setCongregacaoNome] = useState("Matriz");
 
   useEffect(() => {
     let active = true;
@@ -28,6 +29,8 @@ export function Header() {
       if (!usuario?.igreja_id) return;
       const { data: igrejaAtual } = await supabase.from("igrejas").select("nome, logo_url").eq("id", usuario.igreja_id).maybeSingle();
       if (active && igrejaAtual) setIgreja(igrejaAtual as IgrejaResumo);
+      const { data: congregacoes } = await supabase.from("congregacoes").select("nome").eq("igreja_id", usuario.igreja_id).order("created_at").limit(20);
+      if (active && congregacoes?.length) setCongregacaoNome(congregacoes.length === 1 ? "Matriz" : congregacoes[0].nome);
       const { count } = await supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", usuario.igreja_id).eq("status", "Pré-Cadastro");
       if (active) setPreCadastrosPendentes(count || 0);
     };
@@ -47,12 +50,12 @@ export function Header() {
       
       {/* Esquerda: Identidade da Igreja */}
       <div className="flex items-center gap-3 min-w-0">
-        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-gray-700 bg-ohel-bg flex items-center justify-center">
-          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="40px" className="object-contain p-1" /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
+        <div className="relative h-10 w-12 shrink-0 overflow-hidden flex items-center justify-center">
+          {igreja?.logo_url ? <Image src={igreja.logo_url} alt={`Logo ${igreja.nome}`} fill sizes="48px" className="object-contain" /> : <span className="text-xs font-bold text-ohel-blue">ON</span>}
         </div>
         <div className="min-w-0">
           <span className="block truncate text-white font-medium text-sm md:text-base">{igreja?.nome || "Igreja Matriz"}</span>
-          <span className="block text-[10px] text-gray-500 uppercase tracking-wider">Igreja</span>
+          <span className="block text-[10px] text-gray-500 uppercase tracking-wider">{congregacaoNome}</span>
         </div>
         <span className="hidden md:inline-block text-xs bg-ohel-blue/20 text-ohel-blue px-2 py-1 rounded-full border border-ohel-blue/30">
           Plano Mensal
