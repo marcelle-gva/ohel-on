@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/brand/Logo";
@@ -13,6 +13,8 @@ import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function RedefinirSenhaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const origemMembro = searchParams.get("origem") === "membro";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +50,7 @@ export default function RedefinirSenhaPage() {
 
   const handleCloseModal = () => {
     setModal({ ...modal, isOpen: false });
-    if (modal.type === "success") router.push("/login");
+    if (modal.type === "success") router.push(origemMembro ? "/login-membro" : "/login");
   };
 
   return (
@@ -61,7 +63,7 @@ export default function RedefinirSenhaPage() {
         message={modal.message}
       />
       <Card className="w-full max-w-[400px] flex flex-col items-center px-8 pt-6 pb-8 border-gray-800">
-        <Link href="/recuperar-senha" className="self-start text-gray-400 hover:text-white transition-colors" aria-label="Solicitar outro link">
+        <Link href={origemMembro ? "/recuperar-senha?origem=membro" : "/recuperar-senha"} className="self-start text-gray-400 hover:text-white transition-colors" aria-label="Solicitar outro link">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <Logo className="h-[100px] w-[200px]" />

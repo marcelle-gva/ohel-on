@@ -60,6 +60,10 @@ export default function LoginMembroPage() {
           </Button>
         </form>
 
+        <Link href="/recuperar-senha?origem=membro" className="text-xs text-emerald-300 hover:text-emerald-200 mt-4 transition-colors text-center">
+          Esqueci minha senha
+        </Link>
+
         {mensagem && <p className="w-full mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-200">{mensagem}</p>}
         {erro && <p className="w-full mt-4 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs leading-relaxed text-red-200">{erro}</p>}
 
