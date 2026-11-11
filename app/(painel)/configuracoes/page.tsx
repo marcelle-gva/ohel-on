@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard, X, MonitorPlay } from "lucide-react";
+import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard, X, MonitorPlay, User, Pencil } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -14,6 +14,14 @@ interface MonitorAcesso {
   id: string;
   email: string;
   ativo: boolean;
+}
+
+interface MonitorUsuario {
+  id: string;
+  nome: string;
+  email: string | null;
+  foto_url: string | null;
+  role: string;
 }
 
 export default function ConfiguracoesPage() {
@@ -32,7 +40,7 @@ export default function ConfiguracoesPage() {
 
   // Departamentos e Cargos
   const [departamentos, setDepartamentos] = useState<any[]>([]);
-  const [usuarios, setUsuarios] = useState<{ id: string; nome: string; email: string | null }[]>([]);
+  const [usuarios, setUsuarios] = useState<MonitorUsuario[]>([]);
   const [cargos, setCargos] = useState<any[]>([]);
   const [novoDepto, setNovoDepto] = useState("");
   const [novoCargo, setNovoCargo] = useState("");
@@ -58,7 +66,7 @@ export default function ConfiguracoesPage() {
 
           const { data: deps } = await supabase.from('departamentos').select('*, usuarios:responsavel_usuario_id(id, nome, email)').eq('igreja_id', user.igreja_id).order('nome');
           if (deps) setDepartamentos(deps);
-          const { data: users } = await supabase.from('usuarios').select('id, nome, email').eq('igreja_id', user.igreja_id).order('nome');
+          const { data: users } = await supabase.from('usuarios').select('id, nome, email, foto_url, role').eq('igreja_id', user.igreja_id).order('nome');
           if (users) setUsuarios(users);
 
           const { data: crgs } = await supabase.from('cargos').select('*').eq('igreja_id', user.igreja_id).order('nome');
@@ -195,6 +203,30 @@ export default function ConfiguracoesPage() {
       return;
     }
     setMonitorAcessos((current) => current.filter((acesso) => acesso.id !== id));
+  };
+
+  const handleUploadMonitorFoto = async (acesso: MonitorAcesso, file: File) => {
+    const usuario = usuarios.find((item) => item.email?.trim().toLowerCase() === acesso.email.toLowerCase());
+    if (!usuario) {
+      setModal({ isOpen: true, type: "error", title: "Usuário ainda não encontrado", message: "A foto poderá ser editada depois que esse e-mail fizer o primeiro login." });
+      return;
+    }
+    try {
+      setUploading(true);
+      const ext = file.name.split('.').pop() || 'jpg';
+      const fileName = `monitor-${igrejaId}-${usuario.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { error } = await supabase.from('usuarios').update({ foto_url: data.publicUrl }).eq('id', usuario.id).eq('igreja_id', igrejaId || '');
+      if (error) throw error;
+      setUsuarios((current) => current.map((item) => item.id === usuario.id ? { ...item, foto_url: data.publicUrl } : item));
+      setModal({ isOpen: true, type: "success", title: "Foto atualizada", message: "A foto do perfil do Monitor foi salva." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro ao salvar foto", message: error instanceof Error ? error.message : "Não foi possível atualizar a foto." });
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando configurações...</div>;
@@ -497,12 +529,25 @@ export default function ConfiguracoesPage() {
                   <div className="flex flex-col gap-2 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
                     {monitorAcessos.length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-8">Nenhum e-mail autorizado.</p>
-                    ) : monitorAcessos.map((acesso) => (
-                      <div key={acesso.id} className="flex items-center justify-between gap-2 bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
-                        <span>{acesso.email}</span>
-                        <button type="button" onClick={() => void handleDeleteMonitor(acesso.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir acesso ${acesso.email}`}><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    ))}
+                    ) : monitorAcessos.map((acesso) => {
+                      const usuario = usuarios.find((item) => item.email?.trim().toLowerCase() === acesso.email.toLowerCase());
+                      return (
+                        <div key={acesso.id} className="flex items-center justify-between gap-3 bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gray-800 border border-gray-700 shrink-0 flex items-center justify-center">
+                              {usuario?.foto_url ? <Image src={usuario.foto_url} alt={usuario.nome || acesso.email} fill sizes="36px" className="object-cover" /> : <User className="w-4 h-4 text-gray-500" />}
+                            </div>
+                            <div className="min-w-0"><p className="font-medium truncate">{usuario?.nome || "Acesso do Monitor"}</p><span className="text-gray-400 truncate block">{acesso.email}</span></div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <label className="text-ohel-blue hover:text-white cursor-pointer" title={usuario ? "Editar foto do perfil" : "Disponível após o primeiro login"}>
+                              <Pencil className="w-3.5 h-3.5" /><input type="file" accept="image/*" className="hidden" disabled={!usuario || uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleUploadMonitorFoto(acesso, file); event.target.value = ""; }} />
+                            </label>
+                            <button type="button" onClick={() => void handleDeleteMonitor(acesso.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir acesso ${acesso.email}`}><Trash2 className="w-3 h-3" /></button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
