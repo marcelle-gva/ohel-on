@@ -93,20 +93,30 @@ export async function POST(request: Request) {
     return Response.json({ error: `Este pedido já está ${pedido.status.toLowerCase()}.` }, { status: 409 });
   }
 
-  // A autorização do usuário já foi validada acima. A mutação precisa usar o
-  // cliente server-side porque o banco bloqueia updates de status fora deste
-  // fluxo e rejeita JWTs comuns no trigger de aprovação.
-  const { data: atualizado, error: updateError } = await serviceClient
-    .from("pedidos_oracao")
-    .update({ status })
-    .eq("id", pedido.id)
-    .eq("igreja_id", perfil.igreja_id)
-    .select("id, status")
-    .maybeSingle();
-
-  if (updateError || !atualizado) {
-    return Response.json({ error: updateError?.message || "Não foi possível atualizar o pedido." }, { status: 409 });
+  let updateError: { message?: string } | null = null;
+  if (perfil.role === "admin") {
+    const { error } = await serviceClient.rpc("finalize_prayer_request", {
+      p_pedido_id: pedido.id,
+      p_igreja_id: perfil.igreja_id,
+      p_ator_id: user.id,
+      p_acao: status,
+      p_metodo: "admin",
+    });
+    updateError = error;
+  } else {
+    // A liderança já foi validada acima. O cliente server-side é necessário
+    // porque o banco bloqueia updates de status feitos por JWT comum.
+    const { error } = await serviceClient
+      .from("pedidos_oracao")
+      .update({ status })
+      .eq("id", pedido.id)
+      .eq("igreja_id", perfil.igreja_id);
+    updateError = error;
   }
 
-  return Response.json({ ok: true, pedido: atualizado });
+  if (updateError) {
+    return Response.json({ error: updateError.message || "Não foi possível atualizar o pedido." }, { status: 409 });
+  }
+
+  return Response.json({ ok: true, pedido: { id: pedido.id, status } });
 }

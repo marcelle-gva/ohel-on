@@ -157,7 +157,7 @@ export default function OracoesPage() {
                       </div>
                     </td>
                     <td className="p-4 text-white font-medium flex items-center gap-2">
-                      <HeartHandshake className="w-4 h-4 text-ohel-blue" /> {pedido.nome_solicitante}
+                      <HeartHandshake className="w-4 h-4 text-red-500" /> {pedido.nome_solicitante}
                     </td>
                     <td className="p-4 text-gray-300 text-sm truncate max-w-[300px]" title={pedido.descricao}>{pedido.descricao}</td>
                     <td className="p-4">

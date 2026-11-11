@@ -93,7 +93,7 @@ export default function NovoPedidoOracaoPage() {
       <Card className="p-8">
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="flex items-center gap-2 border-b border-gray-800 pb-3 mb-2">
-            <HeartHandshake className="w-5 h-5 text-ohel-blue" />
+            <HeartHandshake className="w-5 h-5 text-red-500" />
             <h2 className="text-lg font-semibold text-white">Detalhes do Pedido</h2>
           </div>
 
