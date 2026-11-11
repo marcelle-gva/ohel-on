@@ -16,7 +16,6 @@ export default function AuthCallbackPage() {
 
     const finishSignIn = async () => {
       const callbackUrl = new URL(window.location.href);
-      const code = callbackUrl.searchParams.get("code");
       const oauthError = callbackUrl.searchParams.get("error_description")
         || callbackUrl.searchParams.get("error");
 
@@ -25,17 +24,8 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setMessage("Não foi possível validar a sessão do Google. Tente novamente.");
-          return;
-        }
-      }
-
-      // Em alguns navegadores móveis o Supabase conclui a sessão antes
-      // de a página de callback terminar de carregar. Reaproveitamos essa
-      // sessão em vez de mandar o usuário voltar ao login.
+      // O cliente único detecta o access_token/refresh_token do retorno
+      // implícito. Aguardamos a persistência terminar antes do redirecionamento.
       let sessionData = (await supabase.auth.getSession()).data;
       for (let attempt = 0; !sessionData.session && attempt < 10; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 200));

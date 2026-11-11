@@ -54,10 +54,6 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Remove apenas verifiers abandonados por tentativas interrompidas.
-      Object.keys(window.localStorage)
-        .filter((key) => key.includes("-code-verifier"))
-        .forEach((key) => window.localStorage.removeItem(key));
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

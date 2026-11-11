@@ -9,12 +9,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // O callback do Google troca o parâmetro `code` por uma sessão.
-    // O PKCE mantém essa troca vinculada ao navegador que iniciou o login.
-    flowType: 'pkce',
-    // A página /auth/callback troca o code manualmente. Deixar a detecção
-    // automática ativa faria o Supabase tentar trocar o mesmo code duas vezes.
-    detectSessionInUrl: false,
+    // O painel administrativo usa o retorno implícito do Supabase para não
+    // depender de um code_verifier que pode ser perdido entre o Google e o
+    // callback em alguns aliases/domínios da Vercel.
+    flowType: 'implicit',
+    detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
   },
