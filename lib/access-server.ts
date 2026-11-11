@@ -165,6 +165,60 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
     }
   }
 
+  // A igreja pode manter vários e-mails autorizados exclusivamente para o Monitor.
+  // O vínculo é aplicado no login sem promover a conta a administrador.
+  const { data: monitorAcessos, error: monitorAcessosError } = await service
+    .from("igreja_monitor_acessos")
+    .select("igreja_id")
+    .eq("email", user.email.trim().toLowerCase())
+    .eq("ativo", true)
+    .limit(20);
+  if (monitorAcessosError)
+    throw new AcessoError("Não foi possível conferir os acessos do Monitor.", 503);
+  const igrejaAtual = usuario?.igreja_id || membro?.igreja_id;
+  const acessoMonitor = (monitorAcessos || []).find(
+    (acesso) => !igrejaAtual || acesso.igreja_id === igrejaAtual,
+  );
+  if (acessoMonitor) {
+    const { data: grupoMonitor, error: grupoMonitorError } = await service
+      .from("grupos")
+      .select("id")
+      .eq("igreja_id", acessoMonitor.igreja_id)
+      .ilike("nome", "Monitor")
+      .limit(1)
+      .maybeSingle();
+    if (grupoMonitorError || !grupoMonitor)
+      throw new AcessoError("O grupo padrão Monitor ainda não está configurado.", 503);
+
+    if (!usuario) {
+      const { data: monitorUsuario, error: monitorUsuarioError } = await service
+        .from("usuarios")
+        .insert({
+          id: user.id,
+          igreja_id: acessoMonitor.igreja_id,
+          nome: "Monitor",
+          email: user.email,
+          role: "membro",
+          grupo_id: grupoMonitor.id,
+        })
+        .select("id, igreja_id, role, grupo_id")
+        .maybeSingle();
+      if (monitorUsuarioError || !monitorUsuario)
+        throw new AcessoError("Não foi possível criar o acesso do Monitor.", 503);
+      usuario = monitorUsuario;
+    } else if (usuario.role !== "admin" && !usuario.grupo_id && usuario.igreja_id === acessoMonitor.igreja_id) {
+      const { data: monitorUsuario, error: monitorUsuarioError } = await service
+        .from("usuarios")
+        .update({ grupo_id: grupoMonitor.id })
+        .eq("id", user.id)
+        .select("id, igreja_id, role, grupo_id")
+        .maybeSingle();
+      if (monitorUsuarioError || !monitorUsuario)
+        throw new AcessoError("Não foi possível vincular o grupo Monitor.", 503);
+      usuario = monitorUsuario;
+    }
+  }
+
   const igrejaId = exigirMembro
     ? membro?.igreja_id
     : usuario?.igreja_id || membro?.igreja_id;

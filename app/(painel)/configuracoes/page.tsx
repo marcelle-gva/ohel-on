@@ -6,9 +6,15 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard, X } from "lucide-react";
+import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard, X, MonitorPlay } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
+interface MonitorAcesso {
+  id: string;
+  email: string;
+  ativo: boolean;
+}
 
 export default function ConfiguracoesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,7 +36,9 @@ export default function ConfiguracoesPage() {
   const [cargos, setCargos] = useState<any[]>([]);
   const [novoDepto, setNovoDepto] = useState("");
   const [novoCargo, setNovoCargo] = useState("");
-  const [recursoAberto, setRecursoAberto] = useState<"departamentos" | "cargos" | null>(null);
+  const [monitorAcessos, setMonitorAcessos] = useState<MonitorAcesso[]>([]);
+  const [novoMonitorEmail, setNovoMonitorEmail] = useState("");
+  const [recursoAberto, setRecursoAberto] = useState<"departamentos" | "cargos" | "monitor" | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -55,6 +63,8 @@ export default function ConfiguracoesPage() {
 
           const { data: crgs } = await supabase.from('cargos').select('*').eq('igreja_id', user.igreja_id).order('nome');
           if (crgs) setCargos(crgs);
+          const { data: acessosMonitor } = await supabase.from('igreja_monitor_acessos').select('id, email, ativo').eq('igreja_id', user.igreja_id).order('email');
+          if (acessosMonitor) setMonitorAcessos(acessosMonitor as MonitorAcesso[]);
         }
       }
       setLoading(false);
@@ -160,6 +170,31 @@ export default function ConfiguracoesPage() {
   const handleDeleteCargo = async (id: string) => {
     await supabase.from('cargos').delete().eq('id', id);
     setCargos(cargos.filter(c => c.id !== id));
+  };
+
+  const handleAddMonitor = async () => {
+    const email = novoMonitorEmail.trim().toLowerCase();
+    if (!igrejaId || !/^\S+@\S+\.\S+$/.test(email)) {
+      setModal({ isOpen: true, type: "error", title: "E-mail inválido", message: "Informe um e-mail válido para o acesso do Monitor." });
+      return;
+    }
+    const { data, error } = await supabase.from("igreja_monitor_acessos").insert({ igreja_id: igrejaId, email }).select("id, email, ativo").single();
+    if (error) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível adicionar", message: error.code === "23505" ? "Esse e-mail já está autorizado como Monitor." : error.message });
+      return;
+    }
+    if (data) setMonitorAcessos((current) => [...current, data as MonitorAcesso].sort((a, b) => a.email.localeCompare(b.email)));
+    setNovoMonitorEmail("");
+    setModal({ isOpen: true, type: "success", title: "Acesso adicionado", message: "No próximo login, essa conta receberá acesso ao Monitor de Mídia." });
+  };
+
+  const handleDeleteMonitor = async (id: string) => {
+    const { error } = await supabase.from("igreja_monitor_acessos").delete().eq("id", id).eq("igreja_id", igrejaId || "");
+    if (error) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível remover", message: error.message });
+      return;
+    }
+    setMonitorAcessos((current) => current.filter((acesso) => acesso.id !== id));
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Carregando configurações...</div>;
@@ -276,6 +311,24 @@ export default function ConfiguracoesPage() {
               </div>
               <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-yellow-400 transition-all" />
             </button>
+
+            {/* Acessos do Monitor de Mídia */}
+            <button
+              type="button"
+              onClick={() => setRecursoAberto("monitor")}
+              className="flex items-center justify-between text-left bg-ohel-surface border border-gray-800 hover:border-green-400 p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <MonitorPlay className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-green-300 transition-colors">Acessos do Monitor</p>
+                  <p className="text-[11px] text-gray-400">{monitorAcessos.length} e-mail(s) autorizado(s).</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-green-300 transition-all" />
+            </button>
             
             {/* Check-in */}
             <Link 
@@ -388,7 +441,7 @@ export default function ConfiguracoesPage() {
               <div className="p-5 border-b border-gray-800 flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-white">
-                    {recursoAberto === "departamentos" ? "Departamentos da Igreja" : "Cargos Eclesiásticos"}
+                    {recursoAberto === "departamentos" ? "Departamentos da Igreja" : recursoAberto === "cargos" ? "Cargos Eclesiásticos" : "Acessos do Monitor de Mídia"}
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">Cadastre, gerencie e remova itens sem aumentar a tela de configurações.</p>
                 </div>
@@ -417,7 +470,7 @@ export default function ConfiguracoesPage() {
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : recursoAberto === "cargos" ? (
                 <div className="p-5 overflow-y-auto custom-scrollbar">
                   <div className="flex gap-2 mb-4">
                     <Input placeholder="Ex: Diácono, Presbítero..." value={novoCargo} onChange={(e) => setNovoCargo(e.target.value)} className="py-2 text-xs flex-1" />
@@ -430,6 +483,24 @@ export default function ConfiguracoesPage() {
                       <div key={c.id} className="flex items-center justify-between gap-2 bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
                         <span>{c.nome}</span>
                         <button type="button" onClick={() => handleDeleteCargo(c.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir ${c.nome}`}><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 overflow-y-auto custom-scrollbar">
+                  <p className="text-xs text-gray-400 mb-4">Esses e-mails poderão entrar no Monitor de Mídia, sem acesso às demais áreas administrativas. Se a conta já existir, o grupo Monitor será aplicado no próximo login.</p>
+                  <div className="flex gap-2 mb-4">
+                    <Input type="email" placeholder="monitor@igreja.com" value={novoMonitorEmail} onChange={(e) => setNovoMonitorEmail(e.target.value)} className="py-2 text-xs flex-1" />
+                    <Button type="button" onClick={() => void handleAddMonitor()} variant="secondary" className="w-auto px-3 py-2"><Plus className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="flex flex-col gap-2 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {monitorAcessos.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-8">Nenhum e-mail autorizado.</p>
+                    ) : monitorAcessos.map((acesso) => (
+                      <div key={acesso.id} className="flex items-center justify-between gap-2 bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
+                        <span>{acesso.email}</span>
+                        <button type="button" onClick={() => void handleDeleteMonitor(acesso.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir acesso ${acesso.email}`}><Trash2 className="w-3 h-3" /></button>
                       </div>
                     ))}
                   </div>
