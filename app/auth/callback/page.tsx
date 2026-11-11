@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { supabaseOAuth } from "@/lib/supabase-oauth";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -26,7 +25,6 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const authClient = code ? supabase : supabaseOAuth;
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
@@ -38,23 +36,13 @@ export default function AuthCallbackPage() {
       // Em alguns navegadores móveis o Supabase conclui a sessão antes
       // de a página de callback terminar de carregar. Reaproveitamos essa
       // sessão em vez de mandar o usuário voltar ao login.
-      let sessionData = (await authClient.auth.getSession()).data;
+      let sessionData = (await supabase.auth.getSession()).data;
       for (let attempt = 0; !sessionData.session && attempt < 10; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 200));
-        sessionData = (await authClient.auth.getSession()).data;
+        sessionData = (await supabase.auth.getSession()).data;
       }
       if (!sessionData.session) {
         setMessage("Não foi possível iniciar a sessão do Google. Tente novamente.");
-        return;
-      }
-
-      const { session } = sessionData;
-      const { error: syncError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-      if (syncError) {
-        setMessage("A sessão do Google foi criada, mas não pôde ser sincronizada com o painel.");
         return;
       }
 
