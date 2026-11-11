@@ -48,9 +48,25 @@ interface Grupo {
   permissoes: Permissao[];
 }
 
+interface UsuarioAcesso {
+  id: string;
+  nome: string;
+  email: string;
+  grupo_id: string | null;
+}
+
+interface MembroCadastro {
+  id: string;
+  nome: string;
+  email: string | null;
+  status: string;
+  auth_user_id: string | null;
+}
+
 export default function GruposPage() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
-  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioAcesso[]>([]);
+  const [membros, setMembros] = useState<MembroCadastro[]>([]);
   const [loading, setLoading] = useState(true);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
@@ -95,6 +111,14 @@ export default function GruposPage() {
 
           const { data: usersData } = await supabase.from('usuarios').select('id, nome, email, grupo_id').eq('igreja_id', user.igreja_id);
           if (usersData) setUsuarios(usersData);
+
+          const { data: membrosData } = await supabase
+            .from('membros')
+            .select('id, nome, email, status, auth_user_id')
+            .eq('igreja_id', user.igreja_id)
+            .eq('status', 'Ativo')
+            .order('nome');
+          if (membrosData) setMembros(membrosData);
         }
       }
     } finally {
@@ -187,6 +211,28 @@ export default function GruposPage() {
       setModalFeedback({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível excluir." });
     }
   };
+
+  const membrosDisponiveis = [
+    ...usuarios.map((usuario) => {
+      const cadastro = membros.find((membro) => membro.auth_user_id === usuario.id);
+      return {
+        id: usuario.id,
+        nome: cadastro?.nome || usuario.nome,
+        email: cadastro?.email || usuario.email,
+        grupoId: usuario.grupo_id,
+        podeReceberPermissao: true,
+      };
+    }),
+    ...membros
+      .filter((membro) => !membro.auth_user_id || !usuarios.some((usuario) => usuario.id === membro.auth_user_id))
+      .map((membro) => ({
+        id: membro.id,
+        nome: membro.nome,
+        email: membro.email || "",
+        grupoId: null,
+        podeReceberPermissao: false,
+      })),
+  ];
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-10">
@@ -290,14 +336,15 @@ export default function GruposPage() {
 
               {activeTab === "membros" && (
                 <div className="bg-ohel-bg border border-gray-800 rounded-xl p-4">
-                  <p className="text-sm text-gray-400 mb-4">Marque os usuários que pertencem a este grupo.</p>
+                  <p className="text-sm text-gray-400 mb-4">Todos os membros ativos aparecem aqui. Apenas pessoas com uma conta em Gestão de Usuários podem receber permissões de grupo.</p>
                   <div className="flex flex-col gap-2">
-                    {usuarios.map(u => (
-                      <label key={u.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer border border-gray-800">
-                        <input type="checkbox" checked={membrosSelecionados.includes(u.id)} onChange={() => toggleMembro(u.id)} className="w-5 h-5 accent-ohel-blue" />
+                    {membrosDisponiveis.map((membro) => (
+                      <label key={membro.id} className={`flex items-center gap-3 p-3 rounded-lg border border-gray-800 ${membro.podeReceberPermissao ? "hover:bg-white/5 cursor-pointer" : "opacity-60"}`}>
+                        <input type="checkbox" checked={membro.podeReceberPermissao && membrosSelecionados.includes(membro.id)} onChange={() => membro.podeReceberPermissao && toggleMembro(membro.id)} disabled={!membro.podeReceberPermissao} className="w-5 h-5 accent-ohel-blue" />
                         <div>
-                          <p className="text-sm font-bold text-white">{u.nome}</p>
-                          <p className="text-xs text-gray-400">{u.email}</p>
+                          <p className="text-sm font-bold text-white">{membro.nome}</p>
+                          <p className="text-xs text-gray-400">{membro.email || "Sem e-mail cadastrado"}</p>
+                          {!membro.podeReceberPermissao && <p className="text-[11px] text-amber-300">Sem conta de acesso — vincule em Gestão de Usuários</p>}
                         </div>
                       </label>
                     ))}
