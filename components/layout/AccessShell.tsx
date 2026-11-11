@@ -187,7 +187,7 @@ export function AccessShell({
                   className="mt-4 inline-block text-sm text-ohel-blue"
                 >
                   {contexto.membro
-                    ? "Voltar ao Monitor online"
+                    ? "Voltar ao meu dashboard"
                     : "Voltar ao acesso"}
                 </Link>
               </section>

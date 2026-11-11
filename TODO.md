@@ -103,3 +103,11 @@
 
 - [x] Permitir ao membro aprovado enviar seu pedido de oração sem sair da conta, com status Pendente e destino limitado à própria igreja; envio pelo QR Code sem login e pelo administrador continua disponível.
 - [x] Não conceder leitura de pedidos privados, edição, exclusão ou aprovação ao membro básico; preservar a regra de decisão pelo grupo Liderança e manter os dados preenchidos quando houver falha.
+
+## Dashboard próprio do membro e convite ao visitante
+
+- [x] Transformar `/area-membro` em dashboard pessoal independente, mostrando conteúdos publicados do culto sem alterar o Monitor de Mídia, projeção, tela cheia, histórico ou recursos já ajustados.
+- [x] Preservar login e aprovação, foto, edição do perfil, saída, pedidos de oração autenticados, check-in, cestas e módulos do menu autorizados por grupos; cargo/departamento não concedem acessos.
+- [x] Organizar saudação, ações rápidas, culto em andamento quando houver, avisos/eventos com busca/filtro/expansão, resumo e todas as fotos ampliáveis, orações aprovadas, repertório e Palavra em blocos compactos, responsivos e sem cortes.
+- [x] Oferecer no bloco Visitantes o endereço oficial e mapa da própria igreja, convite preparado para WhatsApp e cópia da mensagem; não enviar automaticamente nem expor nome/telefone de visitantes, não inventar endereço ausente.
+- [x] Manter seleção de dados segura no servidor, isolamento por igreja, atualização visível sem requisições sobrepostas e feedback de carregamento/erro/cópia; usar estilos exclusivos sem regredir as demais páginas.

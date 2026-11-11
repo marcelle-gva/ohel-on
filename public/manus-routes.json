@@ -7,7 +7,8 @@
       "path": "/api/membros/aprovar"
     },
     {
-      "path": "/area-membro"
+      "path": "/area-membro",
+      "title": "Meu dashboard de membro"
     },
     {
       "path": "/area-membro/cestas"

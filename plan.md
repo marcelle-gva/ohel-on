@@ -29,3 +29,31 @@ A tabela `culto_registros` funciona como diário append-only para os eventos da 
 ## Cestas básicas
 
 As campanhas ficam em `cestas_basicas` e seus itens em `cesta_itens`. A Área do Membro permite apenas campanhas abertas e envia a reserva para `/api/cestas/reservar`, que valida a sessão, chama a função atômica `reservar_item_cesta` e só então dispara notificações server-side. Responsáveis ficam em `cestas_responsaveis`; as reservas e o estado de cada notificação ficam em `cesta_doacoes`. A API usa um template transacional aprovado pela Meta e não envia nada se as credenciais ou o consentimento do doador não estiverem disponíveis.
+
+## Dashboard próprio do membro — atualização de UX
+
+A entrada `/area-membro` deixa de ser apresentada como Monitor online e torna-se o dashboard pessoal do membro aprovado. Mantém conteúdos publicados e serviços criados, mas organiza a experiência para participar da igreja, e não operar o culto. O Monitor de Mídia administrativo, sua tela cheia, projeção, Bíblia, repertório e histórico ficam intactos. Login, aprovação, foto, edição do próprio perfil, saída e módulos autorizados por grupos permanecem. Cargo e departamento declarados não concedem acesso.
+
+### Hierarquia dos blocos
+
+A primeira área mostra saudação com primeiro nome, igreja e três atalhos claros: Pedir oração, Fazer check-in e Contribuir com cestas. Foto, edição e saída continuam no cabeçalho; o menu chama a entrada de Meu dashboard. Um destaque de culto em andamento aparece somente se houver sessão aberta, com assistir ao vivo quando existir URL válida.
+
+A coluna principal reúne avisos e eventos publicados em cartões compactos, capa proporcional, título e resumo. Filtros Todos/Eventos/Avisos, busca por texto e Mostrar mais mantêm toda a lista disponível sem uma parede de cards. Ao clicar, abre resumo completo, convidados, preço, informações adicionais, todas as fotos ampliáveis e inscrição do evento. Não reduzir nem apagar dados ao resumir visualmente.
+
+Visitantes torna-se um bloco de acolhimento: quantidade agregada recebida hoje, nome e endereço oficial da igreja. Abrir mapa usa Google Maps com o endereço cadastrado, sem localização pessoal ou chave de API. Convidar no WhatsApp prepara mensagem com nome, endereço e mapa; o membro escolhe o destinatário e confirma o envio no próprio WhatsApp. Copiar convite é a alternativa para qualquer canal, com confirmação acessível e texto selecionável em caso de falha. Não mostrar nomes/telefones de visitantes. Se o endereço estiver ausente, pedir que a secretaria o complete, sem inventar mapa nem compartilhar endereço incompleto.
+
+Orações publicadas mostram somente pedidos aprovados, com atalho para envio e expansão progressiva. Repertório e Palavra ficam sob Acompanhe o culto, com navegação entre trechos e expansão dos conteúdos longos. O dashboard apenas lê: não aprova, edita, exclui nem projeta. Perfil, check-in e cestas continuam nos fluxos já protegidos.
+
+### Design e interação
+
+Reutilizar a marca OHEL ON: fundo azul-marinho, superfícies escuras, azul para ações principais, verde para transmissão, acentos suaves de acolhimento e oração. Cards menores com hierarquia legível, sem números gigantes nem excesso de brilhos. Desktop usa coluna principal mais larga e coluna secundária de acolhimento/cuidado; celular segue ordem linear, ações prioritárias primeiro e rolagem vertical da página. Botões com toque confortável, foco visível, títulos que quebram e detalhes expansíveis. Galeria preserva imagem inteira com object-contain, botão fechar, Escape, restauração de foco e navegação acessível. Nenhuma imagem decorativa ou biblioteca nova.
+
+Carregamento discreto, falha com tentativa de atualizar e preservação dos conteúdos em indisponibilidade temporária; limpar os dados ao perder autorização. Atualização periódica apenas com aba visível e sem sobreposição de requisições. Filtros, expansão e Palavra não reiniciam a cada atualização. Links externos usam protocolos seguros, e nenhum convite é enviado automaticamente.
+
+### Estrutura e integração
+
+`app/area-membro/page.tsx` mantém a rota inicial do login e renderiza o novo dashboard de `components/member/`. Os estilos ficam isolados em `app/area-membro/dashboard.module.css`, sem mudança global. `app/api/membros/dashboard/route.ts` oferece o contrato `DashboardMembroData` de `lib/member-dashboard.ts`: autenticação e aprovação no servidor, seleção explícita de conteúdos publicados e endereço institucional da própria igreja. O endpoint atual `/api/membros/monitor` permanece compatível, e o Monitor administrativo não é alterado.
+
+Ajustar apenas os rótulos do menu e links de retorno pessoal para Meu dashboard. Reutilizar as APIs/páginas de oração autenticada, perfil, check-in e cestas sem modificar seus fluxos. O endereço vem de `igrejas.endereco`, já editável em Configurações: não requer migration nova. Informações financeiras, contatos de visitantes e pedidos pendentes não entram no dashboard.
+
+As listas são consultadas em páginas de 100 registros no servidor até completar os conteúdos publicados, sempre com filtro da igreja, ordenação estável e limite temporal da consulta. O botão Mostrar mais expande a lista completa recebida, sem truncamento silencioso. O detalhe do evento mantém início, término e horário de abertura. Imagens e transmissão externas só aceitam HTTPS.

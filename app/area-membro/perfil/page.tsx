@@ -246,7 +246,7 @@ export default function PerfilMembroPage() {
       <div className="mb-6 space-y-3">
         <Link href="/area-membro" className="inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white">
           <ArrowLeft className="h-4 w-4" />
-          Voltar ao Monitor
+          Voltar ao meu dashboard
         </Link>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">Área do Membro</p>
