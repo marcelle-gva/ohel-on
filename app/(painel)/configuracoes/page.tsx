@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard } from "lucide-react";
+import { Settings, Upload, Loader2, Save, Building2, MapPin, Phone, ArrowRight, ShieldCheck, Lock, Plus, Trash2, Users, UserPlus, CreditCard, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -29,6 +29,7 @@ export default function ConfiguracoesPage() {
   const [cargos, setCargos] = useState<any[]>([]);
   const [novoDepto, setNovoDepto] = useState("");
   const [novoCargo, setNovoCargo] = useState("");
+  const [recursoAberto, setRecursoAberto] = useState<"departamentos" | "cargos" | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -200,55 +201,49 @@ export default function ConfiguracoesPage() {
           </div>
         </Card>
 
-        {/* 3. DEPARTAMENTOS E CARGOS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-5 border-gray-800 bg-ohel-surface flex flex-col">
-            <h3 className="text-[11px] font-bold text-purple-400 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Departamentos da Igreja
-            </h3>
-            <div className="flex gap-2 mb-4">
-              <Input placeholder="Ex: Louvor, Infantil..." value={novoDepto} onChange={(e) => setNovoDepto(e.target.value)} className="py-2 text-xs flex-1" />
-              <Button type="button" onClick={handleAddDepto} variant="secondary" className="w-auto px-3 py-2"><Plus className="w-4 h-4" /></Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {departamentos.map(d => (
-                <div key={d.id} className="w-full bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
-                  <div className="flex items-center justify-between gap-2"><span className="font-semibold">{d.nome}</span><button type="button" onClick={() => handleDeleteDepto(d.id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button></div>
-                  <select value={d.responsavel_usuario_id || ""} onChange={(e) => void handleResponsavelDepto(d.id, e.target.value)} className="input-ohel w-full mt-2 px-2 py-1.5 rounded text-[11px]">
-                    <option value="">Sem responsável definido</option>{usuarios.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nome || usuario.email}</option>)}
-                  </select>
-                  <Link href={`/financeiro/produtos?departamento=${d.id}`} className="text-[10px] text-ohel-blue hover:underline mt-2 inline-block">Gerenciar produtos e fornecedores</Link>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5 border-gray-800 bg-ohel-surface flex flex-col">
-            <h3 className="text-[11px] font-bold text-yellow-500 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Cargos Eclesiásticos
-            </h3>
-            <div className="flex gap-2 mb-4">
-              <Input placeholder="Ex: Diácono, Presbítero..." value={novoCargo} onChange={(e) => setNovoCargo(e.target.value)} className="py-2 text-xs flex-1" />
-              <Button type="button" onClick={handleAddCargo} variant="secondary" className="w-auto px-3 py-2"><Plus className="w-4 h-4" /></Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {cargos.map(c => (
-                <div key={c.id} className="flex items-center gap-2 bg-ohel-bg border border-gray-700 px-3 py-1.5 rounded-lg text-xs text-white">
-                  {c.nome}
-                  <button type="button" onClick={() => handleDeleteCargo(c.id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* 4. RECURSOS ADICIONAIS */}
+        {/* 3. RECURSOS ADICIONAIS */}
         <div className="mt-2">
           <h3 className="text-[11px] font-bold text-ohel-blue uppercase tracking-wider mb-3 ml-1">
             Recursos Adicionais
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            {/* Departamentos da Igreja */}
+            <button
+              type="button"
+              onClick={() => setRecursoAberto("departamentos")}
+              className="flex items-center justify-between text-left bg-ohel-surface border border-gray-800 hover:border-purple-400 p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors">Departamentos da Igreja</p>
+                  <p className="text-[11px] text-gray-400">{departamentos.length} cadastrados.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-purple-300 transition-all" />
+            </button>
+
+            {/* Cargos Eclesiásticos */}
+            <button
+              type="button"
+              onClick={() => setRecursoAberto("cargos")}
+              className="flex items-center justify-between text-left bg-ohel-surface border border-gray-800 hover:border-yellow-500 p-4 rounded-xl transition-colors group shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-yellow-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">Cargos Eclesiásticos</p>
+                  <p className="text-[11px] text-gray-400">{cargos.length} cadastrados.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-yellow-400 transition-all" />
+            </button>
             
             {/* Check-in */}
             <Link 
@@ -354,6 +349,63 @@ export default function ConfiguracoesPage() {
 
           </div>
         </div>
+
+        {recursoAberto && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-ohel-surface border border-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="p-5 border-b border-gray-800 flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {recursoAberto === "departamentos" ? "Departamentos da Igreja" : "Cargos Eclesiásticos"}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">Cadastre, gerencie e remova itens sem aumentar a tela de configurações.</p>
+                </div>
+                <button type="button" onClick={() => setRecursoAberto(null)} className="text-gray-400 hover:text-white" aria-label="Fechar">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {recursoAberto === "departamentos" ? (
+                <div className="p-5 overflow-y-auto custom-scrollbar">
+                  <div className="flex gap-2 mb-4">
+                    <Input placeholder="Ex: Louvor, Infantil..." value={novoDepto} onChange={(e) => setNovoDepto(e.target.value)} className="py-2 text-xs flex-1" />
+                    <Button type="button" onClick={handleAddDepto} variant="secondary" className="w-auto px-3 py-2"><Plus className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="flex flex-col gap-2 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {departamentos.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-8">Nenhum departamento cadastrado.</p>
+                    ) : departamentos.map((d) => (
+                      <div key={d.id} className="bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
+                        <div className="flex items-center justify-between gap-2"><span className="font-semibold">{d.nome}</span><button type="button" onClick={() => handleDeleteDepto(d.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir ${d.nome}`}><Trash2 className="w-3 h-3" /></button></div>
+                        <select value={d.responsavel_usuario_id || ""} onChange={(e) => void handleResponsavelDepto(d.id, e.target.value)} className="input-ohel w-full mt-2 px-2 py-1.5 rounded text-[11px]">
+                          <option value="">Sem responsável definido</option>{usuarios.map((usuario) => <option key={usuario.id} value={usuario.id}>{usuario.nome || usuario.email}</option>)}
+                        </select>
+                        <Link href={`/financeiro/produtos?departamento=${d.id}`} onClick={() => setRecursoAberto(null)} className="text-[10px] text-ohel-blue hover:underline mt-2 inline-block">Gerenciar produtos e fornecedores</Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 overflow-y-auto custom-scrollbar">
+                  <div className="flex gap-2 mb-4">
+                    <Input placeholder="Ex: Diácono, Presbítero..." value={novoCargo} onChange={(e) => setNovoCargo(e.target.value)} className="py-2 text-xs flex-1" />
+                    <Button type="button" onClick={handleAddCargo} variant="secondary" className="w-auto px-3 py-2"><Plus className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="flex flex-col gap-2 max-h-[52vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {cargos.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-8">Nenhum cargo cadastrado.</p>
+                    ) : cargos.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 bg-ohel-bg border border-gray-700 px-3 py-2 rounded-lg text-xs text-white">
+                        <span>{c.nome}</span>
+                        <button type="button" onClick={() => handleDeleteCargo(c.id)} className="text-red-500 hover:text-red-400" aria-label={`Excluir ${c.nome}`}><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* BOTÃO SALVAR */}
         <div className="flex justify-end mt-4">
