@@ -15,9 +15,28 @@ interface AvisoMural {
   created_at: string;
 }
 
+interface EventoMural {
+  id: string;
+  nome: string;
+  data_inicio: string | null;
+  created_at: string;
+}
+
+interface OracaoRecente {
+  id: string;
+  nome_solicitante: string | null;
+  descricao: string | null;
+  created_at: string;
+}
+
 interface ResumoFinanceiroDashboard {
   contas: ContaResumoMensal[];
   saldoMovimento: number;
+}
+
+function formatarDataMural(data: string | null) {
+  const match = data?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data a definir";
 }
 
 export default function Dashboard() {
@@ -42,6 +61,8 @@ export default function Dashboard() {
   const [preCadastros, setPreCadastros] = useState(0);
   const [totalAvisos, setTotalAvisos] = useState(0);
   const [avisosMural, setAvisosMural] = useState<AvisoMural[]>([]);
+  const [eventosMural, setEventosMural] = useState<EventoMural[]>([]);
+  const [oracoesRecentes, setOracoesRecentes] = useState<OracaoRecente[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -60,11 +81,14 @@ export default function Dashboard() {
         const hoje = new Date();
         const diaHoje = hoje.getDate();
         const mesHoje = hoje.getMonth() + 1;
+        const instanteConsulta = hoje.toISOString();
+        const semana = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
         // Executando todas as consultas em paralelo para performance
         const [
           membrosRes, congregadosRes, visitantesRes, congregacoesRes,
-          oracoesRes, preCadastrosRes, muralRes, membrosNascRes
+          oracoesRes, preCadastrosRes, muralRes, eventosMuralRes,
+          oracoesRecentesRes, membrosNascRes
         ] = await Promise.all([
           supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           supabase.from("congregados").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
@@ -78,7 +102,13 @@ export default function Dashboard() {
           supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).eq("status", "Pré-Cadastro"),
           
           // Avisos no mural
-          supabase.from("comunicacoes").select("id, titulo, conteudo, created_at", { count: "exact" }).eq("igreja_id", userData.igreja_id).order("created_at", { ascending: false }).limit(3),
+          supabase.from("comunicacoes").select("id, titulo, conteudo, created_at", { count: "exact" }).eq("igreja_id", userData.igreja_id).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).limit(3),
+
+          // Eventos publicados no mural, no mesmo escopo da igreja
+          supabase.from("eventos").select("id, nome, data_inicio, created_at").eq("igreja_id", userData.igreja_id).eq("publicar_mural", true).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id").limit(3),
+
+          // Pedidos recentes já em oração; não expõe solicitações pendentes privadas
+          supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", "Em Oração").gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id").limit(3),
           
           // Buscar todas as datas de nascimento para filtrar no JS (mais leve que RPC)
           supabase.from("membros").select("data_nascimento").eq("igreja_id", userData.igreja_id).eq("status", "Ativo")
@@ -93,6 +123,8 @@ export default function Dashboard() {
         setPreCadastros(preCadastrosRes.count || 0);
         setTotalAvisos(muralRes.count || 0);
         setAvisosMural((muralRes.data || []) as AvisoMural[]);
+        setEventosMural((eventosMuralRes.data || []) as EventoMural[]);
+        setOracoesRecentes((oracoesRecentesRes.data || []) as OracaoRecente[]);
 
         // Cálculo de Aniversariantes
         if (membrosNascRes.data) {
@@ -277,23 +309,68 @@ export default function Dashboard() {
           />
         )}
 
-        <Link href="/secretaria/mural" className="block outline-none">
-          <Card className="p-5 flex flex-col min-h-[250px] group hover:border-teal-500/50 hover:shadow-[0_0_24px_rgba(20,184,166,0.3)] hover:scale-[1.01] transition-all cursor-pointer">
-            <div className="flex items-center gap-2 mb-4">
+        <Card className="p-5 flex flex-col min-h-[250px] border-gray-800">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-800 pb-3">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center"><Bell className="w-3.5 h-3.5 text-teal-500" /></div>
-              <h3 className="text-sm font-bold text-white">Mural / Avisos</h3>
+              <h3 className="text-sm font-bold text-white">Mural da igreja</h3>
             </div>
-            <div className="flex-1 flex flex-col justify-center text-gray-400 gap-2">
-              {loading ? <p className="text-xs text-center">Carregando avisos...</p> : avisosMural.length === 0 ? <p className="text-xs text-center">Nenhum aviso publicado no mural.</p> : avisosMural.map((aviso) => (
-                <div key={aviso.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">
-                  <p className="text-xs font-semibold text-white truncate">{aviso.titulo}</p>
-                  <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{aviso.conteudo}</p>
+            <Link href="/secretaria/mural" className="inline-flex items-center gap-1 text-[10px] text-teal-400 hover:text-white">Abrir mural <ArrowRight className="w-3 h-3" /></Link>
+          </div>
+
+          <div className="mt-3 flex-1 space-y-4 overflow-y-auto pr-1 max-h-[28rem]">
+            <section aria-label="Avisos recentes">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-300">Avisos <span className="ml-1 text-gray-500">{totalAvisos}</span></h4>
+                <Link href="/secretaria/mural" className="text-[10px] text-gray-500 hover:text-teal-400">Ver todos</Link>
+              </div>
+              {loading ? <p className="text-xs text-gray-500">Carregando avisos...</p> : avisosMural.length === 0 ? <p className="text-xs text-gray-500">Nenhum aviso publicado.</p> : (
+                <div className="space-y-2">
+                  {avisosMural.map((aviso) => (
+                    <div key={aviso.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">
+                      <p className="text-xs font-semibold text-white truncate">{aviso.titulo}</p>
+                      <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{aviso.conteudo}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <p className="text-[10px] text-teal-400 text-center mt-1">{totalAvisos} aviso(s) publicado(s)</p>
-            </div>
-          </Card>
-        </Link>
+              )}
+            </section>
+
+            <section aria-label="Eventos publicados">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-300"><CalendarDays className="w-3.5 h-3.5 text-blue-400" /> Eventos</h4>
+                <Link href="/eventos" className="text-[10px] text-gray-500 hover:text-blue-400">Ver todos</Link>
+              </div>
+              {loading ? <p className="text-xs text-gray-500">Carregando eventos...</p> : eventosMural.length === 0 ? <p className="text-xs text-gray-500">Nenhum evento publicado no mural.</p> : (
+                <div className="space-y-2">
+                  {eventosMural.map((evento) => (
+                    <div key={evento.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">
+                      <p className="text-xs font-semibold text-white truncate">{evento.nome}</p>
+                      <p className="mt-0.5 text-[10px] text-gray-500">{formatarDataMural(evento.data_inicio)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section aria-label="Orações recentes">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-300"><HeartHandshake className="w-3.5 h-3.5 text-red-400" /> Orações recentes <span className="text-gray-500">· 7 dias</span></h4>
+                <Link href="/secretaria/oracoes" className="text-[10px] text-gray-500 hover:text-red-400">Ver todas</Link>
+              </div>
+              {loading ? <p className="text-xs text-gray-500">Carregando orações...</p> : oracoesRecentes.length === 0 ? <p className="text-xs text-gray-500">Nenhuma oração recente em andamento.</p> : (
+                <div className="space-y-2">
+                  {oracoesRecentes.map((oracao) => (
+                    <div key={oracao.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">
+                      <p className="text-xs font-semibold text-white truncate">Pedido de oração · {oracao.nome_solicitante || "Anônimo"}</p>
+                      <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{oracao.descricao || "Pedido em oração pela igreja."}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </Card>
 
       </div>
 
