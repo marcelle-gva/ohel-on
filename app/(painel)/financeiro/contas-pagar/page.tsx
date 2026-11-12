@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
@@ -34,36 +34,46 @@ interface Conta {
   observacoes?: string | null;
 }
 
+interface Fornecedor {
+  id: string;
+  razao_social: string;
+}
+
+const mesesDoAno = [
+  { numero: "01", nome: "Janeiro" },
+  { numero: "02", nome: "Fevereiro" },
+  { numero: "03", nome: "Março" },
+  { numero: "04", nome: "Abril" },
+  { numero: "05", nome: "Maio" },
+  { numero: "06", nome: "Junho" },
+  { numero: "07", nome: "Julho" },
+  { numero: "08", nome: "Agosto" },
+  { numero: "09", nome: "Setembro" },
+  { numero: "10", nome: "Outubro" },
+  { numero: "11", nome: "Novembro" },
+  { numero: "12", nome: "Dezembro" },
+];
+
 export default function ContasPagarPage() {
   const [loading, setLoading] = useState(true);
   const [contas, setContas] = useState<Conta[]>([]);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   
-  // Filtros
-  const [busca, setBusca] = useState("");
+  // Filtros de pesquisa e período
+  const [buscaDescricao, setBuscaDescricao] = useState("");
+  const [buscaDocumento, setBuscaDocumento] = useState("");
+  const [buscaFornecedor, setBuscaFornecedor] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroFornecedor, setFiltroFornecedor] = useState("todos");
-  const [filtroMes, setFiltroMes] = useState(() => new Date().toISOString().slice(0, 7));
+  const [filtroMes, setFiltroMes] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  });
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
-  useEffect(() => {
-    initPage();
-  }, []);
-
-  const initPage = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
-      if (user) {
-        setIgrejaId(user.igreja_id);
-        fetchData(user.igreja_id);
-      }
-    }
-  };
-
-  const fetchData = async (id: string) => {
+  const fetchData = useCallback(async (id: string) => {
     setLoading(true);
     const [contasRes, fornRes] = await Promise.all([
       supabase.from('contas_pagar').select('*, fornecedores(razao_social)').eq('igreja_id', id).order('data_vencimento', { ascending: true }),
@@ -82,7 +92,24 @@ export default function ContasPagarPage() {
     }
     if (fornRes.data) setFornecedores(fornRes.data);
     setLoading(false);
-  };
+  }, []);
+
+  const initPage = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: user } = await supabase.from('usuarios').select('igreja_id').eq('id', session.user.id).maybeSingle();
+      if (user) {
+        setIgrejaId(user.igreja_id);
+        await fetchData(user.igreja_id);
+      }
+    }
+  }, [fetchData]);
+
+  useEffect(() => {
+    // As atualizações de estado acontecem somente após as consultas assíncronas de sessão e dados.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void initPage();
+  }, [initPage]);
 
   // INTEGRAÇÃO AQUI: Baixa do título gera transação no financeiro
   const handleBaixarTitulo = async (conta: Conta) => {
@@ -167,8 +194,8 @@ export default function ContasPagarPage() {
           ? "Conta paga. O próximo vencimento foi criado com o valor atual; ajuste o valor quando receber a próxima fatura."
           : "Título pago com sucesso! A despesa já foi lançada no Movimento.",
       });
-    } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Erro na Baixa", message: error.message });
+    } catch (error: unknown) {
+      setModal({ isOpen: true, type: "error", title: "Erro na Baixa", message: error instanceof Error ? error.message : "Não foi possível baixar a conta." });
     }
   };
 
@@ -198,31 +225,29 @@ export default function ContasPagarPage() {
     }
   };
 
-  // Cálculos dos KPIs e da visão mensal
-  const pendentes = contas.filter(c => c.status === 'Pendente' || c.status === 'Atrasado');
-  const atrasadas = contas.filter(c => c.status === 'Atrasado');
-  const pagasMes = contas.filter(c => c.status === 'Pago' && (!filtroMes || c.data_pagamento?.startsWith(filtroMes)));
+  // Cálculos da visão mensal. O filtro contém ano e mês (AAAA-MM).
+  const [anoSelecionado, mesSelecionado] = filtroMes.split("-");
+  const nomeMesSelecionado = mesesDoAno.find(mes => mes.numero === mesSelecionado)?.nome || "Mês";
+  const anosDisponiveis = Array.from(new Set([
+    String(new Date().getFullYear()),
+    ...contas.map(conta => conta.data_vencimento?.slice(0, 4)).filter((ano): ano is string => Boolean(ano)),
+  ])).sort((a, b) => Number(b) - Number(a));
   const contasDoMes = contas
-    .filter(c => !filtroMes || c.data_vencimento?.startsWith(filtroMes))
+    .filter(c => c.data_vencimento?.startsWith(filtroMes))
     .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
   const totalPrevistoMes = contasDoMes.reduce((acc, c) => acc + Number(c.valor), 0);
   const totalPagoDoMes = contasDoMes.filter(c => c.status === 'Pago').reduce((acc, c) => acc + Number(c.valor), 0);
   const totalEmAbertoDoMes = contasDoMes.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.valor), 0);
   const maiorContaDoMes = Math.max(0, ...contasDoMes.map(c => Number(c.valor)));
 
-  const totalPendente = pendentes.reduce((acc, c) => acc + Number(c.valor), 0);
-  const totalAtrasado = atrasadas.reduce((acc, c) => acc + Number(c.valor), 0);
-  const totalPagoMes = pagasMes.reduce((acc, c) => acc + Number(c.valor), 0);
-  const totalTitulos = contas.reduce((acc, c) => acc + Number(c.valor), 0);
-
   const contasFiltradas = contas.filter(c => {
-    const matchBusca = c.descricao.toLowerCase().includes(busca.toLowerCase()) || 
-                       (c.fornecedores?.razao_social && c.fornecedores.razao_social.toLowerCase().includes(busca.toLowerCase())) ||
-                       (c.numero_documento && c.numero_documento.includes(busca));
-    const matchMes = !filtroMes || c.data_vencimento?.startsWith(filtroMes);
+    const matchDescricao = c.descricao.toLowerCase().includes(buscaDescricao.trim().toLowerCase());
+    const matchDocumento = (c.numero_documento || "").toLowerCase().includes(buscaDocumento.trim().toLowerCase());
+    const matchBuscaFornecedor = (c.fornecedores?.razao_social || "").toLowerCase().includes(buscaFornecedor.trim().toLowerCase());
+    const matchMes = c.data_vencimento?.startsWith(filtroMes);
     const matchStatus = filtroStatus === "todos" || c.status === filtroStatus;
     const matchFornecedor = filtroFornecedor === "todos" || c.fornecedor_id === filtroFornecedor;
-    return matchMes && matchBusca && matchStatus && matchFornecedor;
+    return matchMes && matchDescricao && matchDocumento && matchBuscaFornecedor && matchStatus && matchFornecedor;
   });
 
   const formatarData = (dataStr: string | null) => {
@@ -265,109 +290,113 @@ export default function ContasPagarPage() {
         </Link>
       </div>
 
-      {/* 4 KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 border-l-4 border-l-yellow-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Total Pendente</p>
-            <Clock className="w-4 h-4 text-yellow-500" />
+      <Card className="border-gray-800 bg-ohel-surface/60 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Search className="h-4 w-4 text-ohel-blue" />
+          <div>
+            <h2 className="text-sm font-bold text-white">Pesquisa e filtros</h2>
+            <p className="text-[10px] text-gray-500">Refine os lançamentos por descrição, documento, fornecedor ou status.</p>
           </div>
-          <h2 className="text-xl font-bold text-yellow-500">{formatCurrency(totalPendente)}</h2>
-        </Card>
-        
-        <Card className="p-4 border-l-4 border-l-red-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Total Vencido</p>
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-          </div>
-          <h2 className="text-xl font-bold text-red-500">{formatCurrency(totalAtrasado)}</h2>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-l-green-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Pago no Período</p>
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
-          </div>
-          <h2 className="text-xl font-bold text-green-500">{formatCurrency(totalPagoMes)}</h2>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-l-ohel-blue flex flex-col justify-between bg-ohel-surface border-gray-800">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-ohel-blue text-[10px] font-bold uppercase tracking-wider">Total de Títulos</p>
-            <FileText className="w-4 h-4 text-ohel-blue" />
-          </div>
-          <h2 className="text-xl font-bold text-white">{formatCurrency(totalTitulos)}</h2>
-        </Card>
-      </div>
-
-      <Card className="p-3 flex flex-col lg:flex-row gap-3 items-center bg-ohel-surface/50 border-gray-800">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-500" />
-          <input 
-            type="text" 
-            placeholder="Buscar por Descrição, Nº Documento ou Fornecedor..." 
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-ohel-bg border border-gray-700 text-xs text-white rounded-md pl-9 pr-3 py-2 focus:border-ohel-blue outline-none"
-          />
         </div>
-        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 outline-none w-full lg:w-40">
-          <option value="todos">Todos os Status</option>
-          <option value="Pendente">Pendentes</option>
-          <option value="Pago">Pagos</option>
-          <option value="Atrasado">Atrasados</option>
-        </select>
-        <select value={filtroFornecedor} onChange={e => setFiltroFornecedor(e.target.value)} className="bg-ohel-bg border border-gray-700 text-xs text-white rounded-md px-3 py-2 outline-none w-full lg:w-48">
-          <option value="todos">Todos os Fornecedores</option>
-          {fornecedores.map(f => <option key={f.id} value={f.id}>{f.razao_social}</option>)}
-        </select>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-gray-400">
+            Descrição
+            <input type="search" placeholder="Buscar descrição" value={buscaDescricao} onChange={event => setBuscaDescricao(event.target.value)} className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-gray-400">
+            Número do documento
+            <input type="search" placeholder="Buscar número" value={buscaDocumento} onChange={event => setBuscaDocumento(event.target.value)} className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-gray-400">
+            Busca por fornecedor
+            <input type="search" placeholder="Digite o fornecedor" value={buscaFornecedor} onChange={event => setBuscaFornecedor(event.target.value)} className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-gray-400">
+            Status
+            <select value={filtroStatus} onChange={event => setFiltroStatus(event.target.value)} className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue">
+              <option value="todos">Todos os status</option>
+              <option value="Pendente">Pendentes</option>
+              <option value="Pago">Pagos</option>
+              <option value="Atrasado">Atrasados</option>
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-gray-400">
+            Filtrar fornecedor
+            <select value={filtroFornecedor} onChange={event => setFiltroFornecedor(event.target.value)} className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue">
+              <option value="todos">Todos os fornecedores</option>
+              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.razao_social}</option>)}
+            </select>
+          </label>
+        </div>
       </Card>
 
       <Card className="border-gray-800 bg-ohel-surface/70 p-4">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-bold text-white"><BarChart3 className="h-4 w-4 text-ohel-blue" /> Visão mensal das contas</h2>
-            <p className="mt-1 text-xs text-gray-400">Cada barra representa uma conta com vencimento em {filtroMes ? new Date(`${filtroMes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "todos os meses"}.</p>
+            <p className="mt-1 max-w-xl text-xs text-gray-400">Acompanhe valores e status por mês de vencimento. Selecione mês e ano para consultar cada período sem misturar anos.</p>
+            <p className="mt-2 text-[11px] font-semibold text-ohel-blue">{mesSelecionado} — {nomeMesSelecionado} / {anoSelecionado}</p>
           </div>
-          <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            Mês
-            <input type="month" value={filtroMes} onChange={event => setFiltroMes(event.target.value)} aria-label="Filtrar contas por mês" className="rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue" />
-          </label>
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:max-w-md">
+            <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+              Mês
+              <select value={mesSelecionado} onChange={event => setFiltroMes(`${anoSelecionado}-${event.target.value}`)} aria-label="Selecionar mês da visão financeira" className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs normal-case text-white outline-none focus:border-ohel-blue">
+                {mesesDoAno.map(mes => <option key={mes.numero} value={mes.numero}>{mes.numero} — {mes.nome}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+              Ano
+              <select value={anoSelecionado} onChange={event => setFiltroMes(`${event.target.value}-${mesSelecionado}`)} aria-label="Selecionar ano da visão financeira" className="w-full rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs normal-case text-white outline-none focus:border-ohel-blue">
+                {anosDisponiveis.map(ano => <option key={ano} value={ano}>{ano}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Contas no mês</p><p className="mt-1 text-sm font-bold text-white">{contasDoMes.length}</p></div>
-          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Total previsto</p><p className="mt-1 text-sm font-bold text-ohel-blue">{formatCurrency(totalPrevistoMes)}</p></div>
-          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Pago / em aberto</p><p className="mt-1 text-xs"><span className="font-bold text-green-400">{formatCurrency(totalPagoDoMes)}</span><span className="px-1 text-gray-600">/</span><span className="font-bold text-yellow-400">{formatCurrency(totalEmAbertoDoMes)}</span></p></div>
+          <div className="rounded-lg border border-gray-800 border-l-2 border-l-ohel-blue bg-ohel-bg/60 px-3 py-2.5"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Contas no mês</p><p className="mt-1 text-lg font-bold text-white">{contasDoMes.length}</p></div>
+          <div className="rounded-lg border border-gray-800 border-l-2 border-l-blue-400 bg-ohel-bg/60 px-3 py-2.5"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Total previsto</p><p className="mt-1 text-lg font-bold text-ohel-blue">{formatCurrency(totalPrevistoMes)}</p></div>
+          <div className="rounded-lg border border-gray-800 border-l-2 border-l-green-500 bg-ohel-bg/60 px-3 py-2.5"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Pago / em aberto</p><p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs"><span className="font-bold text-green-400">{formatCurrency(totalPagoDoMes)} pago</span><span className="font-bold text-yellow-400">{formatCurrency(totalEmAbertoDoMes)} em aberto</span></p></div>
         </div>
 
         {contasDoMes.length === 0 ? (
-          <p className="py-8 text-center text-xs text-gray-500">Nenhuma conta com vencimento neste mês.</p>
+          <p className="py-6 text-center text-xs text-gray-500">Nenhuma conta com vencimento em {nomeMesSelecionado} de {anoSelecionado}.</p>
         ) : (
-          <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1" aria-label="Gráfico de contas por valor no mês">
+          <div className="mt-4 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid-cols-2" aria-label={`Gráfico de contas por valor em ${mesSelecionado}/${anoSelecionado}`}>
             {contasDoMes.map(conta => {
               const percentual = maiorContaDoMes > 0 ? Math.max(4, Math.round((Number(conta.valor) / maiorContaDoMes) * 100)) : 0;
               const corBarra = conta.status === "Pago" ? "bg-green-500" : conta.status === "Atrasado" ? "bg-red-500" : "bg-yellow-400";
               return (
-                <div key={conta.id} className="flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <div key={conta.id} className="rounded-lg border border-gray-800/80 bg-ohel-bg/50 px-3 py-2">
+                  <div className="mb-1.5 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-white">{conta.descricao}</p>
-                      <span className="text-[10px] text-gray-500">{formatarData(conta.data_vencimento)}</span>
-                      <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase ${getStatusColor(conta.status)}`}>{conta.status}</span>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] text-gray-500">Vence {formatarData(conta.data_vencimento)}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase ${getStatusColor(conta.status)}`}>{conta.status}</span>
+                      </div>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-800"><div className={`h-full rounded-full ${corBarra}`} style={{ width: `${percentual}%` }} /></div>
+                    <span className="shrink-0 text-xs font-bold text-white">{formatCurrency(conta.valor)}</span>
                   </div>
-                  <span className="w-24 shrink-0 text-right text-xs font-bold text-white">{formatCurrency(conta.valor)}</span>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-800" role="progressbar" aria-label={`Valor de ${conta.descricao} em relação à maior conta do mês`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentual}>
+                    <div className={`h-full rounded-full transition-[width] duration-300 ${corBarra}`} style={{ width: `${percentual}%` }} />
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
-        <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-800 pt-3 text-[9px] text-gray-400"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-green-500" /> Pago</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-yellow-400" /> Pendente</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" /> Atrasado</span></div>
+        <div className="mt-3 flex flex-wrap gap-4 border-t border-gray-800 pt-2.5 text-[9px] text-gray-400"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-green-500" /> Pago</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-yellow-400" /> Pendente</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" /> Atrasado</span></div>
       </Card>
 
-      <Card className="p-0 overflow-hidden border-gray-800">
+      <Card className="overflow-hidden border-gray-800 p-0">
+        <div className="flex flex-col gap-1 border-b border-gray-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-white">Lançamentos do período</h2>
+            <p className="mt-0.5 text-[10px] text-gray-500">{mesSelecionado} — {nomeMesSelecionado} / {anoSelecionado}</p>
+          </div>
+          <span className="text-[10px] font-medium text-gray-400">{contasFiltradas.length} {contasFiltradas.length === 1 ? "lançamento" : "lançamentos"}</span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#05080f] border-b border-gray-800 text-[9px] uppercase tracking-wider text-gray-400">
