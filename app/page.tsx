@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { BackButton } from "@/components/public/BackButton";
 
 const quoteLink = `https://wa.me/5521996288956?text=${encodeURIComponent("Olá! Quero solicitar uma cotação do sistema OHEL ON.")}`;
 
@@ -77,12 +78,15 @@ export default async function HomePage({
             <a href="#contato" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Contato</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login-membro" className="hidden rounded-full px-3 py-2 text-xs font-medium text-cyan-200 transition hover:bg-cyan-400/10 hover:text-white xl:inline-flex">Área de membros</Link>
-            <Link href="/login" className="hidden rounded-full px-3 py-2 text-xs font-medium text-gray-300 transition hover:bg-white/5 hover:text-white md:inline-flex">Área administrativa</Link>
-            <Link href="/login" className="hidden items-center gap-2 rounded-full border border-cyan-200/70 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-400/10 sm:flex">
-              <LockKeyhole className="h-3.5 w-3.5 text-cyan-300" /> Acessar sistema
+            <BackButton />
+            <Link href="/login" title="Acessar sistema — administradores" className="hidden items-center gap-2 rounded-full border border-cyan-200/70 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-400/10 sm:flex">
+              <LockKeyhole className="h-3.5 w-3.5 text-cyan-300" /> Acessar sistema <span className="text-cyan-300/70">Admin</span>
             </Link>
-            <Link href="/login" aria-label="Acessar sistema" className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-200/60 text-cyan-200 sm:hidden"><LockKeyhole className="h-4 w-4" /></Link>
+            <Link href="/login-membro" title="Acessar sistema — membros" className="hidden items-center gap-2 rounded-full border border-cyan-300/35 px-4 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-400/10 sm:flex">
+              <UsersRound className="h-3.5 w-3.5 text-cyan-300" /> Acessar sistema <span className="text-cyan-300/70">Membros</span>
+            </Link>
+            <Link href="/login" aria-label="Acessar sistema administrativo" className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-200/60 text-cyan-200 sm:hidden"><LockKeyhole className="h-4 w-4" /></Link>
+            <Link href="/login-membro" aria-label="Acessar sistema para membros" className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-300/40 text-cyan-200 sm:hidden"><UsersRound className="h-4 w-4" /></Link>
           </div>
         </div>
       </header>
@@ -103,8 +107,7 @@ export default async function HomePage({
             <p className="mt-6 max-w-lg text-base leading-7 text-gray-300 md:text-lg">Tecnologia, organização e comunicação integradas para fortalecer a gestão da sua igreja.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href={quoteLink} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-300 px-6 py-3.5 text-sm font-bold text-[#03101c] shadow-[0_0_28px_rgba(34,211,238,0.55)] transition hover:-translate-y-0.5 hover:bg-cyan-200">Conhecer a plataforma <ArrowRight className="h-4 w-4" /></a>
-              <Link href="/login" className="inline-flex items-center justify-center rounded-full border border-white/60 px-6 py-3.5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-cyan-300/10">Acessar sistema</Link>
-              <Link href="/login-membro" className="inline-flex items-center justify-center rounded-full border border-cyan-300/30 px-6 py-3.5 text-sm font-semibold text-cyan-200 transition hover:border-cyan-200 hover:bg-cyan-300/10">Área de membros</Link>
+              <a href="#solucoes" className="inline-flex items-center justify-center rounded-full border border-white/60 px-6 py-3.5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-cyan-300/10">Conhecer soluções</a>
             </div>
           </div>
           <div className="relative flex min-h-[360px] items-center justify-center lg:min-h-[500px]">
@@ -158,7 +161,7 @@ export default async function HomePage({
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 rounded-3xl border border-cyan-300/25 bg-gradient-to-r from-[#08243a] via-[#071827] to-[#08243a] p-7 shadow-[0_0_40px_rgba(0,174,255,0.16)] md:flex-row md:p-9"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-300/15 text-cyan-300"><MessageCircle className="h-6 w-6" /></div><div><h2 className="text-lg font-bold text-white">Fale conosco pelo WhatsApp</h2><p className="mt-1 text-sm text-gray-400">(21) 99628-8956 · Solicite uma demonstração ou tire suas dúvidas.</p></div></div><a href={quoteLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-6 py-3 text-sm font-bold text-[#03101c] shadow-[0_0_25px_rgba(34,211,238,0.45)] transition hover:bg-cyan-200">Abrir WhatsApp <ArrowRight className="h-4 w-4" /></a></div>
       </section>
 
-      <footer className="border-t border-cyan-300/10 bg-[#020812]"><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-gray-500 sm:flex-row md:px-8"><div className="flex items-center gap-4"><Logo className="h-10 w-28" /><span>Tecnologia a serviço de pessoas e organizações</span></div><Link href="/login" className="text-gray-300 transition hover:text-cyan-200">Acessar sistema</Link></div></footer>
+      <footer className="border-t border-cyan-300/10 bg-[#020812]"><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-gray-500 sm:flex-row md:px-8"><div className="flex items-center gap-4"><Logo className="h-10 w-28" /><span>Tecnologia a serviço de pessoas e organizações</span></div><a href="#inicio" className="text-gray-300 transition hover:text-cyan-200">Voltar ao início</a></div></footer>
     </main>
   );
 }
