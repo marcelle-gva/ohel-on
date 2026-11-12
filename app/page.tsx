@@ -64,7 +64,7 @@ export default async function HomePage({
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#020812] pt-[76px] text-white selection:bg-cyan-400/30">
+    <main className="h-dvh overflow-x-hidden overflow-y-auto scroll-smooth bg-[#020812] pt-[76px] text-white selection:bg-cyan-400/30">
       <header className="fixed inset-x-0 top-0 z-40 border-b border-cyan-300/10 bg-[#020812]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 md:px-8">
           <Link href="#inicio" aria-label="IPO CLOUD - início" className="shrink-0">
