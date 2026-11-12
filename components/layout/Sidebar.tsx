@@ -11,10 +11,9 @@ interface SidebarProps {
   setIsOpen: (val: boolean) => void;
   permissoes: string[];
   membro?: boolean;
-  role?: string;
 }
 
-export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false, role }: SidebarProps) {
+export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false }: SidebarProps) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>("Secretaria");
 
@@ -89,15 +88,9 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false, role }:
       `}>
         
         <div className="h-20 flex items-center justify-between px-4 border-b border-gray-800/50">
-          {role === "admin" ? (
-            <button type="button" onClick={() => window.location.href = "/configuracoes"} className="scale-75 rounded-xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Editar logo OHEL ON">
-              <Logo />
-            </button>
-          ) : (
-            <a href="https://www.ipocloud.com.br" target="_blank" rel="noopener noreferrer" className="scale-75 rounded-xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ohel-blue" title="Visitar IPO Cloud">
-              <Logo />
-            </a>
-          )}
+          <div className="scale-75 select-none pointer-events-none">
+            <Logo />
+          </div>
           <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsOpen(false)}>
             <X className="w-6 h-6" />
           </button>

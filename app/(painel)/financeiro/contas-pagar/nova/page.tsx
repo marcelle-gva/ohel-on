@@ -218,7 +218,7 @@ export default function NovaContaPagarPage() {
                   <Input label="Quantidade de Parcelas *" type="number" name="total_parcelas" min="2" max="120" placeholder="Ex: 12" value={formData.total_parcelas} onChange={handleChange} required className="py-2 text-xs" />
                 ) : (
                   <p className="md:col-span-2 self-center text-xs text-gray-400">
-                    Ao dar baixa, o sistema criará o próximo vencimento. Você poderá ajustar o valor da próxima conta antes de pagar.
+                    Em uma conta fixa mensal, cada vencimento é independente: ao baixar esta conta, o próximo mês será criado e você poderá ajustar o valor (por exemplo, da luz) antes de pagar.
                   </p>
                 )}
               </>

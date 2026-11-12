@@ -30,14 +30,84 @@ create table if not exists public.perfis_permissoes (
 alter table public.usuarios
   add column if not exists perfil_id uuid;
 
--- Cria a FK somente se ela ainda não existir.
+-- Corrige uma FK de grupo que pode ter sido criada com o nome de perfil.
+-- A relação é validada por coluna de origem e destino, não apenas pelo nome.
 do $$
 begin
+  if exists (
+    select 1
+    from information_schema.key_column_usage k
+    join information_schema.constraint_column_usage c
+      on c.constraint_catalog = k.constraint_catalog
+     and c.constraint_schema = k.constraint_schema
+     and c.constraint_name = k.constraint_name
+    where k.constraint_schema = 'public'
+      and k.table_name = 'usuarios'
+      and k.constraint_name = 'usuarios_perfil_id_fkey'
+      and k.column_name = 'grupo_id'
+      and c.table_schema = 'public'
+      and c.table_name = 'grupos'
+      and c.column_name = 'id'
+  ) then
+    if exists (
+      select 1
+      from information_schema.key_column_usage k
+      join information_schema.constraint_column_usage c
+        on c.constraint_catalog = k.constraint_catalog
+       and c.constraint_schema = k.constraint_schema
+       and c.constraint_name = k.constraint_name
+      where k.constraint_schema = 'public'
+        and k.table_name = 'usuarios'
+        and k.constraint_name = 'usuarios_grupo_id_fkey'
+        and k.column_name = 'grupo_id'
+        and c.table_schema = 'public'
+        and c.table_name = 'grupos'
+        and c.column_name = 'id'
+    ) then
+      alter table public.usuarios drop constraint usuarios_perfil_id_fkey;
+    else
+      alter table public.usuarios rename constraint usuarios_perfil_id_fkey to usuarios_grupo_id_fkey;
+    end if;
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.table_constraints
+    where constraint_schema = 'public'
+      and table_name = 'usuarios'
+      and constraint_name = 'usuarios_perfil_id_fkey'
+  ) and not exists (
+    select 1
+    from information_schema.key_column_usage k
+    join information_schema.constraint_column_usage c
+      on c.constraint_catalog = k.constraint_catalog
+     and c.constraint_schema = k.constraint_schema
+     and c.constraint_name = k.constraint_name
+    where k.constraint_schema = 'public'
+      and k.table_name = 'usuarios'
+      and k.constraint_name = 'usuarios_perfil_id_fkey'
+      and k.column_name = 'perfil_id'
+      and c.table_schema = 'public'
+      and c.table_name = 'perfis'
+      and c.column_name = 'id'
+  ) then
+    raise exception 'usuarios_perfil_id_fkey existe em outra coluna/relação; interrompendo sem substituir.';
+  end if;
+
   if not exists (
     select 1
-    from pg_constraint
-    where conname = 'usuarios_perfil_id_fkey'
-      and conrelid = 'public.usuarios'::regclass
+    from information_schema.key_column_usage k
+    join information_schema.constraint_column_usage c
+      on c.constraint_catalog = k.constraint_catalog
+     and c.constraint_schema = k.constraint_schema
+     and c.constraint_name = k.constraint_name
+    where k.constraint_schema = 'public'
+      and k.table_name = 'usuarios'
+      and k.constraint_name = 'usuarios_perfil_id_fkey'
+      and k.column_name = 'perfil_id'
+      and c.table_schema = 'public'
+      and c.table_name = 'perfis'
+      and c.column_name = 'id'
   ) then
     alter table public.usuarios
       add constraint usuarios_perfil_id_fkey

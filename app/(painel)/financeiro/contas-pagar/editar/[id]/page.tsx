@@ -242,7 +242,7 @@ export default function EditarContaPagarPage() {
                   <Input label="Quantidade de Parcelas *" type="number" name="total_parcelas" min="2" max="120" value={formData.total_parcelas} onChange={handleChange} required className="py-2 text-xs" />
                 ) : (
                   <p className="md:col-span-2 self-center text-xs text-gray-400">
-                    Ao dar baixa, o próximo mês será criado e o valor poderá ser ajustado.
+                    Cada mês é um lançamento independente: ao baixar esta conta, o próximo vencimento será criado e você poderá informar outro valor.
                   </p>
                 )}
               </>

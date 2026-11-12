@@ -7,7 +7,7 @@ import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { getMonthlyDate } from "@/lib/monthlyDate";
 import { formatCurrency } from "@/lib/currency";
 import { 
-  ArrowLeft, Plus, Search, Clock, AlertTriangle, CheckCircle2, 
+  ArrowLeft, Plus, Search, Clock, AlertTriangle, CheckCircle2, BarChart3,
   FileText, Edit, Trash2, ChevronDown, Check, DollarSign, Layers
 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +44,7 @@ export default function ContasPagarPage() {
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroFornecedor, setFiltroFornecedor] = useState("todos");
+  const [filtroMes, setFiltroMes] = useState(() => new Date().toISOString().slice(0, 7));
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
@@ -197,13 +198,17 @@ export default function ContasPagarPage() {
     }
   };
 
-  // Cálculos dos KPIs
-  const hoje = new Date().toISOString().split('T')[0];
-  const mesAtual = hoje.slice(0, 7);
-
+  // Cálculos dos KPIs e da visão mensal
   const pendentes = contas.filter(c => c.status === 'Pendente' || c.status === 'Atrasado');
   const atrasadas = contas.filter(c => c.status === 'Atrasado');
-  const pagasMes = contas.filter(c => c.status === 'Pago' && c.data_pagamento?.startsWith(mesAtual));
+  const pagasMes = contas.filter(c => c.status === 'Pago' && (!filtroMes || c.data_pagamento?.startsWith(filtroMes)));
+  const contasDoMes = contas
+    .filter(c => !filtroMes || c.data_vencimento?.startsWith(filtroMes))
+    .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
+  const totalPrevistoMes = contasDoMes.reduce((acc, c) => acc + Number(c.valor), 0);
+  const totalPagoDoMes = contasDoMes.filter(c => c.status === 'Pago').reduce((acc, c) => acc + Number(c.valor), 0);
+  const totalEmAbertoDoMes = contasDoMes.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.valor), 0);
+  const maiorContaDoMes = Math.max(0, ...contasDoMes.map(c => Number(c.valor)));
 
   const totalPendente = pendentes.reduce((acc, c) => acc + Number(c.valor), 0);
   const totalAtrasado = atrasadas.reduce((acc, c) => acc + Number(c.valor), 0);
@@ -214,9 +219,10 @@ export default function ContasPagarPage() {
     const matchBusca = c.descricao.toLowerCase().includes(busca.toLowerCase()) || 
                        (c.fornecedores?.razao_social && c.fornecedores.razao_social.toLowerCase().includes(busca.toLowerCase())) ||
                        (c.numero_documento && c.numero_documento.includes(busca));
+    const matchMes = !filtroMes || c.data_vencimento?.startsWith(filtroMes);
     const matchStatus = filtroStatus === "todos" || c.status === filtroStatus;
     const matchFornecedor = filtroFornecedor === "todos" || c.fornecedor_id === filtroFornecedor;
-    return matchBusca && matchStatus && matchFornecedor;
+    return matchMes && matchBusca && matchStatus && matchFornecedor;
   });
 
   const formatarData = (dataStr: string | null) => {
@@ -279,7 +285,7 @@ export default function ContasPagarPage() {
 
         <Card className="p-4 border-l-4 border-l-green-500 flex flex-col justify-between bg-ohel-surface border-gray-800">
           <div className="flex justify-between items-start mb-2">
-            <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Pago no Mês</p>
+            <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Pago no Período</p>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </div>
           <h2 className="text-xl font-bold text-green-500">{formatCurrency(totalPagoMes)}</h2>
@@ -317,6 +323,50 @@ export default function ContasPagarPage() {
         </select>
       </Card>
 
+      <Card className="border-gray-800 bg-ohel-surface/70 p-4">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-bold text-white"><BarChart3 className="h-4 w-4 text-ohel-blue" /> Visão mensal das contas</h2>
+            <p className="mt-1 text-xs text-gray-400">Cada barra representa uma conta com vencimento em {filtroMes ? new Date(`${filtroMes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "todos os meses"}.</p>
+          </div>
+          <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            Mês
+            <input type="month" value={filtroMes} onChange={event => setFiltroMes(event.target.value)} aria-label="Filtrar contas por mês" className="rounded-md border border-gray-700 bg-ohel-bg px-3 py-2 text-xs text-white outline-none focus:border-ohel-blue" />
+          </label>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Contas no mês</p><p className="mt-1 text-sm font-bold text-white">{contasDoMes.length}</p></div>
+          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Total previsto</p><p className="mt-1 text-sm font-bold text-ohel-blue">{formatCurrency(totalPrevistoMes)}</p></div>
+          <div className="rounded-lg border border-gray-800 bg-ohel-bg/60 px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Pago / em aberto</p><p className="mt-1 text-xs"><span className="font-bold text-green-400">{formatCurrency(totalPagoDoMes)}</span><span className="px-1 text-gray-600">/</span><span className="font-bold text-yellow-400">{formatCurrency(totalEmAbertoDoMes)}</span></p></div>
+        </div>
+
+        {contasDoMes.length === 0 ? (
+          <p className="py-8 text-center text-xs text-gray-500">Nenhuma conta com vencimento neste mês.</p>
+        ) : (
+          <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1" aria-label="Gráfico de contas por valor no mês">
+            {contasDoMes.map(conta => {
+              const percentual = maiorContaDoMes > 0 ? Math.max(4, Math.round((Number(conta.valor) / maiorContaDoMes) * 100)) : 0;
+              const corBarra = conta.status === "Pago" ? "bg-green-500" : conta.status === "Atrasado" ? "bg-red-500" : "bg-yellow-400";
+              return (
+                <div key={conta.id} className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="truncate text-xs font-semibold text-white">{conta.descricao}</p>
+                      <span className="text-[10px] text-gray-500">{formatarData(conta.data_vencimento)}</span>
+                      <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase ${getStatusColor(conta.status)}`}>{conta.status}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-800"><div className={`h-full rounded-full ${corBarra}`} style={{ width: `${percentual}%` }} /></div>
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-xs font-bold text-white">{formatCurrency(conta.valor)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-800 pt-3 text-[9px] text-gray-400"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-green-500" /> Pago</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-yellow-400" /> Pendente</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" /> Atrasado</span></div>
+      </Card>
+
       <Card className="p-0 overflow-hidden border-gray-800">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -324,7 +374,7 @@ export default function ContasPagarPage() {
               <tr>
                 <th className="p-3 text-center w-10"></th>
                 <th className="p-3 text-center w-12">Baixar</th>
-                <th className="p-3 font-medium">Vencimento 1ª Parcela</th>
+                <th className="p-3 font-medium">Vencimento</th>
                 <th className="p-3 font-medium">Descrição / Fornecedor</th>
                 <th className="p-3 font-medium">Nº Documento</th>
                 <th className="p-3 font-medium text-center">Parcelas</th>
@@ -337,7 +387,7 @@ export default function ContasPagarPage() {
               {loading ? (
                 <tr><td colSpan={9} className="p-8 text-center text-gray-400">Carregando contas...</td></tr>
               ) : contasFiltradas.length === 0 ? (
-                <tr><td colSpan={9} className="p-8 text-center text-gray-400">Nenhuma conta encontrada.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-gray-400">Nenhuma conta encontrada para o mês e filtros selecionados.</td></tr>
               ) : (
                 contasFiltradas.map((conta) => (
                   <tr key={conta.id} className="hover:bg-white/[0.02] transition-colors group">

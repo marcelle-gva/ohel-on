@@ -165,7 +165,6 @@ export function AccessShell({
           setIsOpen={setIsSidebarOpen}
           permissoes={permissoes}
           membro={modoMembro}
-          role={contexto.role}
         />
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <button
