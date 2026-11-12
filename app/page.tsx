@@ -3,20 +3,16 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowRight,
-  Baby,
   BarChart3,
   BookOpen,
   CalendarDays,
   Check,
-  CheckSquare,
   Church,
-  ClipboardCheck,
   CircleDollarSign,
   HeartHandshake,
-  MonitorPlay,
-  Music,
+  LockKeyhole,
   MessageCircle,
-  QrCode,
+  MonitorPlay,
   ShieldCheck,
   UsersRound,
   Wallet,
@@ -25,47 +21,28 @@ import { Logo } from "@/components/brand/Logo";
 
 const quoteLink = `https://wa.me/5521996288956?text=${encodeURIComponent("Olá! Quero solicitar uma cotação do sistema OHEL ON.")}`;
 
+const highlights = [
+  { icon: UsersRound, title: "Pessoas e secretaria" },
+  { icon: CalendarDays, title: "Eventos e escalas" },
+  { icon: CircleDollarSign, title: "Gestão financeira" },
+  { icon: BarChart3, title: "Relatórios e indicadores" },
+  { icon: MessageCircle, title: "Comunicação integrada" },
+];
+
 const modules = [
-  {
-    icon: UsersRound,
-    title: "Pessoas e secretaria",
-    description: "Organize membros, visitantes e congregações e deixe as informações importantes acessíveis à equipe, sem depender de anotações espalhadas.",
-  },
-  {
-    icon: Wallet,
-    title: "Cadastros e carteirinhas",
-    description: "Mantenha os cadastros da comunidade organizados e apoie a identificação dos membros.",
-  },
-  {
-    icon: CalendarDays,
-    title: "Eventos e sorteios",
-    description: "Divulgue eventos, receba inscrições públicas e gerencie sorteios com reserva de números.",
-  },
-  {
-    icon: HeartHandshake,
-    title: "Escalas e serviço",
-    description: "Crie e acompanhe escalas para organizar equipes e ajudar todos a se lembrarem dos compromissos.",
-  },
-  {
-    icon: BookOpen,
-    title: "Cultos e comunhão",
-    description: "Projete louvores, acompanhe pedidos de oração e exiba avisos e lembretes durante o culto.",
-  },
-  {
-    icon: Baby,
-    title: "Kids & Teens",
-    description: "Receba pré-cadastros de crianças e adolescentes pelo QR Code, com contato do responsável e informações importantes para o cuidado.",
-  },
-  {
-    icon: BarChart3,
-    title: "Mural e gestão",
-    description: "Publique comunicados e reúna rotinas administrativas em uma plataforma acessível pela nuvem.",
-  },
-  {
-    icon: MessageCircle,
-    title: "WhatsApp integrado",
-    description: "Aproxime a comunicação da igreja com links e contatos prontos para conversar com membros, visitantes e equipe.",
-  },
+  { icon: UsersRound, title: "Pessoas e secretaria", description: "Membros, visitantes e congregações organizados em um só lugar." },
+  { icon: Wallet, title: "Financeiro", description: "Movimentos, categorias e uma visão mais clara dos recursos da igreja." },
+  { icon: CalendarDays, title: "Eventos e escalas", description: "Inscrições, sorteios e equipes com menos improviso na rotina." },
+  { icon: BookOpen, title: "Cultos e ensino", description: "Louvores, avisos, pedidos de oração e recursos para o culto." },
+  { icon: MonitorPlay, title: "Monitor de mídia", description: "Apoio visual para visitantes, repertório, palavra e transmissão." },
+  { icon: MessageCircle, title: "WhatsApp integrado", description: "Comunicação mais próxima com membros, visitantes e equipes." },
+];
+
+const differences = [
+  "Plataforma em nuvem segura e estável",
+  "Integração entre setores e departamentos",
+  "Acesso facilitado e controle de permissões",
+  "Suporte especializado para a rotina da igreja",
 ];
 
 export default async function HomePage({
@@ -86,393 +63,99 @@ export default async function HomePage({
   }
 
   return (
-    <main className="h-screen overflow-y-auto bg-[#03060D] text-white selection:bg-blue-500/30">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#03060D]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 md:px-8">
-          <Link href="/" aria-label="OHEL ON - início">
-            <Logo className="h-12 w-28 md:h-14 md:w-32" />
+    <main className="min-h-screen overflow-x-hidden bg-[#020812] text-white selection:bg-cyan-400/30">
+      <header className="sticky top-0 z-40 border-b border-cyan-300/10 bg-[#020812]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 md:px-8">
+          <Link href="#inicio" aria-label="IPO CLOUD - início" className="shrink-0">
+            <Logo className="h-12 w-28 md:h-14 md:w-36" />
           </Link>
-          <nav className="flex items-center gap-3">
-            <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition hover:text-white">
-              Área Administrativa
-            </Link>
-            <Link href="/login-membro" className="rounded-lg px-4 py-2 text-sm font-medium text-emerald-300 transition hover:text-emerald-200">
-              Área do Membro
-            </Link>
-            <a
-              href={quoteLink}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-500"
-            >
-              Solicitar cotação
-            </a>
+          <nav className="hidden items-center gap-1 text-sm text-gray-300 lg:flex">
+            <a href="#inicio" className="rounded-full border border-cyan-300/70 bg-cyan-400/10 px-5 py-2 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.2)]">Início</a>
+            <a href="#solucoes" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Soluções <span className="text-xs">⌄</span></a>
+            <a href="#sobre" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Sobre</a>
+            <a href="#planos" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Planos</a>
+            <a href="#contato" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Contato</a>
           </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="hidden items-center gap-2 rounded-full border border-cyan-200/70 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-400/10 sm:flex">
+              <LockKeyhole className="h-3.5 w-3.5 text-cyan-300" /> Acessar sistema
+            </Link>
+            <Link href="/login" aria-label="Acessar sistema" className="flex h-9 w-9 items-center justify-center rounded-full border border-cyan-200/60 text-cyan-200 sm:hidden"><LockKeyhole className="h-4 w-4" /></Link>
+          </div>
         </div>
       </header>
 
-      <section className="relative isolate overflow-hidden">
-        <div aria-hidden="true" className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-blue-600/20 blur-[120px]" />
-          <div className="absolute -right-32 top-20 h-[26rem] w-[26rem] rounded-full bg-cyan-500/10 blur-[120px]" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+      <section id="inicio" className="relative isolate overflow-hidden border-b border-cyan-300/10">
+        <div aria-hidden="true" className="absolute inset-0 -z-10">
+          <div className="absolute -left-32 top-20 h-80 w-80 rounded-full bg-blue-600/20 blur-[120px]" />
+          <div className="absolute right-0 top-0 h-[34rem] w-[34rem] rounded-full bg-cyan-400/10 blur-[140px]" />
+          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-cyan-300/40 to-transparent shadow-[0_0_24px_rgba(34,211,238,0.7)]" />
+          <div className="absolute -right-24 top-24 h-[32rem] w-[58rem] rotate-[-18deg] rounded-[50%] border border-cyan-300/15" />
+          <div className="absolute -right-40 top-40 h-[30rem] w-[58rem] rotate-[-18deg] rounded-[50%] border border-blue-400/10" />
         </div>
-
-        <div className="mx-auto grid min-h-[680px] max-w-7xl items-center gap-14 px-5 py-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
-          <div className="max-w-2xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-xs font-medium text-blue-200">
-              <Church className="h-3.5 w-3.5" />
-              Gestão feita para servir a igreja
-            </div>
-            <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-              Mais cuidado com pessoas.
-              <span className="mt-2 block bg-gradient-to-r from-blue-300 via-cyan-200 to-white bg-clip-text text-transparent">
-                Mais clareza na gestão.
-              </span>
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-gray-300 md:text-lg">
-              O OHEL ON nasceu da necessidade real de ter um sistema mais completo para a gestão da igreja.
-              Hoje, essa experiência também serve outras comunidades, com tecnologia na nuvem,
-              WhatsApp integrado e ferramentas que fortalecem a comunhão e colocam a inovação a serviço do Reino.
-            </p>
-
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={quoteLink}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 hover:bg-blue-500"
-              >
-                Solicitar cotação <ArrowRight className="h-4 w-4" />
-              </a>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
-              >
-                Acessar Área Administrativa
-              </Link>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs text-gray-400">
-              <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Módulos integrados</span>
-              <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Acesso pelo navegador</span>
-              <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-400" /> Gestão multiárea</span>
-              <span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-emerald-400" /> WhatsApp integrado</span>
-            </div>
-          </div>
-
-          <div className="relative mx-auto w-full max-w-xl">
-            <div aria-hidden="true" className="absolute -inset-5 rounded-[2rem] bg-blue-500/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#080E1B]/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-5">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
-                    <Church className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">Visão geral da igreja</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Dashboard OHEL ON</p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-blue-200">
-                  Prévia ilustrativa
-                </span>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-gray-400">A paz do Senhor!</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Resumo da igreja</p>
-                </div>
-                <div className="rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2 text-right">
-                  <p className="text-[9px] uppercase tracking-wider text-gray-500">Acesso</p>
-                  <p className="mt-1 text-[10px] font-semibold text-emerald-300">Painel integrado</p>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  { icon: UsersRound, title: "Membros", value: "Secretaria", color: "text-blue-300 bg-blue-400/10" },
-                  { icon: HeartHandshake, title: "Pessoas", value: "Congregados", color: "text-emerald-300 bg-emerald-400/10" },
-                  { icon: CircleDollarSign, title: "Financeiro", value: "Movimentos", color: "text-amber-200 bg-amber-400/10" },
-                  { icon: CalendarDays, title: "Agenda", value: "Eventos", color: "text-violet-300 bg-violet-400/10" },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.title} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">{item.title}</p>
-                        <Icon className={`h-3.5 w-3.5 ${item.color.split(" ")[0]}`} />
-                      </div>
-                      <p className="mt-3 text-xs font-semibold text-white">{item.value}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-[1.05fr_0.95fr]">
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-semibold text-white">Acesso rápido</p>
-                      <p className="mt-1 text-[9px] text-gray-500">Módulos da gestão</p>
-                    </div>
-                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {[
-                      { icon: UsersRound, label: "Secretaria", color: "text-cyan-300" },
-                      { icon: Wallet, label: "Financeiro", color: "text-emerald-300" },
-                      { icon: CalendarDays, label: "Eventos", color: "text-violet-300" },
-                      { icon: BookOpen, label: "Ensino", color: "text-amber-200" },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={item.label} className="flex items-center gap-1.5 rounded-lg bg-white/[0.035] px-2 py-2">
-                          <Icon className={`h-3 w-3 ${item.color}`} />
-                          <span className="text-[9px] text-gray-300">{item.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-400/10 text-blue-300">
-                        <MonitorPlay className="h-3.5 w-3.5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-semibold text-white">Monitor de Mídia</p>
-                        <p className="text-[9px] text-gray-500">Apoio ao culto</p>
-                      </div>
-                    </div>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {[
-                      { icon: UsersRound, label: "Visitantes", detail: "Acolhimento" },
-                      { icon: Music, label: "Louvores", detail: "Projeção" },
-                      { icon: CheckSquare, label: "Escalas", detail: "Equipe" },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={item.label} className="flex items-center justify-between rounded-lg bg-white/[0.035] px-2 py-1.5">
-                          <span className="flex items-center gap-1.5 text-[9px] text-gray-300">
-                            <Icon className="h-3 w-3 text-blue-300" />{item.label}
-                          </span>
-                          <span className="text-[8px] text-gray-500">{item.detail}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-3 rounded-xl border border-pink-400/15 bg-gradient-to-r from-pink-500/[0.08] to-violet-500/[0.05] p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-pink-300/15 bg-pink-400/10 text-pink-200">
-                  <QrCode className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[10px] font-semibold text-white">Pré-cadastro Kids & Teens por QR Code</p>
-                    <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[8px] font-semibold text-emerald-200">Responsável preenche</span>
-                  </div>
-                  <p className="mt-1 text-[9px] text-gray-400">Faixa etária, contatos autorizados e cuidados importantes em um fluxo organizado.</p>
-                </div>
-                <div className="hidden shrink-0 items-center gap-1 rounded-lg border border-white/[0.08] bg-black/10 px-2 py-1.5 sm:flex">
-                  <ClipboardCheck className="h-3 w-3 text-pink-200" />
-                  <span className="text-[8px] text-gray-300">Revisão da equipe</span>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-blue-400/15 bg-gradient-to-r from-blue-500/10 to-cyan-500/5 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-medium text-blue-100">Secretaria, dashboard e monitor integrados</p>
-                    <p className="mt-1 text-[9px] text-gray-400">Tecnologia compartilhada para servir mais igrejas.</p>
-                  </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-400/10 text-blue-300">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#0B1424] px-4 py-3 shadow-xl sm:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300">
-                <HeartHandshake className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-white">Tecnologia a serviço</p>
-                <p className="text-[11px] text-gray-500">do cuidado e da organização</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-white/[0.08] bg-[#050A15]">
-        <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 py-12 md:px-8 md:py-16 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="relative overflow-hidden rounded-3xl border border-blue-300/20 bg-[#080E1B] shadow-2xl shadow-blue-950/30">
-            <Image src="/ipo-cloud-logo.png" alt="OHEL ON e IPO CLOUD: juntas por uma igreja ainda mais conectada" width={1672} height={941} className="h-auto w-full object-cover" sizes="(max-width: 1024px) 100vw, 70vw" />
-          </div>
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Conexão que aproxima
-            </div>
-            <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">Uma gestão mais completa, nascida de uma necessidade real.</h2>
-            <p className="mt-4 text-sm leading-7 text-gray-300 md:text-base">OHEL ON e IPO CLOUD unem organização, comunicação e tecnologia para apoiar a igreja no dia a dia. Com WhatsApp integrado, sua equipe ganha agilidade para acolher pessoas, compartilhar informações e manter cada rotina mais próxima.</p>
-            <a href={quoteLink} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-[#03130B] transition hover:bg-emerald-400"><MessageCircle className="h-4 w-4" /> Falar pelo WhatsApp <ArrowRight className="h-4 w-4" /></a>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y border-white/[0.08] bg-white/[0.02]">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 md:grid-cols-[0.8fr_1.2fr] md:items-center md:px-8 md:py-20">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-200">
-              <HeartHandshake className="h-3.5 w-3.5" />
-              Uma iniciativa da Igreja Pentecostal Ohel
-            </div>
-            <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              O que nasceu para servir uma igreja, agora pode servir muitas.
-            </h2>
-          </div>
-          <div className="space-y-4 text-sm leading-7 text-gray-300 md:text-base">
-            <p>
-              A Igreja Pentecostal Ohel desenvolveu seu sistema de gestão para apoiar o trabalho
-              diário da igreja. Vendo que essa experiência poderia abençoar outras comunidades,
-              decidiu abrir a tecnologia e colocá-la também a serviço delas.
-            </p>
-            <p>
-              Agora, igrejas podem se unir por meio de uma plataforma na nuvem, compartilhar
-              facilidades de gestão e conhecimento e fortalecer a comunhão. Uma tecnologia que
-              nasceu de uma necessidade real e cresce para servir ao Reino.
-            </p>
-            <p className="border-l-2 border-blue-400/60 pl-4 font-medium text-blue-100">
-              OHEL ON — tecnologia compartilhada, igrejas conectadas e inovação em favor do Reino.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-20">
-        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+        <div className="mx-auto grid min-h-[600px] max-w-7xl items-center gap-10 px-5 py-16 md:px-8 md:py-20 lg:grid-cols-[0.95fr_1.05fr] lg:py-24">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Organização que libera tempo para cuidar</p>
-            <h2 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              Menos correria nos bastidores. Mais presença no que importa.
-            </h2>
-            <p className="mt-4 text-sm leading-6 text-gray-400 md:text-base">
-              Quando cadastros ficam em lugares diferentes, escalas dependem de lembretes de última hora
-              e informações do culto se perdem, a equipe trabalha dobrado. O OHEL ON reúne ferramentas
-              para dar mais clareza às rotinas e apoiar o cuidado com as pessoas.
-            </p>
-            <a
-              href={quoteLink}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 transition hover:text-white"
-            >
-              Converse com nossa equipe <ArrowRight className="h-4 w-4" />
-            </a>
+            <p className="inline-flex items-center gap-2 rounded-full border border-cyan-300/40 bg-cyan-400/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-200">Gestão eclesiástica inteligente</p>
+            <h1 className="mt-6 text-5xl font-bold leading-[1.03] tracking-tight text-white sm:text-6xl">Mais cuidado<br />com pessoas.</h1>
+            <h2 className="mt-3 text-3xl font-bold leading-tight text-cyan-300 sm:text-4xl">Mais clareza na gestão.</h2>
+            <p className="mt-6 max-w-lg text-base leading-7 text-gray-300 md:text-lg">Tecnologia, organização e comunicação integradas para fortalecer a gestão da sua igreja.</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a href={quoteLink} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-300 px-6 py-3.5 text-sm font-bold text-[#03101c] shadow-[0_0_28px_rgba(34,211,238,0.55)] transition hover:-translate-y-0.5 hover:bg-cyan-200">Conhecer a plataforma <ArrowRight className="h-4 w-4" /></a>
+              <Link href="/login" className="inline-flex items-center justify-center rounded-full border border-white/60 px-6 py-3.5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-cyan-300/10">Acessar sistema</Link>
+            </div>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              {
-                pain: "Informações espalhadas",
-                solution: "Cadastros e contatos organizados para a equipe encontrar o que precisa.",
-                icon: UsersRound,
-                accent: "text-cyan-200 bg-cyan-400/10 border-cyan-300/15",
-              },
-              {
-                pain: "Escalas esquecidas ou confusas",
-                solution: "Visualize equipes e compromissos com mais clareza na rotina da igreja.",
-                icon: CheckSquare,
-                accent: "text-amber-100 bg-amber-400/10 border-amber-300/15",
-              },
-              {
-                pain: "Culto com muitos detalhes para coordenar",
-                solution: "Acesse louvores, avisos, orações e recursos do Monitor de Mídia.",
-                icon: MonitorPlay,
-                accent: "text-blue-200 bg-blue-400/10 border-blue-300/15",
-              },
-              {
-                pain: "Cuidado infantil exige atenção",
-                solution: "Receba pré-cadastros Kids & Teens por QR Code com dados do responsável e cuidados informados.",
-                icon: Baby,
-                accent: "text-pink-200 bg-pink-400/10 border-pink-300/15",
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <article key={item.pain} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 transition hover:border-white/15 hover:bg-white/[0.04]">
-                  <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl border ${item.accent}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-white">{item.pain}</h3>
-                  <p className="mt-2 text-xs leading-5 text-gray-400">{item.solution}</p>
-                </article>
-              );
-            })}
+          <div className="relative flex min-h-[360px] items-center justify-center lg:min-h-[500px]">
+            <div aria-hidden="true" className="absolute h-[22rem] w-[22rem] rounded-full bg-blue-500/20 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
+            <div className="relative flex h-[360px] w-full max-w-[560px] items-center justify-center rounded-[3rem] border border-cyan-300/15 bg-[#061323]/45 shadow-[0_0_80px_rgba(0,119,255,0.2)] backdrop-blur-sm sm:h-[440px]">
+              <div className="absolute inset-8 rounded-full border border-cyan-300/20 shadow-[0_0_35px_rgba(34,211,238,0.18)]" />
+              <div className="absolute inset-14 rounded-full border border-blue-400/15" />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[82%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)]" />
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">Uma visão completa</p>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            As principais rotinas da igreja, conectadas
-          </h2>
-          <p className="mt-4 text-sm leading-6 text-gray-400 md:text-base">
-            Do cuidado com as pessoas à organização dos cultos: facilidades de gestão para a missão da sua igreja.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((module) => {
-            const Icon = module.icon;
-            return (
-              <article key={module.title} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-6 transition hover:border-blue-400/25 hover:bg-white/[0.04]">
-                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-blue-400/15 bg-blue-400/10 text-blue-200">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white">{module.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-gray-400">{module.description}</p>
-              </article>
-            );
-          })}
+      <section aria-label="Possibilidades da plataforma" className="relative z-10 mx-auto -mt-1 max-w-6xl px-5 md:px-8">
+        <div className="grid overflow-hidden rounded-2xl border border-cyan-200/20 bg-[#071727]/90 shadow-[0_0_35px_rgba(0,104,180,0.22)] backdrop-blur-xl sm:grid-cols-2 lg:grid-cols-6">
+          <div className="flex items-center justify-center p-5 text-center sm:col-span-2 lg:col-span-1 lg:text-left"><p className="text-lg font-bold leading-tight">Uma plataforma.<br /><span className="text-cyan-300">Várias possibilidades.</span></p></div>
+          {highlights.map(({ icon: Icon, title }) => <div key={title} className="flex items-center justify-center gap-2 border-t border-cyan-200/15 p-4 text-center text-xs text-gray-200 sm:border-l lg:border-t-0"><Icon className="h-7 w-7 shrink-0 text-cyan-300" /><span>{title}</span></div>)}
         </div>
       </section>
 
-      <section className="px-5 pb-20 md:px-8 md:pb-24">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 rounded-3xl border border-blue-300/15 bg-gradient-to-br from-blue-500/10 via-[#080E1B] to-cyan-500/[0.04] p-7 sm:p-10 md:flex-row md:items-center">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Vamos conversar?</p>
-            <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">Veja como o OHEL ON pode apoiar sua igreja.</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-400">Solicite uma cotação e converse com nossa equipe pelo WhatsApp.</p>
+      <section id="solucoes" className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
+        <div className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#061323] shadow-[0_0_45px_rgba(0,117,255,0.2)]">
+          <Image src="/ipo-cloud-logo.png" alt="OHEL ON e IPO CLOUD conectados" width={1672} height={941} className="h-auto w-full object-cover" sizes="(max-width: 1024px) 100vw, 55vw" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Diferenciais que fazem a diferença</p>
+          <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">Uma gestão mais clara para cuidar melhor.</h2>
+          <p className="mt-5 text-sm leading-7 text-gray-300 md:text-base">O OHEL ON nasceu da necessidade real de uma gestão mais completa. O IPO CLOUD amplia essa visão com uma plataforma segura, conectada e feita para a realidade das igrejas.</p>
+          <ul className="mt-7 space-y-4">{differences.map((difference) => <li key={difference} className="flex items-center gap-3 text-sm text-gray-200"><Check className="h-5 w-5 shrink-0 text-cyan-300" />{difference}</li>)}</ul>
+        </div>
+      </section>
+
+      <section id="sobre" className="border-y border-cyan-300/10 bg-[#03101d]">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:py-24">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Nossa origem</p>
+            <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">Tecnologia que nasceu para servir.</h2>
           </div>
-          <a
-            href={quoteLink}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#07101F] transition hover:bg-blue-50"
-          >
-            Solicitar cotação <ArrowRight className="h-4 w-4" />
-          </a>
+          <div className="space-y-5 text-sm leading-7 text-gray-300 md:text-base"><p>O IPO CLOUD nasceu de uma necessidade real da Igreja Pentecostal Ohel: unir fé, tecnologia e propósito em uma gestão mais eficiente.</p><p>Hoje, essa solução está pronta para atender outras igrejas e organizações com ferramentas que aproximam pessoas, organizam equipes e apoiam o cuidado diário.</p><p className="border-l-2 border-cyan-300 pl-4 font-semibold text-cyan-100">Tecnologia compartilhada, igrejas conectadas e inovação em favor do Reino.</p></div>
         </div>
       </section>
 
-      <footer className="border-t border-white/[0.08]">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-6 text-xs text-gray-500 sm:flex-row md:px-8">
-          <span>© {new Date().getFullYear()} OHEL ON. Gestão eclesiástica.</span>
-          <Link href="/login" className="text-gray-300 transition hover:text-white">Área Administrativa</Link>
+      <section id="planos" className="mx-auto max-w-7xl px-5 py-20 md:px-8 lg:py-24">
+        <div className="mb-10 text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Planos flexíveis</p><h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Uma solução para cada realidade.</h2><p className="mx-auto mt-4 max-w-2xl text-sm text-gray-400">Converse com nossa equipe para encontrar o formato ideal para sua igreja ou organização.</p></div>
+        <div className="mx-auto grid max-w-4xl gap-5 md:grid-cols-2">
+          {[{ title: "Igreja individual", text: "Tudo o que você precisa para começar.", icon: Church }, { title: "Rede ou organização", text: "Recursos para uma gestão ainda mais ampla.", icon: UsersRound }].map(({ title, text, icon: Icon }) => <article key={title} className="rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-[#0a2033] to-[#06101d] p-6 shadow-[0_0_30px_rgba(0,142,210,0.12)]"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-400/15 text-cyan-300"><Icon className="h-6 w-6" /></div><h3 className="text-lg font-bold text-white">{title}</h3></div><p className="mt-5 text-sm text-gray-400">{text}</p><a href={quoteLink} target="_blank" rel="noreferrer" className="mt-7 inline-flex items-center gap-2 rounded-full bg-cyan-100 px-5 py-2.5 text-xs font-bold text-[#06101d] transition hover:bg-white">Conhecer plano <ArrowRight className="h-3.5 w-3.5" /></a></article>)}
         </div>
-      </footer>
+      </section>
+
+      <section id="contato" className="px-5 pb-16 md:px-8 md:pb-20">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 rounded-3xl border border-cyan-300/25 bg-gradient-to-r from-[#08243a] via-[#071827] to-[#08243a] p-7 shadow-[0_0_40px_rgba(0,174,255,0.16)] md:flex-row md:p-9"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-300/15 text-cyan-300"><MessageCircle className="h-6 w-6" /></div><div><h2 className="text-lg font-bold text-white">Fale conosco</h2><p className="mt-1 text-sm text-gray-400">Solicite uma demonstração ou tire suas dúvidas.</p></div></div><a href={quoteLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-6 py-3 text-sm font-bold text-[#03101c] shadow-[0_0_25px_rgba(34,211,238,0.45)] transition hover:bg-cyan-200">Entrar em contato <ArrowRight className="h-4 w-4" /></a></div>
+      </section>
+
+      <footer className="border-t border-cyan-300/10 bg-[#020812]"><div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-gray-500 sm:flex-row md:px-8"><div className="flex items-center gap-4"><Logo className="h-10 w-28" /><span>Tecnologia a serviço de pessoas e organizações</span></div><Link href="/login" className="text-gray-300 transition hover:text-cyan-200">Acessar sistema</Link></div></footer>
     </main>
   );
 }
