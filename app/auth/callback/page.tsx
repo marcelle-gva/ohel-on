@@ -90,7 +90,32 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        window.location.replace(factors.totp.length > 0 ? "/mfa" : "/dashboard");
+        if (factors.totp.length > 0) {
+          window.location.replace("/mfa");
+          return;
+        }
+
+        const [{ data: platformAdmin }, { data: usuario }] = await Promise.all([
+          supabase
+            .from("ipocloud_platform_admins")
+            .select("auth_user_id")
+            .eq("auth_user_id", session.user.id)
+            .eq("ativo", true)
+            .maybeSingle(),
+          supabase
+            .from("usuarios")
+            .select("role")
+            .eq("id", session.user.id)
+            .maybeSingle(),
+        ]);
+        if (!active) return;
+
+        const destination = usuario?.role === "monitor"
+          ? "/monitor-midia"
+          : platformAdmin
+            ? "/ipocloud"
+            : "/dashboard";
+        window.location.replace(destination);
       } catch {
         if (active) setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
       } finally {

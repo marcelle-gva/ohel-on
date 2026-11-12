@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ChurchCarousel } from "@/components/public/ChurchCarousel";
+import { OAuthHashRelay } from "@/components/auth/OAuthHashRelay";
 
 const quoteLink = `https://wa.me/5521996288956?text=${encodeURIComponent("Olá! Quero solicitar uma cotação do sistema OHEL ON.")}`;
 
@@ -65,6 +66,7 @@ export default async function HomePage({
 
   return (
     <main className="h-dvh overflow-x-hidden overflow-y-auto scroll-smooth bg-[#020812] pt-[112px] text-white selection:bg-cyan-400/30 lg:pt-[76px]">
+      <OAuthHashRelay />
       <header className="fixed inset-x-0 top-0 z-40 h-[112px] border-b border-cyan-300/10 bg-[#020812]/95 backdrop-blur-xl lg:h-[76px]">
         <div className="mx-auto flex h-full max-w-7xl flex-wrap items-center justify-between gap-x-5 px-4 sm:px-5 md:px-8">
           <Link href="#inicio" aria-label="IPO CLOUD - início" className="shrink-0">
