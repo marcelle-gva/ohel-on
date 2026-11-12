@@ -3,6 +3,7 @@ import {
   resolverAcesso,
   respostaErroAcesso,
 } from "@/lib/access-server";
+import { VISIBILIDADE_ORACAO_PUBLICA } from "@/lib/mural-rules";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
           ? body.nome_solicitante.trim() || "Anônimo"
           : "Anônimo",
       descricao: body.descricao.trim(),
+      visibilidade: VISIBILIDADE_ORACAO_PUBLICA,
       status: "Pendente",
     });
     if (error) {

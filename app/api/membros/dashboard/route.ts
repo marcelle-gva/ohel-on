@@ -12,6 +12,11 @@ import {
   encontrarProximoCulto,
   type ProgramacaoCultoFixa,
 } from "@/lib/proximoCulto";
+import {
+  inicioJanelaOracaoRecente,
+  STATUS_ORACAO_PUBLICADA,
+  VISIBILIDADE_ORACAO_PUBLICA,
+} from "@/lib/mural-rules";
 
 export const runtime = "nodejs";
 
@@ -48,7 +53,7 @@ export async function GET(request: Request) {
     const hoje = new Date().toLocaleDateString("en-CA", {
       timeZone: "America/Sao_Paulo",
     });
-    const semana = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const semana = inicioJanelaOracaoRecente(new Date(instanteConsulta));
 
     // Seleções explícitas: o dashboard nunca devolve dados administrativos,
     // contatos de visitantes, finanças ou pedidos de oração pendentes.
@@ -93,7 +98,8 @@ export async function GET(request: Request) {
             .from("pedidos_oracao")
             .select("id, nome_solicitante, descricao, created_at")
             .eq("igreja_id", igrejaId)
-            .eq("status", "Em Oração")
+            .eq("status", STATUS_ORACAO_PUBLICADA)
+            .eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA)
             .gte("created_at", semana)
             .lte("created_at", instanteConsulta)
             .order("created_at", { ascending: false })

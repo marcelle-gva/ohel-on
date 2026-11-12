@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  inicioJanelaOracaoRecente,
+  STATUS_ORACAO_PUBLICADA,
+  VISIBILIDADE_ORACAO_PUBLICA,
+} from "@/lib/mural-rules";
 import { Card } from "@/components/ui/Card";
 import { ResumoContasPagar } from "@/components/financeiro/ResumoContasPagar";
 import { obterPeriodoAtualSaoPaulo, type ContaResumoMensal } from "@/lib/financeiro/resumoMensal";
@@ -65,14 +70,37 @@ export default function Dashboard() {
   const [oracoesRecentes, setOracoesRecentes] = useState<OracaoRecente[]>([]);
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let interval: number | null = null;
+    let requisicaoEmAndamento = false;
+    let atualizarNovamente = false;
+    let primeiraCarga = true;
+
     const fetchDashboardData = async () => {
+      if (requisicaoEmAndamento) {
+        atualizarNovamente = true;
+        return;
+      }
+      requisicaoEmAndamento = true;
+      if (primeiraCarga) setLoading(true);
       try {
-        setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
         const { data: userData } = await supabase.from("usuarios").select("nome, role, igreja_id").eq("id", session.user.id).maybeSingle();
         if (!userData?.igreja_id) return;
+
+        if (!channel) {
+          const atualizarPorMudanca = () => void fetchDashboardData();
+          const filtroIgreja = `igreja_id=eq.${userData.igreja_id}`;
+          channel = supabase
+            .channel(`dashboard-mural-${session.user.id}`)
+            .on("postgres_changes", { event: "*", schema: "public", table: "comunicacoes", filter: filtroIgreja }, atualizarPorMudanca)
+            .on("postgres_changes", { event: "*", schema: "public", table: "eventos", filter: filtroIgreja }, atualizarPorMudanca)
+            .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_oracao", filter: filtroIgreja }, atualizarPorMudanca)
+            .subscribe();
+        }
+
         setIsAdmin(userData.role === "admin");
         if (userData?.role === "admin") setNomeUsuario("Admin");
         else if (userData?.role === "monitor") setNomeUsuario("Monitor de Mídia");
@@ -82,7 +110,7 @@ export default function Dashboard() {
         const diaHoje = hoje.getDate();
         const mesHoje = hoje.getMonth() + 1;
         const instanteConsulta = hoje.toISOString();
-        const semana = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const semana = inicioJanelaOracaoRecente(hoje);
 
         // Executando todas as consultas em paralelo para performance
         const [
@@ -102,13 +130,13 @@ export default function Dashboard() {
           supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).eq("status", "Pré-Cadastro"),
           
           // Avisos no mural
-          supabase.from("comunicacoes").select("id, titulo, conteudo, created_at", { count: "exact" }).eq("igreja_id", userData.igreja_id).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).limit(3),
+          supabase.from("comunicacoes").select("id, titulo, conteudo, created_at", { count: "exact" }).eq("igreja_id", userData.igreja_id).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
 
           // Eventos publicados no mural, no mesmo escopo da igreja
-          supabase.from("eventos").select("id, nome, data_inicio, created_at").eq("igreja_id", userData.igreja_id).eq("publicar_mural", true).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id").limit(3),
+          supabase.from("eventos").select("id, nome, data_inicio, created_at").eq("igreja_id", userData.igreja_id).eq("publicar_mural", true).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
 
-          // Pedidos recentes já em oração; não expõe solicitações pendentes privadas
-          supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", "Em Oração").gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id").limit(3),
+          // Só pedidos aprovados e públicos entram no feed compartilhado.
+          supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", STATUS_ORACAO_PUBLICADA).eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA).gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
           
           // Buscar todas as datas de nascimento para filtrar no JS (mais leve que RPC)
           supabase.from("membros").select("data_nascimento").eq("igreja_id", userData.igreja_id).eq("status", "Ativo")
@@ -139,10 +167,30 @@ export default function Dashboard() {
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error);
       } finally {
-        setLoading(false);
+        requisicaoEmAndamento = false;
+        if (primeiraCarga) {
+          primeiraCarga = false;
+          setLoading(false);
+        }
+        if (atualizarNovamente) {
+          atualizarNovamente = false;
+          void fetchDashboardData();
+        }
       }
     };
-    fetchDashboardData();
+
+    const atualizarSeVisivel = () => {
+      if (!document.hidden) void fetchDashboardData();
+    };
+    void fetchDashboardData();
+    interval = window.setInterval(atualizarSeVisivel, 30000);
+    document.addEventListener("visibilitychange", atualizarSeVisivel);
+
+    return () => {
+      if (interval !== null) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", atualizarSeVisivel);
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

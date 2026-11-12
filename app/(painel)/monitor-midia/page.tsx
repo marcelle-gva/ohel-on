@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  inicioJanelaOracaoRecente,
+  STATUS_ORACAO_PUBLICADA,
+  VISIBILIDADE_ORACAO_PUBLICA,
+} from "@/lib/mural-rules";
 import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
@@ -90,7 +95,10 @@ export default function MonitorMidiaPage() {
   const hoje = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    let channel: any;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let refreshInterval: number | null = null;
+    let refreshDebounce: number | null = null;
+    let visibilityHandler: (() => void) | null = null;
 
     const init = async () => {
       try {
@@ -130,17 +138,17 @@ export default function MonitorMidiaPage() {
               }
             }
 
-            const seteDiasAtras = new Date();
-            seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+            const instanteConsulta = new Date().toISOString();
+            const seteDiasAtras = inicioJanelaOracaoRecente(new Date(instanteConsulta));
 
             // Busca os dados do monitor
             const [visitasRes, louvoresRes, muralRes, eventosMuralRes, oracoesRes, pendentesRes, escalasRes] = await Promise.all([
               supabase.from('visitantes').select('*').eq('igreja_id', user.igreja_id).eq('data_visita', hoje),
               supabase.from('louvores').select('*').eq('igreja_id', user.igreja_id).eq('data', hoje).order('created_at'),
-              supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }),
-              supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }),
-              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Em Oração').gte('created_at', seteDiasAtras.toISOString()).order('created_at', { ascending: false }),
-              supabase.from('pedidos_oracao').select('*').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').order('created_at', { ascending: false }),
+              supabase.from('comunicacoes').select('id, titulo, conteudo, created_at').eq('igreja_id', user.igreja_id).lte('created_at', instanteConsulta).order('created_at', { ascending: false }).order('id'),
+              supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).lte('created_at', instanteConsulta).order('created_at', { ascending: false }).order('id'),
+              supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', STATUS_ORACAO_PUBLICADA).eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).gte('created_at', seteDiasAtras).lte('created_at', instanteConsulta).order('created_at', { ascending: false }).order('id'),
+              supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).lte('created_at', instanteConsulta).order('created_at', { ascending: false }).order('id'),
               // Busca as próximas 3 escalas com os membros escalados
               supabase.from('escalas')
                 .select(`
@@ -176,6 +184,33 @@ export default function MonitorMidiaPage() {
             setOracoesPendentes(pendentesRes.data || []);
             setEscalasProximas(escalasRes.data || []);
 
+            const atualizarConteudoCompartilhado = async () => {
+              const instanteAtualizacao = new Date().toISOString();
+              const inicioJanela = inicioJanelaOracaoRecente(new Date(instanteAtualizacao));
+              const [comunicacoesAtualizadas, eventosAtualizados, oracoesAtualizadas, pendentesAtualizados] = await Promise.all([
+                supabase.from('comunicacoes').select('id, titulo, conteudo, created_at').eq('igreja_id', user.igreja_id).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
+                supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
+                supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', STATUS_ORACAO_PUBLICADA).eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).gte('created_at', inicioJanela).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
+                supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
+              ]);
+              const errosAtualizacao = [comunicacoesAtualizadas.error, eventosAtualizados.error, oracoesAtualizadas.error, pendentesAtualizados.error].filter(Boolean);
+              if (errosAtualizacao.length) {
+                console.error('Não foi possível sincronizar o mural do Monitor:', errosAtualizacao);
+                return;
+              }
+              setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
+              setOracoesSemana(oracoesAtualizadas.data || []);
+              setOracoesPendentes(pendentesAtualizados.data || []);
+            };
+
+            const agendarAtualizacaoCompartilhada = () => {
+              if (refreshDebounce !== null) window.clearTimeout(refreshDebounce);
+              refreshDebounce = window.setTimeout(() => {
+                refreshDebounce = null;
+                void atualizarConteudoCompartilhado().catch((error) => console.error('Falha ao atualizar mural do Monitor:', error));
+              }, 200);
+            };
+
             const channelName = `realtime-monitor-${Date.now()}-${Math.random()}`;
             channel = supabase
               .channel(channelName)
@@ -190,31 +225,17 @@ export default function MonitorMidiaPage() {
                     : prev.filter((louvor) => louvor.id !== payload.new.id));
                 }
               })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao', filter: `igreja_id=eq.${user.igreja_id}` }, (payload) => {
-                if (payload.eventType === 'INSERT' && payload.new.status === 'Pendente') {
-                  setOracoesPendentes((prev) => prev.some(o => o.id === payload.new.id) ? prev : [payload.new, ...prev]);
-                }
-                if (payload.eventType === 'UPDATE') {
-                  setOracoesPendentes((prev) => payload.new.status === 'Pendente'
-                    ? prev.some((pedido) => pedido.id === payload.new.id)
-                      ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
-                      : [payload.new, ...prev]
-                    : prev.filter((pedido) => pedido.id !== payload.new.id));
-                  setOracoesSemana((prev) => payload.new.status === 'Em Oração'
-                    ? prev.some((pedido) => pedido.id === payload.new.id)
-                      ? prev.map((pedido) => pedido.id === payload.new.id ? payload.new : pedido)
-                      : [payload.new, ...prev]
-                    : prev.filter((pedido) => pedido.id !== payload.new.id));
-                }
-              })
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos', filter: `igreja_id=eq.${user.igreja_id}` }, async () => {
-                const [comunicacoesAtualizadas, eventosAtualizados] = await Promise.all([
-                  supabase.from('comunicacoes').select('*').eq('igreja_id', user.igreja_id).order('created_at', { ascending: false }),
-                  supabase.from('eventos').select('id, nome, descricao, cartaz_url, galeria_urls, preco_ingresso, pregador_convidados, informacoes_adicionais, logradouro, numero, bairro, cidade, uf, usar_endereco_igreja, igrejas(endereco), created_at').eq('igreja_id', user.igreja_id).eq('publicar_mural', true).order('created_at', { ascending: false }),
-                ]);
-                setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
-              })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_oracao', filter: `igreja_id=eq.${user.igreja_id}` }, agendarAtualizacaoCompartilhada)
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicacoes', filter: `igreja_id=eq.${user.igreja_id}` }, agendarAtualizacaoCompartilhada)
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos', filter: `igreja_id=eq.${user.igreja_id}` }, agendarAtualizacaoCompartilhada)
               .subscribe();
+
+            const atualizarSeVisivel = () => {
+              if (!document.hidden) void atualizarConteudoCompartilhado().catch((error) => console.error('Falha ao atualizar mural do Monitor:', error));
+            };
+            visibilityHandler = atualizarSeVisivel;
+            document.addEventListener('visibilitychange', atualizarSeVisivel);
+            refreshInterval = window.setInterval(atualizarSeVisivel, 30000);
           }
         }
       } catch (error) {
@@ -233,6 +254,9 @@ export default function MonitorMidiaPage() {
     init();
 
     return () => {
+      if (refreshInterval !== null) window.clearInterval(refreshInterval);
+      if (refreshDebounce !== null) window.clearTimeout(refreshDebounce);
+      if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
       if (channel) supabase.removeChannel(channel);
     };
   }, [hoje]);

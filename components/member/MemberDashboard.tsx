@@ -85,9 +85,13 @@ export function MemberDashboard() {
   const [louvoresVisiveis, setLouvoresVisiveis] = useState(3);
   const [slide, setSlide] = useState(0);
   const emAndamento = useRef<AbortController | null>(null);
+  const recarregarPendente = useRef(false);
 
   const carregar = useCallback(async () => {
-    if (emAndamento.current) return;
+    if (emAndamento.current) {
+      recarregarPendente.current = true;
+      return;
+    }
     const controller = new AbortController();
     emAndamento.current = controller;
     setAtualizando(true);
@@ -132,24 +136,50 @@ export function MemberDashboard() {
     } finally {
       if (emAndamento.current === controller) emAndamento.current = null;
       if (!controller.signal.aborted) setAtualizando(false);
+      const repetir = recarregarPendente.current && !controller.signal.aborted;
+      recarregarPendente.current = false;
+      if (repetir) window.setTimeout(() => void carregar(), 0);
     }
   }, []);
 
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let realtimeTimer: number | null = null;
+    const igrejaId = contexto?.igrejaId;
     const timer = window.setTimeout(() => void carregar(), 0);
     const refresh = () => {
       if (!document.hidden) void carregar();
     };
+    const atualizarPorMudanca = () => {
+      if (document.hidden) return;
+      if (realtimeTimer !== null) window.clearTimeout(realtimeTimer);
+      realtimeTimer = window.setTimeout(() => {
+        realtimeTimer = null;
+        void carregar();
+      }, 200);
+    };
+    if (igrejaId) {
+      const filtroIgreja = `igreja_id=eq.${igrejaId}`;
+      channel = supabase
+        .channel(`member-dashboard-mural-${igrejaId}-${Date.now()}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "comunicacoes", filter: filtroIgreja }, atualizarPorMudanca)
+        .on("postgres_changes", { event: "*", schema: "public", table: "eventos", filter: filtroIgreja }, atualizarPorMudanca)
+        .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_oracao", filter: filtroIgreja }, atualizarPorMudanca)
+        .subscribe();
+    }
     const interval = window.setInterval(refresh, 30000);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
+      if (realtimeTimer !== null) window.clearTimeout(realtimeTimer);
       document.removeEventListener("visibilitychange", refresh);
       emAndamento.current?.abort();
       emAndamento.current = null;
+      recarregarPendente.current = false;
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [carregar]);
+  }, [carregar, contexto?.igrejaId]);
 
   const avisos = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");

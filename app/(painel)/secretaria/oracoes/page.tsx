@@ -24,15 +24,74 @@ export default function OracoesPage() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPedidos();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let interval: number | null = null;
+    let refreshTimeout: number | null = null;
+    let active = true;
+    let igrejaId: string | null = null;
+
+    const atualizarSeVisivel = () => {
+      if (igrejaId && !document.hidden) void fetchPedidos(igrejaId);
+    };
+    const agendarAtualizacao = () => {
+      if (!igrejaId) return;
+      if (refreshTimeout !== null) window.clearTimeout(refreshTimeout);
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null;
+        if (igrejaId) void fetchPedidos(igrejaId);
+      }, 200);
+    };
+    interval = window.setInterval(atualizarSeVisivel, 30000);
+    document.addEventListener("visibilitychange", atualizarSeVisivel);
+
+    const assinarPedidos = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user.id) {
+        setLoading(false);
+        return;
+      }
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("igreja_id")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (!usuario?.igreja_id) {
+        setLoading(false);
+        return;
+      }
+      const igrejaDaSessao = usuario.igreja_id;
+      igrejaId = igrejaDaSessao;
+      void fetchPedidos(igrejaDaSessao, true);
+
+      channel = supabase
+        .channel(`secretaria-oracoes-${igrejaDaSessao}-${Date.now()}`)
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table: "pedidos_oracao",
+          filter: `igreja_id=eq.${igrejaDaSessao}`,
+        }, agendarAtualizacao)
+        .subscribe();
+    };
+    void assinarPedidos();
+
+    return () => {
+      active = false;
+      if (interval !== null) window.clearInterval(interval);
+      if (refreshTimeout !== null) window.clearTimeout(refreshTimeout);
+      document.removeEventListener("visibilitychange", atualizarSeVisivel);
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, []);
 
-  const fetchPedidos = async () => {
+  const fetchPedidos = async (igrejaId: string, mostrarLoading = false) => {
     try {
-      setLoading(true);
+      if (mostrarLoading) setLoading(true);
       const { data, error } = await supabase
         .from("pedidos_oracao")
         .select("*")
+        .eq("igreja_id", igrejaId)
         .order("created_at", { ascending: false });
         
       if (error) throw error;
