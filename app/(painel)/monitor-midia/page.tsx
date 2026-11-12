@@ -101,6 +101,11 @@ export default function MonitorMidiaPage() {
           if (user) {
             setIgrejaId(user.igreja_id);
 
+            if (user.igreja_id) {
+              const { error: syncCultosError } = await supabase.rpc('materializar_sessoes_culto', { p_igreja_id: user.igreja_id });
+              if (syncCultosError) throw syncCultosError;
+            }
+
             const { data: cultoAberto } = await supabase
               .from('culto_sessoes')
               .select('id, titulo, link_ao_vivo')

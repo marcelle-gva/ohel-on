@@ -114,6 +114,10 @@
   background: #007bff12;
   color: #74b7ff;
 }
+.prayerActionIcon {
+  background: #ef44441a;
+  color: #f87171;
+}
 .actionLabel {
   display: block;
   color: #eef3fa;
@@ -397,15 +401,6 @@
   color: #b8c6d8;
   font-weight: 500;
 }
-.smallLink {
-  color: #89bcf7;
-  font-size: 0.69rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 40px;
-}
-
 .prayer {
   border-top: 1px solid #182337;
   padding: 0.75rem 0;

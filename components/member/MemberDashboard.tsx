@@ -229,7 +229,7 @@ export function MemberDashboard() {
             className={styles.action}
             aria-label={nome}
           >
-            <span className={styles.actionIcon}>
+            <span className={`${styles.actionIcon} ${nome === "Pedir oração" ? styles.prayerActionIcon : ""}`}>
               <Icon size={19} />
             </span>
             <span className="min-w-0">
@@ -411,9 +411,6 @@ export function MemberDashboard() {
                 igreja={dashboard.igreja}
                 visitantes={dashboard.visitantes}
               />
-              <Link href={`/oracao/${contexto?.igrejaId}`} className={styles.smallLink}>
-                Enviar pedido de oração <ArrowRight size={13} />
-              </Link>
             </div>
           </div>
 
