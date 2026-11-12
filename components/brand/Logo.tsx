@@ -33,21 +33,13 @@ export function Logo({ className = "h-[140px] w-[140px]" }: LogoProps) {
   }, []);
 
   return (
-    <div className={`group relative flex justify-center items-center overflow-visible ${className}`}>
-      {/* Efeito de brilho de fundo (Neon) */}
-      <div className="absolute -inset-3 rounded-full bg-ohel-blue/50 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-65" />
-      <div className="absolute -inset-1 rounded-[2rem] bg-cyan-400/20 blur-xl opacity-0 transition-opacity duration-500 group-hover:opacity-60" />
-
+    <div className={`relative flex justify-center items-center overflow-visible ${className}`}>
       <Image
         src={logoUrl}
         alt="IPO CLOUD"
         fill
         sizes="200px"
-        className="relative z-10 object-contain transition-all duration-500 group-hover:scale-105 group-hover:drop-shadow-[0_0_18px_rgba(0,156,255,0.65)]"
-        style={{ 
-          mixBlendMode: 'screen', // Faz o fundo preto da imagem (se houver) desaparecer
-          filter: 'brightness(1.3) contrast(1.2)' // Deixa a logo mais viva e nítida, sem halo permanente
-        }}
+        className="relative z-10 object-contain"
         priority
       />
     </div>
