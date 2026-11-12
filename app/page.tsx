@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { ChurchCarousel } from "@/components/public/ChurchCarousel";
 
 const quoteLink = `https://wa.me/5521996288956?text=${encodeURIComponent("Olá! Quero solicitar uma cotação do sistema OHEL ON.")}`;
 
@@ -126,19 +127,17 @@ export default async function HomePage({
         </div>
       </section>
 
-      <section id="solucoes" className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
-        <div className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#061323] shadow-[0_0_45px_rgba(0,117,255,0.2)]">
-          <Image src="/ipo-cloud-logo.png" alt="OHEL ON e IPO CLOUD conectados" width={1672} height={941} className="h-auto w-full object-cover" sizes="(max-width: 1024px) 100vw, 55vw" />
-        </div>
+      <section id="solucoes" className="scroll-mt-24 mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
+        <ChurchCarousel />
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Diferenciais que fazem a diferença</p>
           <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">Uma gestão mais clara para cuidar melhor.</h2>
-          <p className="mt-5 text-sm leading-7 text-gray-300 md:text-base">O OHEL ON nasceu da necessidade real de uma gestão mais completa. O IPO CLOUD amplia essa visão com uma plataforma segura, conectada e feita para a realidade das igrejas.</p>
+          <p className="mt-5 text-sm leading-7 text-gray-300 md:text-base">O IPO CLOUD reúne ferramentas seguras, conectadas e feitas para a realidade das igrejas, aproximando pessoas e simplificando as rotinas de gestão.</p>
           <ul className="mt-7 space-y-4">{differences.map((difference) => <li key={difference} className="flex items-center gap-3 text-sm text-gray-200"><Check className="h-5 w-5 shrink-0 text-cyan-300" />{difference}</li>)}</ul>
         </div>
       </section>
 
-      <section id="sobre" className="border-y border-cyan-300/10 bg-[#03101d]">
+      <section id="sobre" className="scroll-mt-24 border-y border-cyan-300/10 bg-[#03101d]">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 lg:grid-cols-[0.85fr_1.15fr] lg:py-24">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Nossa origem</p>
@@ -148,14 +147,14 @@ export default async function HomePage({
         </div>
       </section>
 
-      <section id="planos" className="mx-auto max-w-7xl px-5 py-20 md:px-8 lg:py-24">
+      <section id="planos" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-20 md:px-8 lg:py-24">
         <div className="mb-10 text-center"><p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Planos flexíveis</p><h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Uma solução para cada realidade.</h2><p className="mx-auto mt-4 max-w-2xl text-sm text-gray-400">Converse com nossa equipe para encontrar o formato ideal para sua igreja ou organização.</p></div>
         <div className="mx-auto grid max-w-4xl gap-5 md:grid-cols-2">
           {[{ title: "Igreja individual", text: "Tudo o que você precisa para começar.", icon: Church }, { title: "Rede ou organização", text: "Recursos para uma gestão ainda mais ampla.", icon: UsersRound }].map(({ title, text, icon: Icon }) => <article key={title} className="rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-[#0a2033] to-[#06101d] p-6 shadow-[0_0_30px_rgba(0,142,210,0.12)]"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-400/15 text-cyan-300"><Icon className="h-6 w-6" /></div><h3 className="text-lg font-bold text-white">{title}</h3></div><p className="mt-5 text-sm text-gray-400">{text}</p><a href={quoteLink} target="_blank" rel="noreferrer" className="mt-7 inline-flex items-center gap-2 rounded-full bg-cyan-100 px-5 py-2.5 text-xs font-bold text-[#06101d] transition hover:bg-white">Conhecer plano <ArrowRight className="h-3.5 w-3.5" /></a></article>)}
         </div>
       </section>
 
-      <section id="contato" className="px-5 pb-16 md:px-8 md:pb-20">
+      <section id="contato" className="scroll-mt-24 px-5 pb-16 md:px-8 md:pb-20">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 rounded-3xl border border-cyan-300/25 bg-gradient-to-r from-[#08243a] via-[#071827] to-[#08243a] p-7 shadow-[0_0_40px_rgba(0,174,255,0.16)] md:flex-row md:p-9"><div className="flex items-center gap-4"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-300/15 text-cyan-300"><MessageCircle className="h-6 w-6" /></div><div><h2 className="text-lg font-bold text-white">Fale conosco pelo WhatsApp</h2><p className="mt-1 text-sm text-gray-400">(21) 99628-8956 · Solicite uma demonstração ou tire suas dúvidas.</p></div></div><a href={quoteLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-cyan-300 px-6 py-3 text-sm font-bold text-[#03101c] shadow-[0_0_25px_rgba(34,211,238,0.45)] transition hover:bg-cyan-200">Abrir WhatsApp <ArrowRight className="h-4 w-4" /></a></div>
       </section>
 
