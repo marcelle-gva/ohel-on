@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import QRCode from "react-qr-code";
-import { Baby, Check, CheckCircle, Copy, QrCode, ShieldAlert, X } from "lucide-react";
+import { Baby, Check, CheckCircle, Copy, Package, QrCode, ShieldAlert, Truck, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { podeAcessar } from "@/lib/access";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { useAccess } from "@/components/layout/AccessShell";
 import { criarLinkPublicoKids } from "@/lib/public-site";
 
 interface KidsTeensRegistration {
@@ -22,14 +25,49 @@ interface KidsTeensRegistration {
   created_at: string;
 }
 
+type Related<T> = T | T[] | null | undefined;
+
+interface EscalaAtribuicao {
+  id: string;
+  nome_manual: string | null;
+  funcoes_escala?: Related<{ nome: string }>;
+  membros?: Related<{ nome: string | null; telefone: string | null }>;
+}
+
+interface EscalaKids {
+  id: string;
+  titulo: string;
+  data_culto: string;
+  horario_inicio: string | null;
+  escalados: EscalaAtribuicao[] | null;
+}
+
+function oneRelated<T>(value: Related<T>): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function formatScaleDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR");
+}
+
 export default function KidsTeensPage() {
   const [igrejaId, setIgrejaId] = useState("");
+  const [kidsDepartamentoId, setKidsDepartamentoId] = useState("");
   const [registrations, setRegistrations] = useState<KidsTeensRegistration[]>([]);
+  const [escalasFuturas, setEscalasFuturas] = useState<EscalaKids[]>([]);
+  const [responsavelNaEscala, setResponsavelNaEscala] = useState("");
+  const [lancheSolicitado, setLancheSolicitado] = useState("");
+  const [quantidadeLanche, setQuantidadeLanche] = useState("1");
+  const [observacoesLanche, setObservacoesLanche] = useState("");
+  const [erroEscalas, setErroEscalas] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"todos" | "pendente" | "aprovado" | "rejeitado">("pendente");
   const [selected, setSelected] = useState<KidsTeensRegistration | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
   const [feedback, setFeedback] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
+  const contexto = useAccess();
+  const podeVerCatalogo = Boolean(contexto && podeAcessar(contexto, "financeiro", "ler"));
 
   useEffect(() => {
     const initialize = async () => {
@@ -57,6 +95,29 @@ export default function KidsTeensPage() {
       }
       setIgrejaId(user.igreja_id);
 
+      const { data: departamentos } = await supabase
+        .from("departamentos")
+        .select("id, nome")
+        .eq("igreja_id", user.igreja_id)
+        .eq("ativo", true)
+        .order("nome");
+      const departamentoKids = departamentos?.find((departamento) => /kids|infantil|crian[çc]a/i.test(departamento.nome));
+      setKidsDepartamentoId(departamentoKids?.id || "");
+
+      const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const { data: escalas, error: escalasError } = await supabase
+        .from("escalas")
+        .select("id, titulo, data_culto, horario_inicio, escalados(id, nome_manual, funcoes_escala(nome), membros(nome, telefone))")
+        .eq("igreja_id", user.igreja_id)
+        .gte("data_culto", hoje)
+        .order("data_culto", { ascending: true })
+        .limit(80);
+      if (escalasError) {
+        setErroEscalas("Não foi possível carregar as próximas escalas. Verifique a permissão do módulo Escalas.");
+      } else {
+        setEscalasFuturas((escalas || []) as unknown as EscalaKids[]);
+      }
+
       const { data, error } = await supabase
         .from("kids_teens_pre_cadastros")
         .select("*")
@@ -82,6 +143,27 @@ export default function KidsTeensPage() {
   const publicUrl = criarLinkPublicoKids(igrejaId);
   const filtered = registrations.filter((item) => filter === "todos" || item.status === filter);
   const pendingCount = registrations.filter((item) => item.status === "pendente").length;
+  const pessoasEscaladas = escalasFuturas.flatMap((escala) => (escala.escalados || []).map((atribuicao) => {
+    const membro = oneRelated(atribuicao.membros);
+    const funcao = oneRelated(atribuicao.funcoes_escala);
+    return {
+      id: atribuicao.id,
+      escala,
+      nome: membro?.nome || atribuicao.nome_manual || "Pessoa escalada",
+      telefone: membro?.telefone || "",
+      funcao: funcao?.nome || "Equipe",
+    };
+  })).filter((pessoa) => /kids|infantil|crian[çc]a|berç|tia/i.test(pessoa.funcao));
+  const destinatarioEscala = pessoasEscaladas.find((pessoa) => pessoa.id === responsavelNaEscala) || null;
+  const telefoneWhatsApp = (destinatarioEscala?.telefone || "").replace(/\D/g, "");
+  const telefoneCompleto = telefoneWhatsApp && !telefoneWhatsApp.startsWith("55") ? `55${telefoneWhatsApp}` : telefoneWhatsApp;
+  const quantidadeValida = Number.isInteger(Number(quantidadeLanche)) && Number(quantidadeLanche) > 0;
+  const mensagemLanche = destinatarioEscala
+    ? `Olá, ${destinatarioEscala.nome}! Você está na escala de ${destinatarioEscala.escala.titulo} em ${formatScaleDate(destinatarioEscala.escala.data_culto)}${destinatarioEscala.escala.horario_inicio ? ` às ${destinatarioEscala.escala.horario_inicio}` : ""}. Poderia providenciar ${quantidadeLanche} ${lancheSolicitado.trim()} para o Espaço Kids?${observacoesLanche.trim() ? ` Observação: ${observacoesLanche.trim()}` : ""}`
+    : "";
+  const linkSolicitacaoWhatsApp = telefoneCompleto && lancheSolicitado.trim() && quantidadeValida
+    ? `https://wa.me/${telefoneCompleto}?text=${encodeURIComponent(mensagemLanche)}`
+    : "";
 
   const copyLink = async () => {
     if (!publicUrl) return;
@@ -147,6 +229,90 @@ export default function KidsTeensPage() {
           <QrCode className="h-4 w-4" /> QR Code de pré-cadastro
         </button>
       </div>
+
+      <Card className="border-gray-800 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-300">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white">Lanches e estoque do Espaço Kids</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                Use o catálogo da igreja no departamento Kids: cadastre o lanche, saldo atual, estoque mínimo e fornecedor. Itens abaixo do mínimo ficam destacados, sem duplicar produtos ou fornecedores.
+              </p>
+            </div>
+          </div>
+          {podeVerCatalogo ? (
+            kidsDepartamentoId ? (
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href={`/financeiro/produtos?departamento=${encodeURIComponent(kidsDepartamentoId)}`} className="inline-flex items-center gap-2 rounded-md bg-ohel-blue px-4 py-2 text-xs font-semibold text-white hover:bg-blue-600">
+                  <Package className="h-4 w-4" /> Lanches e estoque
+                </Link>
+                <Link href={`/financeiro/fornecedores?departamento=${encodeURIComponent(kidsDepartamentoId)}`} className="inline-flex items-center gap-2 rounded-md border border-gray-700 px-4 py-2 text-xs font-semibold text-gray-300 hover:text-white">
+                  <Truck className="h-4 w-4" /> Fornecedores
+                </Link>
+              </div>
+            ) : (
+              <Link href="/financeiro/departamentos" className="shrink-0 rounded-md border border-amber-500/30 px-4 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/10">
+                Configurar departamento Kids
+              </Link>
+            )
+          ) : (
+            <p className="max-w-sm rounded-md border border-gray-800 bg-ohel-bg px-3 py-2 text-xs leading-5 text-gray-400">
+              O catálogo é compartilhado com Financeiro. Para abrir estoque e fornecedores, a conta precisa ter permissão de leitura nesse módulo.
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card className="border-gray-800 p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 text-green-300"><Truck className="h-5 w-5" /></div>
+          <div>
+            <h2 className="text-sm font-bold text-white">Solicitar lanche para uma escala</h2>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-400">Escolha uma pessoa já designada e prepare uma mensagem com a data do serviço. O WhatsApp abrirá para você revisar e enviar; a solicitação não altera o estoque automaticamente.</p>
+          </div>
+        </div>
+        {erroEscalas ? (
+          <p className="mt-4 rounded-md border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200">{erroEscalas}</p>
+        ) : pessoasEscaladas.length === 0 ? (
+          <div className="mt-4 flex flex-col gap-3 rounded-md border border-gray-800 bg-ohel-bg p-3 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>Não há uma pessoa designada em uma função identificada como Kids/Infantil nas escalas futuras. Em Secretaria → Escalas, crie a escala e atribua a função da equipe infantil, com telefone cadastrado para WhatsApp.</p>
+            <Link href="/secretaria/escalas" className="shrink-0 rounded-md border border-gray-700 px-3 py-2 text-center font-semibold text-gray-200 hover:bg-white/5">Abrir Escalas</Link>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">Pessoa designada na escala</label>
+              <select value={responsavelNaEscala} onChange={(event) => setResponsavelNaEscala(event.target.value)} className="input-ohel w-full rounded-md px-3 py-2 text-xs">
+                <option value="">Selecione a escala e a pessoa</option>
+                {pessoasEscaladas.map((pessoa) => (
+                  <option key={pessoa.id} value={pessoa.id}>{formatScaleDate(pessoa.escala.data_culto)} · {pessoa.escala.titulo} · {pessoa.funcao} — {pessoa.nome}{pessoa.telefone ? "" : " (sem telefone cadastrado)"}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">Lanche</label>
+              <input value={lancheSolicitado} onChange={(event) => setLancheSolicitado(event.target.value)} placeholder="Ex.: frutas e suco" className="input-ohel w-full rounded-md px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">Quantidade</label>
+              <input type="number" min="1" step="1" value={quantidadeLanche} onChange={(event) => setQuantidadeLanche(event.target.value)} className="input-ohel w-full rounded-md px-3 py-2 text-xs" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">Observação (opcional)</label>
+              <textarea value={observacoesLanche} onChange={(event) => setObservacoesLanche(event.target.value)} placeholder="Preferências, horário para levar ou outro detalhe" className="input-ohel min-h-16 w-full rounded-md px-3 py-2 text-xs" />
+            </div>
+            <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              {destinatarioEscala && !destinatarioEscala.telefone && <p className="text-xs text-amber-200">Cadastre o telefone dessa pessoa em Membros para abrir uma solicitação no WhatsApp.</p>}
+              <a href={linkSolicitacaoWhatsApp || undefined} target="_blank" rel="noopener noreferrer" aria-disabled={!linkSolicitacaoWhatsApp} className={`inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-semibold ${linkSolicitacaoWhatsApp ? "bg-green-600 text-white hover:bg-green-500" : "cursor-not-allowed bg-gray-800 text-gray-500"}`}>
+                <Truck className="h-4 w-4" /> Abrir solicitação no WhatsApp
+              </a>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[

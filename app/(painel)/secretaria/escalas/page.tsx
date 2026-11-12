@@ -317,7 +317,7 @@ export default function EscalasDashboard() {
         {activeTab === "eventos" && (
           <div className="flex flex-col gap-4">
             <Card className="p-4 flex items-center justify-between">
-              <div><h2 className="text-sm font-bold text-white">Grade fixa da igreja</h2><p className="text-xs text-gray-400">Cadastre cultos e encontros recorrentes; depois gere as escalas do mês a partir desta grade.</p></div>
+              <div><h2 className="text-sm font-bold text-white">Grade fixa da igreja</h2><p className="text-xs text-gray-400">Cadastre recorrências que geram escalas de equipe do mês. Para programar cultos no histórico e nos avisos, use Monitor de Mídia → Histórico de Cultos; são cadastros distintos, então evite repetir aqui o mesmo horário sem precisar de uma escala de serviço.</p></div>
               <Button onClick={() => setShowNovoEvento(true)} className="w-auto px-4 py-2 text-xs bg-ohel-blue text-white"><Plus className="w-3.5 h-3.5 mr-1.5" /> Criar Evento Regular</Button>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

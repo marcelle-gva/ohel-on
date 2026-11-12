@@ -81,6 +81,7 @@ export function AccessShell({
 
   useEffect(() => {
     const timer = window.setTimeout(() => void carregar(), 0);
+    let authRefreshTimer: number | null = null;
     const refresh = () => {
       if (!document.hidden) void carregar();
     };
@@ -93,10 +94,17 @@ export function AccessShell({
       if (event === "SIGNED_OUT") {
         setContexto(null);
         router.replace(membro ? "/login-membro" : "/login");
+      } else if (event === "SIGNED_IN") {
+        if (authRefreshTimer !== null) window.clearTimeout(authRefreshTimer);
+        authRefreshTimer = window.setTimeout(() => {
+          authRefreshTimer = null;
+          void carregar();
+        }, 0);
       }
     });
     return () => {
       window.clearTimeout(timer);
+      if (authRefreshTimer !== null) window.clearTimeout(authRefreshTimer);
       window.clearInterval(interval);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("ohel:perfil-atualizado", refresh);

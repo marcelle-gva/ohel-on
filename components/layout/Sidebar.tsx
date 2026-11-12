@@ -15,7 +15,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false }: SidebarProps) {
   const pathname = usePathname();
-  const [openMenu, setOpenMenu] = useState<string | null>("Secretaria");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const toggleMenu = (name: string) => {
     setOpenMenu(openMenu === name ? null : name);

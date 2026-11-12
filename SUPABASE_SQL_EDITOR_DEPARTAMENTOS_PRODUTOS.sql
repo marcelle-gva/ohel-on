@@ -72,6 +72,7 @@ create trigger trg_marcar_produto_atualizado before update on public.produtos
 for each row execute function public.marcar_produto_atualizado();
 
 alter table public.produtos enable row level security;
+grant select, insert, update, delete on public.produtos to authenticated;
 
 -- Funções de autorização locais às políticas.
 drop policy if exists ohel_produtos_staff_select on public.produtos;

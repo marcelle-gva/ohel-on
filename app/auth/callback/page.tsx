@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -14,38 +15,98 @@ export default function AuthCallbackPage() {
     if (started.current) return;
     started.current = true;
 
+    let active = true;
+    let timeoutId: number | null = null;
+    let subscription: { unsubscribe: () => void } | null = null;
+
     const finishSignIn = async () => {
-      const callbackUrl = new URL(window.location.href);
-      const oauthError = callbackUrl.searchParams.get("error_description")
-        || callbackUrl.searchParams.get("error");
+      let session: Session | null = null;
 
-      if (oauthError) {
-        setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
-        return;
-      }
+      try {
+        const callbackUrl = new URL(window.location.href);
+        const hashParams = new URLSearchParams(callbackUrl.hash.replace(/^#/, ""));
+        const oauthError =
+          callbackUrl.searchParams.get("error_description") ||
+          callbackUrl.searchParams.get("error") ||
+          callbackUrl.searchParams.get("error_code") ||
+          hashParams.get("error_description") ||
+          hashParams.get("error") ||
+          hashParams.get("error_code");
 
-      // O cliente único detecta o access_token/refresh_token do retorno
-      // implícito. Aguardamos a persistência terminar antes do redirecionamento.
-      let sessionData = (await supabase.auth.getSession()).data;
-      for (let attempt = 0; !sessionData.session && attempt < 10; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 200));
-        sessionData = (await supabase.auth.getSession()).data;
-      }
-      if (!sessionData.session) {
-        setMessage("Não foi possível iniciar a sessão do Google. Tente novamente.");
-        return;
-      }
+        if (oauthError) {
+          setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
+          return;
+        }
 
-      const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors();
-      if (factorError) {
-        setMessage("A sessão foi iniciada, mas não foi possível verificar a autenticação em duas etapas.");
-        return;
-      }
+        // Escuta primeiro o evento que confirma a sessão persistida pelo cliente
+        // Supabase; getSession abaixo cobre o caso em que ela já foi restaurada.
+        session = await new Promise<Session | null>((resolve) => {
+          let settled = false;
+          const finish = (value: Session | null) => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) {
+              window.clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            subscription?.unsubscribe();
+            subscription = null;
+            resolve(value);
+          };
 
-      router.replace(factors.totp.length > 0 ? "/mfa" : "/dashboard");
+          timeoutId = window.setTimeout(() => finish(null), 15000);
+          const authListener = supabase.auth.onAuthStateChange((event, nextSession) => {
+            if (
+              nextSession &&
+              (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")
+            ) {
+              finish(nextSession);
+            }
+          });
+          subscription = authListener.data.subscription;
+
+          void supabase.auth
+            .getSession()
+            .then(({ data, error }) => {
+              if (error) {
+                finish(null);
+              } else if (data.session) {
+                finish(data.session);
+              }
+            })
+            .catch(() => finish(null));
+        });
+
+        if (!active) return;
+        if (!session) {
+          setMessage("A autenticação não concluiu a sessão. Verifique o retorno do Google e tente novamente.");
+          return;
+        }
+
+        const { data: factors, error: factorError } = await supabase.auth.mfa.listFactors();
+        if (!active) return;
+        if (factorError) {
+          setMessage("A sessão foi iniciada, mas não foi possível verificar a autenticação em duas etapas.");
+          return;
+        }
+
+        router.replace(factors.totp.length > 0 ? "/mfa" : "/dashboard");
+      } catch {
+        if (active) setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
+      } finally {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        subscription?.unsubscribe();
+        subscription = null;
+      }
     };
 
     void finishSignIn();
+    return () => {
+      active = false;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      subscription?.unsubscribe();
+      subscription = null;
+    };
   }, [router]);
 
   return (
