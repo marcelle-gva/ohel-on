@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
+import { AccessHeader } from "@/components/public/AccessHeader";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
@@ -75,7 +76,8 @@ export default function Login() {
   };
 
   return (
-    <main className="w-full min-h-screen overflow-x-hidden flex items-center justify-center bg-ohel-glow p-3 sm:p-4">
+    <main className="w-full min-h-screen overflow-x-hidden flex items-center justify-center bg-ohel-glow px-3 pb-3 pt-20 sm:px-4 sm:pb-4 sm:pt-24">
+      <AccessHeader current="admin" />
       
       <FeedbackModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })} type={modal.type} title={modal.title} message={modal.message} />
 

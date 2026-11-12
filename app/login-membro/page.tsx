@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { AccessHeader } from "@/components/public/AccessHeader";
 import publicLayout from "@/components/public/public-layout.module.css";
 import { Loader2, LockKeyhole, UserRound } from "lucide-react";
 
@@ -45,7 +46,8 @@ export default function LoginMembroPage() {
   };
 
   return (
-    <main className={`${publicLayout.viewport} flex flex-col items-center justify-start bg-ohel-glow p-4 py-6`}>
+    <main className={`${publicLayout.viewport} flex flex-col items-center justify-start bg-ohel-glow px-4 pb-6 pt-20 sm:pt-24`}>
+      <AccessHeader current="membro" />
       <Card className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-[420px] flex flex-col items-center px-8 pt-7 pb-8 border-gray-800`}>
         <Logo className="h-[90px] w-[180px] mb-4" />
         <div className="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3"><UserRound className="w-5 h-5 text-emerald-300" /></div>
