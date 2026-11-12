@@ -64,18 +64,17 @@ export default async function HomePage({
   }
 
   return (
-    <main className="h-dvh overflow-x-hidden overflow-y-auto scroll-smooth bg-[#020812] pt-[76px] text-white selection:bg-cyan-400/30">
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-cyan-300/10 bg-[#020812]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 md:px-8">
+    <main className="h-dvh overflow-x-hidden overflow-y-auto scroll-smooth bg-[#020812] pt-[112px] text-white selection:bg-cyan-400/30 lg:pt-[76px]">
+      <header className="fixed inset-x-0 top-0 z-40 h-[112px] border-b border-cyan-300/10 bg-[#020812]/95 backdrop-blur-xl lg:h-[76px]">
+        <div className="mx-auto flex h-full max-w-7xl flex-wrap items-center justify-between gap-x-5 px-4 sm:px-5 md:px-8">
           <Link href="#inicio" aria-label="IPO CLOUD - início" className="shrink-0">
             <Logo className="h-12 w-28 md:h-14 md:w-36" />
           </Link>
-          <nav className="hidden items-center gap-1 text-sm text-gray-300 lg:flex">
+          <nav className="order-3 flex h-10 w-full items-center gap-1 overflow-x-auto text-xs text-gray-300 [scrollbar-width:none] lg:order-none lg:h-auto lg:w-auto lg:overflow-visible lg:text-sm">
             <a href="#inicio" className="rounded-full border border-cyan-300/70 bg-cyan-400/10 px-5 py-2 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.2)]">Início</a>
             <a href="#solucoes" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Soluções <span className="text-xs">⌄</span></a>
             <a href="#sobre" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Sobre</a>
-            <a href="#planos" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Planos</a>
-            <a href="#contato" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Contato</a>
+            <a href="#planos" className="whitespace-nowrap rounded-full px-4 py-2 transition hover:text-cyan-200">Planos &amp; Contato</a>
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login" title="Acessar sistema — administradores" className="hidden items-center gap-2 rounded-full border border-cyan-200/70 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-400/10 sm:flex">
