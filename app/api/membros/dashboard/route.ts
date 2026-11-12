@@ -8,6 +8,10 @@ import {
   type AvisoDashboard,
   type DashboardMembroData,
 } from "@/lib/member-dashboard";
+import {
+  encontrarProximoCulto,
+  type ProgramacaoCultoFixa,
+} from "@/lib/proximoCulto";
 
 export const runtime = "nodejs";
 
@@ -48,7 +52,7 @@ export async function GET(request: Request) {
 
     // Seleções explícitas: o dashboard nunca devolve dados administrativos,
     // contatos de visitantes, finanças ou pedidos de oração pendentes.
-    const [avisos, eventos, louvores, oracoes, visitantes, culto, igreja] =
+    const [avisos, eventos, louvores, oracoes, visitantes, culto, igreja, programacoesCulto] =
       await Promise.all([
         lerListaCompleta((inicio, fim) =>
           service
@@ -114,10 +118,15 @@ export async function GET(request: Request) {
           .select("nome, endereco")
           .eq("id", contexto.igrejaId)
           .maybeSingle(),
+        service
+          .from("culto_modelos")
+          .select("nome, tipo, dia_semana, horario_inicio, horario_fim, vigencia_desde")
+          .eq("igreja_id", igrejaId)
+          .eq("ativo", true),
       ]);
 
     if (
-      [avisos, eventos, louvores, oracoes, visitantes, culto].some(
+      [avisos, eventos, louvores, oracoes, visitantes, culto, programacoesCulto].some(
         (resultado) => resultado.error,
       )
     ) {
@@ -204,6 +213,23 @@ export async function GET(request: Request) {
       fotos: [],
       created_at: item.created_at,
     }));
+    const proximoCulto = encontrarProximoCulto(
+      (programacoesCulto.data || []) as ProgramacaoCultoFixa[],
+    );
+    const avisoProximoCulto: AvisoDashboard[] = proximoCulto
+      ? [{
+          id: `proximo-culto-${proximoCulto.data_inicio}-${proximoCulto.hora_abertura}`,
+          tipo: "aviso",
+          categoria: "culto",
+          titulo: `Próximo culto: ${proximoCulto.nome}`,
+          conteudo: `${proximoCulto.tipo}. Este horário faz parte da programação fixa da igreja.`,
+          imagem_url: null,
+          fotos: [],
+          created_at: instanteConsulta,
+          data_inicio: proximoCulto.data_inicio,
+          hora_abertura: proximoCulto.hora_abertura,
+        }]
+      : [];
 
     const igrejaNome =
       typeof igreja.data.nome === "string" && igreja.data.nome.trim()
@@ -214,7 +240,7 @@ export async function GET(request: Request) {
         ? igreja.data.endereco.trim()
         : null;
     const dashboard: DashboardMembroData = {
-      avisos: [...comunicacoes, ...eventosPublicados, ...oracoesPublicadas].sort((a, b) =>
+      avisos: [...comunicacoes, ...eventosPublicados, ...oracoesPublicadas, ...avisoProximoCulto].sort((a, b) =>
         b.created_at.localeCompare(a.created_at),
       ),
       louvores: louvores.data || [],

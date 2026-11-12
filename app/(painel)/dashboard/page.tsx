@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
+import { ResumoContasPagar } from "@/components/financeiro/ResumoContasPagar";
+import { obterPeriodoAtualSaoPaulo, type ContaResumoMensal } from "@/lib/financeiro/resumoMensal";
 import { Users, UserPlus, HeartHandshake, Church, DollarSign, CalendarDays, CheckSquare, Bell, MonitorPlay, ArrowRight } from "lucide-react";
 
 interface AvisoMural {
@@ -13,9 +15,15 @@ interface AvisoMural {
   created_at: string;
 }
 
+interface ResumoFinanceiroDashboard {
+  contas: ContaResumoMensal[];
+  saldoMovimento: number;
+}
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [nomeUsuario, setNomeUsuario] = useState("Líder");
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // KPIs Secretaria
   const [totalMembros, setTotalMembros] = useState(0);
@@ -24,7 +32,11 @@ export default function Dashboard() {
   const [totalCongregacoes, setTotalCongregacoes] = useState(0);
   
   // KPIs Financeiros e Operacionais
-  const [saldoFinanceiro, setSaldoFinanceiro] = useState(0);
+  const [resumoFinanceiro, setResumoFinanceiro] = useState<ResumoFinanceiroDashboard | null>(null);
+  const [anosFinanceiros, setAnosFinanceiros] = useState<string[]>(() => [obterPeriodoAtualSaoPaulo().slice(0, 4)]);
+  const [periodoFinanceiro, setPeriodoFinanceiro] = useState(obterPeriodoAtualSaoPaulo);
+  const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
+  const [erroFinanceiro, setErroFinanceiro] = useState("");
   const [pedidosOracao, setPedidosOracao] = useState(0);
   const [aniversariantes, setAniversariantes] = useState(0);
   const [preCadastros, setPreCadastros] = useState(0);
@@ -40,27 +52,24 @@ export default function Dashboard() {
 
         const { data: userData } = await supabase.from("usuarios").select("nome, role, igreja_id").eq("id", session.user.id).maybeSingle();
         if (!userData?.igreja_id) return;
+        setIsAdmin(userData.role === "admin");
         if (userData?.role === "admin") setNomeUsuario("Admin");
         else if (userData?.role === "monitor") setNomeUsuario("Monitor de Mídia");
         else if (userData?.nome) setNomeUsuario(userData.nome.split(" ")[0]);
 
         const hoje = new Date();
-        const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
         const diaHoje = hoje.getDate();
         const mesHoje = hoje.getMonth() + 1;
 
         // Executando todas as consultas em paralelo para performance
         const [
           membrosRes, congregadosRes, visitantesRes, congregacoesRes,
-          transacoesRes, oracoesRes, preCadastrosRes, muralRes, membrosNascRes
+          oracoesRes, preCadastrosRes, muralRes, membrosNascRes
         ] = await Promise.all([
           supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           supabase.from("congregados").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           supabase.from("visitantes").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           supabase.from("congregacoes").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
-          
-          // Transações do mês atual para calcular saldo
-          supabase.from("transacoes").select("tipo, valor").eq("igreja_id", userData.igreja_id).eq("mes_referencia", mesRef),
           
           // Orações pendentes
           supabase.from("pedidos_oracao").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).in('status', ['Pendente', 'Em Oração']),
@@ -85,13 +94,6 @@ export default function Dashboard() {
         setTotalAvisos(muralRes.count || 0);
         setAvisosMural((muralRes.data || []) as AvisoMural[]);
 
-        // Cálculo do Saldo Financeiro
-        if (transacoesRes.data) {
-          const receitas = transacoesRes.data.filter(t => t.tipo === 'Receita').reduce((acc, t) => acc + Number(t.valor), 0);
-          const despesas = transacoesRes.data.filter(t => t.tipo === 'Despesa').reduce((acc, t) => acc + Number(t.valor), 0);
-          setSaldoFinanceiro(receitas - despesas);
-        }
-
         // Cálculo de Aniversariantes
         if (membrosNascRes.data) {
           const aniversariantesCount = membrosNascRes.data.filter(m => {
@@ -110,6 +112,39 @@ export default function Dashboard() {
     };
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const controller = new AbortController();
+    const carregarResumoFinanceiro = async () => {
+      setLoadingFinanceiro(true);
+      setErroFinanceiro("");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("Sua sessão expirou. Entre novamente.");
+        const response = await fetch(`/api/dashboard/resumo-financeiro?periodo=${encodeURIComponent(periodoFinanceiro)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = (await response.json()) as {
+          contas?: ContaResumoMensal[];
+          anos?: string[];
+          saldoMovimento?: number;
+          error?: string;
+        };
+        if (!response.ok || !result.contas) throw new Error(result.error || "Não foi possível carregar o resumo financeiro.");
+        setResumoFinanceiro({ contas: result.contas, saldoMovimento: Number(result.saldoMovimento || 0) });
+        setAnosFinanceiros(result.anos?.length ? result.anos : [periodoFinanceiro.slice(0, 4)]);
+      } catch (error) {
+        if (!controller.signal.aborted) setErroFinanceiro(error instanceof Error ? error.message : "Não foi possível carregar o resumo financeiro.");
+      } finally {
+        if (!controller.signal.aborted) setLoadingFinanceiro(false);
+      }
+    };
+    void carregarResumoFinanceiro();
+    return () => controller.abort();
+  }, [isAdmin, periodoFinanceiro]);
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-7xl mx-auto pb-10">
@@ -184,17 +219,19 @@ export default function Dashboard() {
 
       {/* LINHA 2 DE KPIs (OPERACIONAL / FINANCEIRO) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Link href="/financeiro/movimento" className="block outline-none">
-          <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:shadow-[0_0_24px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
-            <div className="flex justify-between items-start mb-2">
-              <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Saldo do Mês</p>
-              <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center"><DollarSign className="w-4 h-4 text-green-500" /></div>
-            </div>
-            <h2 className={`text-2xl font-bold ${saldoFinanceiro >= 0 ? 'text-white' : 'text-red-500'}`}>
-              {loading ? "-" : `R$ ${saldoFinanceiro.toFixed(2).replace('.', ',')}`}
-            </h2>
-          </Card>
-        </Link>
+        {isAdmin && (
+          <Link href="/financeiro/movimento" className="block outline-none">
+            <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:shadow-[0_0_24px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
+              <div className="flex justify-between items-start mb-2">
+                <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Saldo do mês (movimento)</p>
+                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center"><DollarSign className="w-4 h-4 text-green-500" /></div>
+              </div>
+              <h2 className={`text-2xl font-bold ${erroFinanceiro ? "text-gray-500" : (resumoFinanceiro?.saldoMovimento || 0) >= 0 ? 'text-white' : 'text-red-500'}`}>
+                {loadingFinanceiro || (!resumoFinanceiro && !erroFinanceiro) ? "-" : erroFinanceiro ? "—" : (resumoFinanceiro?.saldoMovimento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </h2>
+            </Card>
+          </Link>
+        )}
 
         <Link href="/secretaria/oracoes" className="block outline-none">
           <Card className="p-4 flex flex-col justify-between group hover:border-red-500/50 hover:shadow-[0_0_24px_rgba(239,68,68,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
@@ -227,17 +264,18 @@ export default function Dashboard() {
 
       {/* ÁREA DE GRÁFICOS / MURAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
-        
-        <Link href="/financeiro" className="block outline-none">
-          <Card className="p-5 flex flex-col min-h-[250px] group hover:border-green-500/50 hover:scale-[1.01] transition-all cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center"><DollarSign className="w-3.5 h-3.5 text-green-500" /></div><h3 className="text-sm font-bold text-white">Resumo Financeiro</h3></div>
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-              <p className="text-xs">Acesse o módulo financeiro para ver o extrato completo.</p>
-            </div>
-          </Card>
-        </Link>
+        {isAdmin && (
+          <ResumoContasPagar
+            contas={resumoFinanceiro?.contas || []}
+            periodo={periodoFinanceiro}
+            anos={anosFinanceiros}
+            onChangePeriodo={setPeriodoFinanceiro}
+            loading={loadingFinanceiro || (!resumoFinanceiro && !erroFinanceiro)}
+            error={erroFinanceiro}
+            compacto
+            titulo="Resumo financeiro"
+          />
+        )}
 
         <Link href="/secretaria/mural" className="block outline-none">
           <Card className="p-5 flex flex-col min-h-[250px] group hover:border-teal-500/50 hover:shadow-[0_0_24px_rgba(20,184,166,0.3)] hover:scale-[1.01] transition-all cursor-pointer">

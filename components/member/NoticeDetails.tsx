@@ -223,13 +223,13 @@ export function NoticeDetails({
             {aviso.conteudo || "Sem resumo informado."}
           </p>
 
-          {aviso.tipo === "evento" &&
+          {(aviso.tipo === "evento" || aviso.categoria === "culto") &&
             (dataEvento(aviso.data_inicio) ||
               dataEvento(aviso.data_fim) ||
               aviso.hora_abertura) && (
               <dl
                 className="mt-4 flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-gray-800 bg-ohel-bg p-3 text-xs text-gray-300"
-                aria-label="Agenda do evento"
+                aria-label={aviso.categoria === "culto" ? "Agenda do culto" : "Agenda do evento"}
               >
                 {dataEvento(aviso.data_inicio) && (
                   <div>

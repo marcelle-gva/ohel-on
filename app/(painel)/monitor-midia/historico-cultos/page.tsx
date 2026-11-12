@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
-import { ArrowLeft, BookOpen, CalendarDays, ExternalLink, History, Loader2, Play, Search, Square } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ExternalLink, History, Loader2, Play, Search, Square, Pencil, Check, X } from "lucide-react";
 
 interface CultoSessao {
   id: string;
@@ -41,7 +41,12 @@ interface CultoRegistro {
   criado_em: string;
 }
 
-const TIPOS_CULTO = ["Culto de Domingo", "Culto de Quarta-feira", "Culto de Oração", "Culto de Ceia", "Culto Especial", "Outro"];
+interface TipoCulto {
+  id: string;
+  nome: string;
+  ativo: boolean;
+}
+
 const DIAS_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const nomeTipo = (tipo: string) => ({ louvor: "Louvor", oracao: "Oração", checkin: "Check-in", visitante: "Visitante", visita: "Visita", sermao: "Palavra / Sermão", projecao: "Projeção" }[tipo] || tipo);
 
@@ -49,6 +54,10 @@ export default function HistoricoCultosPage() {
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
   const [sessoes, setSessoes] = useState<CultoSessao[]>([]);
   const [programacao, setProgramacao] = useState<CultoModelo[]>([]);
+  const [tiposCulto, setTiposCulto] = useState<TipoCulto[]>([]);
+  const [novoTipoCulto, setNovoTipoCulto] = useState("");
+  const [tipoEditandoId, setTipoEditandoId] = useState<string | null>(null);
+  const [nomeTipoEditado, setNomeTipoEditado] = useState("");
   const [sessaoSelecionada, setSessaoSelecionada] = useState<CultoSessao | null>(null);
   const [registros, setRegistros] = useState<CultoRegistro[]>([]);
   const [busca, setBusca] = useState("");
@@ -76,6 +85,12 @@ export default function HistoricoCultosPage() {
     setProgramacao((data || []) as CultoModelo[]);
   };
 
+  const carregarTiposCulto = async (id: string) => {
+    const { data, error } = await supabase.from("culto_tipos").select("id, nome, ativo").eq("igreja_id", id).order("nome");
+    if (error) throw error;
+    setTiposCulto((data || []) as TipoCulto[]);
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -87,7 +102,7 @@ export default function HistoricoCultosPage() {
         setPodeGerirProgramacao(user.role === "admin");
         const { error: syncError } = await supabase.rpc("materializar_sessoes_culto", { p_igreja_id: user.igreja_id });
         if (syncError) throw syncError;
-        await Promise.all([carregarSessoes(user.igreja_id), carregarProgramacao(user.igreja_id)]);
+        await Promise.all([carregarSessoes(user.igreja_id), carregarProgramacao(user.igreja_id), carregarTiposCulto(user.igreja_id)]);
       } catch (error) {
         setModal({ isOpen: true, type: "error", title: "Não foi possível carregar", message: error instanceof Error ? error.message : "Execute as migrations do histórico e da programação de cultos." });
       } finally {
@@ -114,6 +129,55 @@ export default function HistoricoCultosPage() {
     return sessoes.filter((sessao) => `${sessao.titulo} ${sessao.tipo} ${sessao.link_ao_vivo || ""}`.toLowerCase().includes(termo));
   }, [busca, sessoes]);
 
+  const salvarNovoTipoCulto = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nome = novoTipoCulto.trim();
+    if (!igrejaId || !podeGerirProgramacao || !nome) return;
+    setSavingProgramacao(true);
+    try {
+      const { error } = await supabase.from("culto_tipos").insert({ igreja_id: igrejaId, nome });
+      if (error) {
+        if (error.code === "23505") throw new Error("Esse tipo já existe. Escolha outro nome.");
+        throw error;
+      }
+      await carregarTiposCulto(igrejaId);
+      setNovoTipoCulto("");
+      setModal({ isOpen: true, type: "success", title: "Tipo adicionado", message: "O novo tipo já está disponível para programações e cultos avulsos." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível adicionar", message: error instanceof Error ? error.message : "Verifique o nome e tente novamente." });
+    } finally {
+      setSavingProgramacao(false);
+    }
+  };
+
+  const salvarEdicaoTipoCulto = async (tipo: TipoCulto, nomeRecebido: string, ativo = tipo.ativo) => {
+    if (!igrejaId || !podeGerirProgramacao) return;
+    const nome = nomeRecebido.trim();
+    setSavingProgramacao(true);
+    try {
+      const { error } = await supabase.rpc("editar_tipo_culto", {
+        p_tipo_id: tipo.id,
+        p_nome: nome,
+        p_ativo: ativo,
+      });
+      if (error) {
+        if (error.code === "23505") throw new Error("Já existe um tipo de culto com esse nome.");
+        throw error;
+      }
+      if (nome !== tipo.nome) {
+        setForm((atual) => ({ ...atual, tipo: atual.tipo === tipo.nome ? nome : atual.tipo, titulo: atual.tipo === tipo.nome && atual.titulo === tipo.nome ? nome : atual.titulo }));
+        setFormProgramacao((atual) => ({ ...atual, tipo: atual.tipo === tipo.nome ? nome : atual.tipo }));
+      }
+      await Promise.all([carregarTiposCulto(igrejaId), carregarProgramacao(igrejaId), carregarSessoes(igrejaId)]);
+      setTipoEditandoId(null);
+      setModal({ isOpen: true, type: "success", title: nome !== tipo.nome ? "Tipo atualizado" : ativo ? "Tipo reativado" : "Tipo desativado", message: nome !== tipo.nome ? "O nome foi atualizado também nas programações e sessões existentes." : "O tipo foi atualizado. As programações e o histórico são preservados." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Não foi possível atualizar", message: error instanceof Error ? error.message : "Verifique o nome e as permissões." });
+    } finally {
+      setSavingProgramacao(false);
+    }
+  };
+
   const salvarProgramacao = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!igrejaId || !podeGerirProgramacao || !formProgramacao.nome.trim()) return;
@@ -132,7 +196,10 @@ export default function HistoricoCultosPage() {
         horario_fim: formProgramacao.horario_fim,
         ativo: true,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") throw new Error("Já existe uma programação ativa nesse dia com horário igual ou sobreposto. Altere o intervalo ou pause a programação duplicada.");
+        throw error;
+      }
       const { error: syncError } = await supabase.rpc("materializar_sessoes_culto", { p_igreja_id: igrejaId });
       if (syncError) throw syncError;
       setFormProgramacao({ nome: "", tipo: "Culto de Domingo", dia_semana: "0", horario_inicio: "09:00", horario_fim: "11:00" });
@@ -153,7 +220,10 @@ export default function HistoricoCultosPage() {
         ? { ativo: false }
         : { ativo: true, vigencia_desde: new Date().toISOString() };
       const { error } = await supabase.from("culto_modelos").update(alteracoes).eq("id", modelo.id).eq("igreja_id", igrejaId);
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") throw new Error("Outro culto já usa esse dia e horário. Altere ou pause a programação antes de reativar.");
+        throw error;
+      }
       const { error: syncError } = await supabase.rpc("materializar_sessoes_culto", { p_igreja_id: igrejaId });
       if (syncError) throw syncError;
       await Promise.all([carregarSessoes(igrejaId), carregarProgramacao(igrejaId)]);
@@ -179,7 +249,10 @@ export default function HistoricoCultosPage() {
       }
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.from("culto_sessoes").insert({ igreja_id: igrejaId, titulo: form.titulo.trim(), tipo: form.tipo, dirigente: form.dirigente.trim() || null, link_ao_vivo: form.link_ao_vivo.trim() || null, observacoes: form.observacoes.trim() || null, status: "aberto", created_by: session?.user.id || null }).select("id, titulo, tipo, inicio_em, fim_em, status, dirigente, link_ao_vivo, observacoes").single();
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") throw new Error("Já existe um culto aberto ou uma ocorrência registrada para esse mesmo horário. Atualize a lista antes de tentar novamente.");
+        throw error;
+      }
       await carregarSessoes(igrejaId);
       setSessaoSelecionada(data as CultoSessao);
       setModal({ isOpen: true, type: "success", title: "Culto iniciado", message: "Os próximos envios do QR Code e ações do Monitor serão registrados nesta sessão." });
@@ -227,13 +300,13 @@ export default function HistoricoCultosPage() {
         <div className="flex flex-col gap-5">
           <Card className="p-5 border-gray-800">
             <h2 className="text-sm font-bold text-white mb-1 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-ohel-blue" /> Programação fixa da igreja</h2>
-            <p className="text-[10px] leading-5 text-gray-400 mb-4">Cadastre os cultos semanais. No horário programado a sessão será aberta automaticamente; ao terminar, ela será encerrada e ficará neste histórico.</p>
+            <p className="text-[10px] leading-5 text-gray-400 mb-4">Cadastre os cultos semanais. Cada ocorrência recebe data e horário únicos, abre automaticamente no horário programado e é encerrada ao fim. A próxima data ativa também aparece nos avisos da Área de Membros.</p>
             {podeGerirProgramacao && (
               <form onSubmit={salvarProgramacao} className="flex flex-col gap-3 border-b border-gray-800 pb-4">
                 <Input label="Nome do culto *" placeholder="Ex.: Culto da Família" value={formProgramacao.nome} onChange={(event) => setFormProgramacao({ ...formProgramacao, nome: event.target.value })} required />
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1 text-[10px] font-semibold text-gray-400">Tipo
-                    <select value={formProgramacao.tipo} onChange={(event) => setFormProgramacao({ ...formProgramacao, tipo: event.target.value })} className="input-ohel w-full px-3 py-2 rounded-md text-xs">{TIPOS_CULTO.map((tipo) => <option key={tipo}>{tipo}</option>)}</select>
+                    <select value={formProgramacao.tipo} onChange={(event) => setFormProgramacao({ ...formProgramacao, tipo: event.target.value })} className="input-ohel w-full px-3 py-2 rounded-md text-xs">{tiposCulto.filter((tipo) => tipo.ativo).map((tipo) => <option key={tipo.id} value={tipo.nome}>{tipo.nome}</option>)}</select>
                   </label>
                   <label className="flex flex-col gap-1 text-[10px] font-semibold text-gray-400">Dia da semana
                     <select value={formProgramacao.dia_semana} onChange={(event) => setFormProgramacao({ ...formProgramacao, dia_semana: event.target.value })} className="input-ohel w-full px-3 py-2 rounded-md text-xs">{DIAS_SEMANA.map((dia, index) => <option key={dia} value={index}>{dia}</option>)}</select>
@@ -260,6 +333,36 @@ export default function HistoricoCultosPage() {
                 </div>
               ))}
             </div>
+            {podeGerirProgramacao && (
+              <section className="mt-5 border-t border-gray-800 pt-4" aria-label="Gerenciar tipos de culto">
+                <h3 className="text-xs font-bold text-white">Tipos de culto</h3>
+                <p className="mt-1 text-[10px] leading-4 text-gray-500">Renomear atualiza as programações e o histórico. Desativar tira o tipo das novas escolhas; os registros existentes são mantidos.</p>
+                <form onSubmit={salvarNovoTipoCulto} className="mt-3 flex gap-2">
+                  <input value={novoTipoCulto} onChange={(event) => setNovoTipoCulto(event.target.value)} maxLength={60} minLength={2} placeholder="Novo tipo de culto" aria-label="Novo tipo de culto" className="input-ohel min-w-0 flex-1 rounded-md px-3 py-2 text-xs" required />
+                  <Button type="submit" disabled={savingProgramacao || !novoTipoCulto.trim()} className="shrink-0 px-3">Adicionar</Button>
+                </form>
+                <div className="mt-3 flex flex-col gap-2">
+                  {tiposCulto.map((tipo) => (
+                    <div key={tipo.id} className="flex items-center gap-2 rounded-md border border-gray-800 bg-ohel-bg px-2 py-2">
+                      {tipoEditandoId === tipo.id ? (
+                        <>
+                          <input value={nomeTipoEditado} onChange={(event) => setNomeTipoEditado(event.target.value)} maxLength={60} minLength={2} aria-label={`Editar ${tipo.nome}`} className="input-ohel min-w-0 flex-1 rounded-md px-2 py-1.5 text-xs" />
+                          <button type="button" disabled={savingProgramacao} onClick={() => void salvarEdicaoTipoCulto(tipo, nomeTipoEditado)} aria-label={`Salvar ${tipo.nome}`} className="rounded p-1.5 text-green-400 hover:bg-green-500/10 disabled:opacity-50"><Check className="h-4 w-4" /></button>
+                          <button type="button" onClick={() => setTipoEditandoId(null)} aria-label="Cancelar edição" className="rounded p-1.5 text-gray-400 hover:bg-gray-700"><X className="h-4 w-4" /></button>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`min-w-0 flex-1 truncate text-xs ${tipo.ativo ? "text-gray-200" : "text-gray-500 line-through"}`}>{tipo.nome}</span>
+                          <span className="text-[9px] text-gray-500">{tipo.ativo ? "Ativo" : "Inativo"}</span>
+                          <button type="button" onClick={() => { setTipoEditandoId(tipo.id); setNomeTipoEditado(tipo.nome); }} aria-label={`Renomear ${tipo.nome}`} className="rounded p-1.5 text-ohel-blue hover:bg-ohel-blue/10"><Pencil className="h-3.5 w-3.5" /></button>
+                          <button type="button" disabled={savingProgramacao} onClick={() => void salvarEdicaoTipoCulto(tipo, tipo.nome, !tipo.ativo)} aria-label={tipo.ativo ? `Desativar ${tipo.nome}` : `Reativar ${tipo.nome}`} className="rounded px-2 py-1 text-[9px] font-semibold text-gray-300 hover:bg-gray-700 disabled:opacity-50">{tipo.ativo ? "Desativar" : "Reativar"}</button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </Card>
 
           <Card className="p-5 border-gray-800">
@@ -267,7 +370,7 @@ export default function HistoricoCultosPage() {
             <form onSubmit={iniciarCulto} className="flex flex-col gap-3">
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase">Tipo</label>
-                <select value={form.tipo} onChange={(event) => setForm({ ...form, tipo: event.target.value, titulo: event.target.value })} className="input-ohel w-full px-3 py-2.5 rounded-md text-sm">{TIPOS_CULTO.map((tipo) => <option key={tipo}>{tipo}</option>)}</select>
+                <select value={form.tipo} onChange={(event) => setForm({ ...form, tipo: event.target.value, titulo: event.target.value })} className="input-ohel w-full px-3 py-2.5 rounded-md text-sm">{tiposCulto.filter((tipo) => tipo.ativo).map((tipo) => <option key={tipo.id} value={tipo.nome}>{tipo.nome}</option>)}</select>
               </div>
               <Input label="Título do culto *" value={form.titulo} onChange={(event) => setForm({ ...form, titulo: event.target.value })} required />
               <Input label="Dirigente" placeholder="Nome do dirigente" value={form.dirigente} onChange={(event) => setForm({ ...form, dirigente: event.target.value })} />
@@ -275,7 +378,7 @@ export default function HistoricoCultosPage() {
               <textarea value={form.observacoes} onChange={(event) => setForm({ ...form, observacoes: event.target.value })} placeholder="Observações da celebração" className="input-ohel w-full px-3 py-2.5 rounded-md text-sm min-h-20 resize-y" />
               <Button type="submit" disabled={saving} className="w-full">{saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Iniciando...</> : <><Play className="w-4 h-4 mr-2" /> Iniciar e gravar culto</>}</Button>
             </form>
-            <p className="text-[10px] text-gray-600 mt-3">Use para celebrações fora da programação fixa. O diário aberto pela programação não será duplicado.</p>
+            <p className="text-[10px] text-gray-600 mt-3">Use para celebrações fora da programação fixa. A data e o horário são registrados ao iniciar; uma igreja não pode manter dois cultos abertos ao mesmo tempo.</p>
           </Card>
 
           <Card className="p-4 border-gray-800">

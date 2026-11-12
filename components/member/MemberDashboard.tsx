@@ -341,7 +341,7 @@ export function MemberDashboard() {
                       className={styles.notice}
                       key={`${item.tipo}-${item.id}`}
                       onClick={() => setSelecionado(item)}
-                      aria-label={`Ver ${item.categoria === "oracao" ? "oração" : item.tipo === "evento" ? "evento" : "aviso"}: ${item.titulo}`}
+                      aria-label={`Ver ${item.categoria === "culto" ? "próximo culto" : item.categoria === "oracao" ? "oração" : item.tipo === "evento" ? "evento" : "aviso"}: ${item.titulo}`}
                     >
                       {urlSegura(item.imagem_url) && (
                         <img
@@ -354,14 +354,16 @@ export function MemberDashboard() {
                       <div className={styles.noticeText}>
                         <div className={styles.noticeMeta}>
                           <span className={styles.tag}>
-                            {item.categoria === "oracao" ? (
+                            {item.categoria === "culto" ? (
+                              <CalendarDays size={10} />
+                            ) : item.categoria === "oracao" ? (
                               <HeartHandshake size={10} />
                             ) : item.tipo === "evento" ? (
                               <CalendarDays size={10} />
                             ) : (
                               <MessageSquare size={10} />
                             )}
-                            {item.categoria === "oracao" ? "Oração" : item.tipo === "evento" ? "Evento" : "Aviso"}
+                            {item.categoria === "culto" ? "Próximo culto" : item.categoria === "oracao" ? "Oração" : item.tipo === "evento" ? "Evento" : "Aviso"}
                           </span>
                           {diaEvento(item) && (
                             <span>

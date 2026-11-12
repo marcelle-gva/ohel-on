@@ -1,7 +1,7 @@
 import type { AvisoMembro, MonitorMembroData } from "@/lib/member-monitor";
 
 export interface AvisoDashboard extends AvisoMembro {
-  categoria?: "aviso" | "evento" | "oracao";
+  categoria?: "aviso" | "evento" | "oracao" | "culto";
   data_inicio?: string | null;
   data_fim?: string | null;
   hora_abertura?: string | null;
