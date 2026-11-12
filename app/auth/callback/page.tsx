@@ -110,9 +110,11 @@ export default function AuthCallbackPage() {
         ]);
         if (!active) return;
 
+        // Este callback atende ao login administrativo Ohel On; quando a conta
+        // também é Admin Geral, o vínculo em usuarios deve manter o usuário no Ohel On.
         const destination = usuario?.role === "monitor"
           ? "/monitor-midia"
-          : platformAdmin
+          : platformAdmin && !usuario
             ? "/ipocloud"
             : "/dashboard";
         window.location.replace(destination);

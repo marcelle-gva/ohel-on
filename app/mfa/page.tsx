@@ -50,7 +50,11 @@ export default function MfaChallengePage() {
 
       const { data: { user } } = await supabase.auth.getUser();
       const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", user?.id || "").eq("ativo", true).maybeSingle();
-      router.push(platformAdmin ? "/ipocloud" : "/dashboard");
+      const { data: usuario } = await supabase.from("usuarios").select("role").eq("id", user?.id || "").maybeSingle();
+      if (usuario?.role === "monitor") router.push("/monitor-midia");
+      else if (usuario) router.push("/dashboard");
+      else if (platformAdmin) router.push("/ipocloud");
+      else router.push("/dashboard");
     } catch {
       setModal({ isOpen: true, type: "error", title: "Código Inválido", message: "O código digitado está incorreto ou expirou. Tente novamente." });
       setCode("");

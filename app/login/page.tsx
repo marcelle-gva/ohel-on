@@ -32,7 +32,7 @@ export default function Login() {
       router.replace("/mfa");
     } else if (usuario?.role === "monitor") {
       router.replace("/monitor-midia");
-    } else if (platformAdmin) {
+    } else if (platformAdmin && !usuario) {
       router.replace("/ipocloud");
     } else {
       router.replace("/dashboard");
