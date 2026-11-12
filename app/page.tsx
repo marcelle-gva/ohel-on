@@ -18,7 +18,6 @@ import {
   Wallet,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { BackButton } from "@/components/public/BackButton";
 
 const quoteLink = `https://wa.me/5521996288956?text=${encodeURIComponent("Olá! Quero solicitar uma cotação do sistema OHEL ON.")}`;
 
@@ -64,8 +63,8 @@ export default async function HomePage({
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#020812] text-white selection:bg-cyan-400/30">
-      <header className="sticky top-0 z-40 border-b border-cyan-300/10 bg-[#020812]/90 backdrop-blur-xl">
+    <main className="min-h-screen overflow-x-hidden bg-[#020812] pt-[76px] text-white selection:bg-cyan-400/30">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-cyan-300/10 bg-[#020812]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 md:px-8">
           <Link href="#inicio" aria-label="IPO CLOUD - início" className="shrink-0">
             <Logo className="h-12 w-28 md:h-14 md:w-36" />
@@ -78,7 +77,6 @@ export default async function HomePage({
             <a href="#contato" className="rounded-full px-4 py-2 transition hover:text-cyan-200">Contato</a>
           </nav>
           <div className="flex items-center gap-2">
-            <BackButton />
             <Link href="/login" title="Acessar sistema — administradores" className="hidden items-center gap-2 rounded-full border border-cyan-200/70 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-400/10 sm:flex">
               <LockKeyhole className="h-3.5 w-3.5 text-cyan-300" /> Acessar sistema <span className="text-cyan-300/70">Admin</span>
             </Link>
