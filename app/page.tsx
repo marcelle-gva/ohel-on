@@ -127,13 +127,21 @@ export default async function HomePage({
         </div>
       </section>
 
-      <section id="solucoes" className="scroll-mt-24 mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
-        <ChurchCarousel />
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Diferenciais que fazem a diferença</p>
-          <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">Uma gestão mais clara para cuidar melhor.</h2>
-          <p className="mt-5 text-sm leading-7 text-gray-300 md:text-base">O IPO CLOUD reúne ferramentas seguras, conectadas e feitas para a realidade das igrejas, aproximando pessoas e simplificando as rotinas de gestão.</p>
-          <ul className="mt-7 space-y-4">{differences.map((difference) => <li key={difference} className="flex items-center gap-3 text-sm text-gray-200"><Check className="h-5 w-5 shrink-0 text-cyan-300" />{difference}</li>)}</ul>
+      <section id="solucoes" className="scroll-mt-24 mx-auto max-w-7xl px-5 py-20 md:px-8 lg:py-28">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[#061323] shadow-[0_0_45px_rgba(0,117,255,0.2)]">
+            <Image src="/ipo-cloud-logo.png" alt="OHEL ON e IPO CLOUD conectados" width={1672} height={941} className="h-auto w-full object-cover" sizes="(max-width: 1024px) 100vw, 55vw" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Diferenciais que fazem a diferença</p>
+            <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">Uma gestão mais clara para cuidar melhor.</h2>
+            <p className="mt-5 text-sm leading-7 text-gray-300 md:text-base">O IPO CLOUD reúne ferramentas seguras, conectadas e feitas para a realidade das igrejas, aproximando pessoas e simplificando as rotinas de gestão.</p>
+            <ul className="mt-7 space-y-4">{differences.map((difference) => <li key={difference} className="flex items-center gap-3 text-sm text-gray-200"><Check className="h-5 w-5 shrink-0 text-cyan-300" />{difference}</li>)}</ul>
+          </div>
+        </div>
+        <div className="mt-16 grid items-center gap-8 border-t border-cyan-300/10 pt-16 md:grid-cols-[0.8fr_1.2fr]">
+          <div><p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Igrejas conectadas</p><h2 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">Uma plataforma que cresce junto.</h2><p className="mt-4 text-sm leading-7 text-gray-400">Conheça as igrejas que já fazem parte dessa rede. Novos cadastros aparecem automaticamente aqui.</p></div>
+          <ChurchCarousel />
         </div>
       </section>
 
