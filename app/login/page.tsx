@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -19,8 +19,25 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const oauthInProgress = useRef(false);
   
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error" | "warning", title: "", message: "" });
+
+  const routeAfterLogin = async (currentUserId: string) => {
+    const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", currentUserId).eq("ativo", true).maybeSingle();
+    const { data: usuario } = await supabase.from("usuarios").select("role").eq("id", currentUserId).maybeSingle();
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+
+    if (factors && factors.totp.length > 0) {
+      router.replace("/mfa");
+    } else if (usuario?.role === "monitor") {
+      router.replace("/monitor-midia");
+    } else if (platformAdmin) {
+      router.replace("/ipocloud");
+    } else {
+      router.replace("/dashboard");
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +51,8 @@ export default function Login() {
 
       if (error) throw error;
       const currentUserId = (await supabase.auth.getUser()).data.user?.id || "";
-      const { data: platformAdmin } = await supabase.from("ipocloud_platform_admins").select("auth_user_id").eq("auth_user_id", currentUserId).eq("ativo", true).maybeSingle();
-      const { data: usuario } = await supabase.from("usuarios").select("role").eq("id", currentUserId).maybeSingle();
-      
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      
-      if (factors && factors.totp.length > 0) {
-        router.push("/mfa");
-      } else if (usuario?.role === "monitor") {
-        router.push("/monitor-midia");
-      } else if (platformAdmin) {
-        router.push("/ipocloud");
-      } else {
-        router.push("/dashboard");
-      }
+      if (!currentUserId) throw new Error("Não foi possível identificar o usuário autenticado.");
+      await routeAfterLogin(currentUserId);
 
     } catch {
       setModal({ isOpen: true, type: "error", title: "Falha no Login", message: "E-mail ou senha incorretos." });
@@ -57,8 +62,17 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
+    if (oauthInProgress.current) return;
+    oauthInProgress.current = true;
     try {
       setLoading(true);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (session) {
+        await routeAfterLogin(session.user.id);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -70,6 +84,7 @@ export default function Login() {
       if (!data.url) throw new Error("URL do Google não gerada.");
       window.location.assign(data.url);
     } catch {
+      oauthInProgress.current = false;
       setModal({ isOpen: true, type: "error", title: "Erro no Google", message: "Não foi possível conectar com o Google." });
       setLoading(false);
     }

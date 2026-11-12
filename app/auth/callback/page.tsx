@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const started = useRef(false);
   const [message, setMessage] = useState("Finalizando acesso com o Google...");
 
@@ -34,7 +32,9 @@ export default function AuthCallbackPage() {
           hashParams.get("error_code");
 
         if (oauthError) {
-          setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
+          setMessage(/expired|state/i.test(oauthError)
+            ? "A confirmação do Google expirou antes de voltar ao sistema. Reinicie o acesso e conclua sem deixar a tela parada."
+            : "Não foi possível concluir o acesso com o Google. Reinicie a tentativa para continuar.");
           return;
         }
 
@@ -54,7 +54,7 @@ export default function AuthCallbackPage() {
             resolve(value);
           };
 
-          timeoutId = window.setTimeout(() => finish(null), 15000);
+          timeoutId = window.setTimeout(() => finish(null), 45000);
           const authListener = supabase.auth.onAuthStateChange((event, nextSession) => {
             if (
               nextSession &&
@@ -90,7 +90,7 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        router.replace(factors.totp.length > 0 ? "/mfa" : "/dashboard");
+        window.location.replace(factors.totp.length > 0 ? "/mfa" : "/dashboard");
       } catch {
         if (active) setMessage("Não foi possível concluir o acesso com o Google. Tente novamente.");
       } finally {
@@ -107,7 +107,7 @@ export default function AuthCallbackPage() {
       subscription?.unsubscribe();
       subscription = null;
     };
-  }, [router]);
+  }, []);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ohel-bg p-6 text-center">
