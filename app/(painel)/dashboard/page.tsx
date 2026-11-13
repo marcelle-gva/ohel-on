@@ -83,7 +83,8 @@ export default function Dashboard() {
   const [periodoFinanceiro, setPeriodoFinanceiro] = useState(obterPeriodoAtualSaoPaulo);
   const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
   const [erroFinanceiro, setErroFinanceiro] = useState("");
-  const [pedidosOracao, setPedidosOracao] = useState(0);
+  const [pedidosOracao, setPedidosOracao] = useState<number | null>(null);
+  const [erroOracoes, setErroOracoes] = useState("");
   const [membrosAniversariantes, setMembrosAniversariantes] = useState<MembroAniversariante[]>([]);
   const [filtroAniversariantes, setFiltroAniversariantes] = useState<"hoje" | "mes">("hoje");
   const [erroAniversariantes, setErroAniversariantes] = useState("");
@@ -120,7 +121,13 @@ export default function Dashboard() {
       if (primeiraCarga) setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (encerrado) return;
+        if (!session) {
+          setPedidosOracao(null);
+          setOracoesRecentes([]);
+          setErroOracoes("Sessão expirada. Entre novamente.");
+          return;
+        }
 
         const { data: userData } = await supabase.from("usuarios").select("nome, role, igreja_id").eq("id", session.user.id).maybeSingle();
         if (encerrado || !userData?.igreja_id) return;
@@ -158,7 +165,7 @@ export default function Dashboard() {
           supabase.from("congregacoes").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id),
           
           // Orações pendentes
-          supabase.from("pedidos_oracao").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).in('status', ['Pendente', 'Em Oração']),
+          supabase.from("pedidos_oracao").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).in('status', ['Pendente', 'Em Oração']).abortSignal(controller.signal),
           
           // Pré-cadastros pendentes
           supabase.from("membros").select("id", { count: "exact", head: true }).eq("igreja_id", userData.igreja_id).eq("status", "Pré-Cadastro"),
@@ -170,7 +177,7 @@ export default function Dashboard() {
           supabase.from("eventos").select("id, nome, data_inicio, created_at").eq("igreja_id", userData.igreja_id).eq("publicar_mural", true).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
 
           // Só pedidos aprovados e públicos entram no feed compartilhado.
-          supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", STATUS_ORACAO_PUBLICADA).eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA).gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
+          supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", STATUS_ORACAO_PUBLICADA).eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA).gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id").abortSignal(controller.signal),
           
           // Paginar evita omitir aniversariantes em igrejas com mais de 1.000 membros.
           buscarMembrosParaAniversarios(supabase, userData.igreja_id, userData.role === "admin", controller.signal)
@@ -182,12 +189,14 @@ export default function Dashboard() {
         setTotalVisitantes(visitantesRes.count || 0);
         setTotalCongregacoes(congregacoesRes.count || 0);
         
-        setPedidosOracao(oracoesRes.count || 0);
+        const falhaOracoes = Boolean(oracoesRes.error || oracoesRecentesRes.error);
+        setPedidosOracao(falhaOracoes ? null : oracoesRes.count ?? 0);
+        setOracoesRecentes(falhaOracoes ? [] : (oracoesRecentesRes.data || []) as OracaoRecente[]);
+        setErroOracoes(falhaOracoes ? "Não foi possível atualizar as orações. A consulta será tentada novamente." : "");
         setPreCadastros(preCadastrosRes.count || 0);
         setTotalAvisos(muralRes.count || 0);
         setAvisosMural((muralRes.data || []) as AvisoMural[]);
         setEventosMural((eventosMuralRes.data || []) as EventoMural[]);
-        setOracoesRecentes((oracoesRecentesRes.data || []) as OracaoRecente[]);
 
         // Compara dia/mês do cadastro sem converter o nascimento para UTC.
         // Usa a data ao concluir a consulta, inclusive se ela atravessar meia-noite.
@@ -199,6 +208,9 @@ export default function Dashboard() {
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error);
         if (!encerrado) {
+          setPedidosOracao(null);
+          setOracoesRecentes([]);
+          setErroOracoes("Não foi possível atualizar as orações. A consulta será tentada novamente.");
           setErroAniversariantes("Não foi possível carregar os aniversariantes. A consulta será tentada novamente.");
           setMembrosAniversariantes([]);
         }
@@ -223,15 +235,26 @@ export default function Dashboard() {
     document.addEventListener("visibilitychange", atualizarSeVisivel);
     window.addEventListener("focus", atualizarSeVisivel);
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session && !encerrado) {
+        setPedidosOracao(null);
+        setOracoesRecentes([]);
+        setErroOracoes("Sessão expirada. Entre novamente.");
+        encerrado = true;
+        controller.abort();
+      }
+    });
+
     return () => {
       encerrado = true;
       controller.abort();
+      subscription.unsubscribe();
       if (interval !== null) window.clearInterval(interval);
       document.removeEventListener("visibilitychange", atualizarSeVisivel);
       window.removeEventListener("focus", atualizarSeVisivel);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [contexto?.igrejaId, contexto?.usuarioId]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -406,7 +429,8 @@ export default function Dashboard() {
               <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Pedidos de Oração</p>
               <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center"><HeartHandshake className="w-4 h-4 text-red-500" /></div>
             </div>
-            <h2 className="text-2xl font-bold text-white">{loading ? "-" : pedidosOracao}</h2>
+            <h2 className="text-2xl font-bold text-white">{loading || pedidosOracao === null ? "—" : pedidosOracao}</h2>
+            {erroOracoes ? <p role="alert" className="mt-2 text-[11px] text-red-300">{erroOracoes}</p> : <p className="mt-2 text-[11px] text-gray-500">Pendentes e em oração · gestão</p>}
           </Card>
         </Link>
         
@@ -532,7 +556,8 @@ export default function Dashboard() {
                 <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-300"><HeartHandshake className="w-3.5 h-3.5 text-red-400" /> Orações recentes <span className="text-gray-500">· 7 dias</span></h4>
                 <Link href="/secretaria/oracoes" className="text-[10px] text-gray-500 hover:text-red-400">Ver todas</Link>
               </div>
-              {loading ? <p className="text-xs text-gray-500">Carregando orações...</p> : oracoesRecentes.length === 0 ? <p className="text-xs text-gray-500">Nenhuma oração recente em andamento.</p> : (
+              <p className="mb-2 text-[10px] text-gray-500">Somente pedidos públicos aprovados; pendentes e privados não são publicados.</p>
+              {loading ? <p className="text-xs text-gray-500">Carregando orações...</p> : erroOracoes ? <p role="alert" className="text-xs text-red-300">{erroOracoes}</p> : oracoesRecentes.length === 0 ? <p className="text-xs text-gray-500">Nenhuma oração recente em andamento.</p> : (
                 <div className="space-y-2">
                   {oracoesRecentes.map((oracao) => (
                     <div key={oracao.id} className="rounded-lg border border-gray-800 bg-ohel-bg/50 px-3 py-2">

@@ -4,6 +4,7 @@ import {
   AcessoError,
 } from "@/lib/access-server";
 import type { AvisoMembro, MonitorMembroData } from "@/lib/member-monitor";
+import { inicioJanelaOracaoRecente, STATUS_ORACAO_PUBLICADA, VISIBILIDADE_ORACAO_PUBLICA } from "@/lib/mural-rules";
 
 export const runtime = "nodejs";
 export async function GET(request: Request) {
@@ -13,7 +14,8 @@ export async function GET(request: Request) {
     const hoje = new Date().toLocaleDateString("en-CA", {
       timeZone: "America/Sao_Paulo",
     });
-    const semana = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const instanteConsulta = new Date();
+    const semana = inicioJanelaOracaoRecente(instanteConsulta);
     // Não consulta membros, finanças, visitantes com telefone nem orações pendentes.
     const [avisos, eventos, louvores, oracoes, visitantes, culto] =
       await Promise.all([
@@ -43,8 +45,10 @@ export async function GET(request: Request) {
           .from("pedidos_oracao")
           .select("id, nome_solicitante, descricao")
           .eq("igreja_id", igrejaId)
-          .eq("status", "Em Oração")
+          .eq("status", STATUS_ORACAO_PUBLICADA)
+          .eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA)
           .gte("created_at", semana)
+          .lte("created_at", instanteConsulta.toISOString())
           .order("created_at", { ascending: false })
           .limit(100),
         service

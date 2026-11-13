@@ -13,6 +13,7 @@ import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
 import { VerseCallout } from "@/components/shared/VerseCallout";
+import { useAccess } from "@/components/layout/AccessShell";
 
 interface AvisoFonte {
   id: string;
@@ -59,6 +60,7 @@ function combinarAvisos(comunicacoes: AvisoFonte[] = [], eventos: AvisoFonte[] =
 }
 
 export default function MonitorMidiaPage() {
+  const contexto = useAccess();
   const [loading, setLoading] = useState(true);
   
   const [visitantesHoje, setVisitantesHoje] = useState<any[]>([]);
@@ -66,6 +68,7 @@ export default function MonitorMidiaPage() {
   const [muralRecente, setMuralRecente] = useState<any[]>([]);
   const [oracoesSemana, setOracoesSemana] = useState<any[]>([]);
   const [oracoesPendentes, setOracoesPendentes] = useState<any[]>([]);
+  const [erroOracoes, setErroOracoes] = useState("");
   const [escalasProximas, setEscalasProximas] = useState<any[]>([]);
 
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
@@ -96,22 +99,39 @@ export default function MonitorMidiaPage() {
   const hoje = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
+    if (!contexto?.usuarioId || !contexto.igrejaId) return;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let refreshInterval: number | null = null;
     let refreshDebounce: number | null = null;
     let visibilityHandler: (() => void) | null = null;
+    let encerrado = false;
+    let sequenciaAtualizacao = 0;
+    const controller = new AbortController();
 
     const init = async () => {
+      setLoading(true);
+      setOracoesSemana([]);
+      setOracoesPendentes([]);
+      setMuralRecente([]);
+      setVisitantesHoje([]);
+      setLouvoresHoje([]);
+      setCultoAtual(null);
+      setEscalasProximas([]);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (encerrado) return;
         if (session) {
+          if (session.user.id !== contexto.usuarioId) return;
           const { data: user } = await supabase.from('usuarios').select('igreja_id, grupo_id, role').eq('id', session.user.id).maybeSingle();
+          if (encerrado) return;
           
           if (user) {
+            if (user.igreja_id !== contexto.igrejaId) throw new Error('A igreja da sessão mudou. Atualize a página.');
             setIgrejaId(user.igreja_id);
 
             if (user.igreja_id) {
               const { error: syncCultosError } = await supabase.rpc('materializar_sessoes_culto', { p_igreja_id: user.igreja_id });
+              if (encerrado) return;
               if (syncCultosError) throw syncCultosError;
             }
 
@@ -123,6 +143,7 @@ export default function MonitorMidiaPage() {
               .order('inicio_em', { ascending: false })
               .limit(1)
               .maybeSingle();
+            if (encerrado) return;
             setCultoAtual(cultoAberto || null);
 
             // VERIFICAÇÃO DE PERMISSÕES
@@ -133,6 +154,7 @@ export default function MonitorMidiaPage() {
                 .from('grupos_permissoes')
                 .select('modulo, acao')
                 .eq('grupo_id', user.grupo_id);
+              if (encerrado) return;
               
               if (perms) {
                 setPodeVerEscala(perms.some(p => p.modulo === 'escalas' && p.acao === 'ler'));
@@ -164,6 +186,7 @@ export default function MonitorMidiaPage() {
                 .order('data_culto', { ascending: true })
                 .limit(3)
             ]);
+            if (encerrado) return;
 
             const queryErrors = [
               visitasRes.error,
@@ -183,9 +206,12 @@ export default function MonitorMidiaPage() {
             setMuralRecente(combinarAvisos(muralRes.data || [], eventosMuralRes.data || []));
             setOracoesSemana(oracoesRes.data || []);
             setOracoesPendentes(pendentesRes.data || []);
+            setErroOracoes("");
             setEscalasProximas(escalasRes.data || []);
 
             const atualizarConteudoCompartilhado = async () => {
+              if (encerrado) return;
+              const sequencia = ++sequenciaAtualizacao;
               const instanteAtualizacao = new Date().toISOString();
               const inicioJanela = inicioJanelaOracaoRecente(new Date(instanteAtualizacao));
               const [comunicacoesAtualizadas, eventosAtualizados, oracoesAtualizadas, pendentesAtualizados] = await Promise.all([
@@ -194,14 +220,19 @@ export default function MonitorMidiaPage() {
                 supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', STATUS_ORACAO_PUBLICADA).eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).gte('created_at', inicioJanela).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
                 supabase.from('pedidos_oracao').select('id, nome_solicitante, descricao, created_at').eq('igreja_id', user.igreja_id).eq('status', 'Pendente').eq('visibilidade', VISIBILIDADE_ORACAO_PUBLICA).lte('created_at', instanteAtualizacao).order('created_at', { ascending: false }).order('id'),
               ]);
+              if (encerrado || controller.signal.aborted || sequencia !== sequenciaAtualizacao) return;
               const errosAtualizacao = [comunicacoesAtualizadas.error, eventosAtualizados.error, oracoesAtualizadas.error, pendentesAtualizados.error].filter(Boolean);
               if (errosAtualizacao.length) {
                 console.error('Não foi possível sincronizar o mural do Monitor:', errosAtualizacao);
+                setOracoesSemana([]);
+                setOracoesPendentes([]);
+                setErroOracoes('Não foi possível atualizar as orações. A consulta será tentada novamente.');
                 return;
               }
               setMuralRecente(combinarAvisos(comunicacoesAtualizadas.data || [], eventosAtualizados.data || []));
               setOracoesSemana(oracoesAtualizadas.data || []);
               setOracoesPendentes(pendentesAtualizados.data || []);
+              setErroOracoes('');
             };
 
             const agendarAtualizacaoCompartilhada = () => {
@@ -240,7 +271,11 @@ export default function MonitorMidiaPage() {
           }
         }
       } catch (error) {
+        if (encerrado) return;
         console.error(error);
+        setOracoesSemana([]);
+        setOracoesPendentes([]);
+        setErroOracoes('Não foi possível carregar as orações. Atualize a página para tentar novamente.');
         setModalFeedback({
           isOpen: true,
           type: "error",
@@ -248,19 +283,38 @@ export default function MonitorMidiaPage() {
           message: error instanceof Error ? error.message : "Verifique sua conexão e as permissões do usuário.",
         });
       } finally {
-        setLoading(false);
+        if (!encerrado) setLoading(false);
       }
     };
     
-    init();
+    void init();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if ((!session || session.user.id !== contexto.usuarioId) && !encerrado) {
+        encerrado = true;
+        controller.abort();
+        setIgrejaId(null);
+        setOracoesSemana([]);
+        setOracoesPendentes([]);
+        setMuralRecente([]);
+        setVisitantesHoje([]);
+        setLouvoresHoje([]);
+        setCultoAtual(null);
+        setEscalasProximas([]);
+        setErroOracoes('A sessão mudou. Aguarde a atualização do acesso.');
+      }
+    });
 
     return () => {
+      encerrado = true;
+      sequenciaAtualizacao++;
+      controller.abort();
+      subscription.unsubscribe();
       if (refreshInterval !== null) window.clearInterval(refreshInterval);
       if (refreshDebounce !== null) window.clearTimeout(refreshDebounce);
       if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [hoje]);
+  }, [hoje, contexto?.usuarioId, contexto?.igrejaId]);
 
   const enderecoDaIgreja = (igrejas: AvisoFonte["igrejas"]) => Array.isArray(igrejas) ? igrejas[0]?.endereco : igrejas?.endereco;
 
@@ -655,7 +709,7 @@ export default function MonitorMidiaPage() {
               </div>
 
               <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto fullscreen-scroll pr-1">
-                {oracoesSemana.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum pedido aprovado.</p> : 
+                {erroOracoes ? <p role="alert" className="text-xs text-red-300">{erroOracoes}</p> : oracoesSemana.length === 0 ? <p className="text-xs text-gray-500 italic">Nenhum pedido público aprovado.</p> :
                   oracoesSemana.map(o => (
                     <div key={o.id} className="bg-ohel-bg p-4 rounded-lg border border-gray-800 text-xs fullscreen-text">
                       <p className="text-red-400 font-bold mb-1 text-sm truncate">{o.nome_solicitante}</p>

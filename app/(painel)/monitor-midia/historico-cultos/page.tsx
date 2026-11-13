@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAccess } from "@/components/layout/AccessShell";
@@ -43,6 +43,97 @@ interface CultoRegistro {
   criado_em: string;
 }
 
+export interface ContextoHistorico {
+  usuarioId: string;
+  igrejaId: string;
+}
+
+interface HistoricoResposta {
+  data: unknown;
+  error: { name?: string; message?: string } | null;
+}
+
+interface HistoricoConsulta {
+  select: (campos: string) => HistoricoConsulta;
+  eq: (campo: string, valor: string) => HistoricoConsulta;
+  order: (campo: string, opcoes?: { ascending?: boolean }) => HistoricoConsulta;
+  maybeSingle: () => Promise<HistoricoResposta>;
+  abortSignal: (signal: AbortSignal) => HistoricoConsulta;
+  then: PromiseLike<HistoricoResposta>["then"];
+}
+
+interface ClienteHistorico {
+  auth: {
+    getSession: () => Promise<{
+      data: { session: { user: { id: string } } | null };
+    }>;
+  };
+  from: (tabela: string) => HistoricoConsulta;
+}
+
+interface EscopoHistorico {
+  contexto: ContextoHistorico;
+  cultoId: string;
+  signal: AbortSignal;
+}
+
+export function contextoHistoricoValido(
+  contexto: ContextoHistorico | null | undefined,
+  session: { user?: { id?: string | null } } | null | undefined,
+  usuario: { igreja_id?: string | null } | null | undefined,
+) {
+  return Boolean(
+    contexto?.usuarioId &&
+      contexto.igrejaId &&
+      session?.user?.id === contexto.usuarioId &&
+      usuario?.igreja_id === contexto.igrejaId,
+  );
+}
+
+export async function carregarRegistrosHistorico(
+  cliente: ClienteHistorico,
+  escopo: EscopoHistorico,
+  aindaAtivo: () => boolean,
+): Promise<CultoRegistro[]> {
+  try {
+    if (!aindaAtivo() || escopo.signal.aborted) return [];
+    const {
+      data: { session },
+    } = await cliente.auth.getSession();
+    if (!aindaAtivo() || escopo.signal.aborted) return [];
+    if (session?.user?.id !== escopo.contexto.usuarioId) return [];
+
+    const usuarioConsulta = cliente
+      .from("usuarios")
+      .select("igreja_id")
+      .eq("id", session.user.id)
+      .abortSignal(escopo.signal);
+    const { data: usuario, error: usuarioError } =
+      await usuarioConsulta.maybeSingle();
+    if (
+      usuarioError ||
+      !aindaAtivo() ||
+      escopo.signal.aborted ||
+      !contextoHistoricoValido(escopo.contexto, session, usuario as { igreja_id?: string | null } | null)
+    ) {
+      return [];
+    }
+
+    const registrosConsulta = cliente
+      .from("culto_registros")
+      .select("id, tipo, origem_tabela, titulo, resumo, criado_em")
+      .eq("igreja_id", escopo.contexto.igrejaId)
+      .eq("culto_id", escopo.cultoId)
+      .order("criado_em", { ascending: true })
+      .abortSignal(escopo.signal);
+    const { data, error } = await registrosConsulta;
+    if (error || !aindaAtivo() || escopo.signal.aborted) return [];
+    return Array.isArray(data) ? (data as CultoRegistro[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 const nomeTipo = (tipo: string) => ({ louvor: "Louvor", oracao: "Oração", checkin: "Check-in", visitante: "Visitante", visita: "Visita", sermao: "Palavra / Sermão", projecao: "Projeção" }[tipo] || tipo);
 const formularioProgramacaoVazio = (tipo = "Culto de Domingo"): ProgramacaoCultoForm => ({ nome: "", tipo, dia_semana: "0", horario_inicio: "09:00", horario_fim: "11:00" });
 
@@ -72,31 +163,103 @@ export default function HistoricoCultosPage() {
   const [formProgramacao, setFormProgramacao] = useState<ProgramacaoCultoForm>(formularioProgramacaoVazio());
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
+  const contextoAtualRef = useRef<ContextoHistorico | null>(null);
+  const contextoVersaoRef = useRef(0);
+  const ultimaChaveContextoRef = useRef<string | null>(null);
+  const contextoUsuarioId = contexto?.usuarioId || null;
+  const contextoIgrejaId = contexto?.igrejaId || null;
+  useLayoutEffect(() => {
+    const atual = contextoUsuarioId && contextoIgrejaId
+      ? { usuarioId: contextoUsuarioId, igrejaId: contextoIgrejaId }
+      : null;
+    const chaveContexto = atual ? `${atual.usuarioId}:${atual.igrejaId}` : "";
+    if (ultimaChaveContextoRef.current !== chaveContexto) {
+      ultimaChaveContextoRef.current = chaveContexto;
+      contextoVersaoRef.current += 1;
+    }
+    contextoAtualRef.current = atual;
+  }, [contextoUsuarioId, contextoIgrejaId]);
+
   const podeRevisarCultoLar = Boolean(contexto && podeAcessar(contexto, "mural", "ler"));
 
-  const carregarSessoes = async (id: string) => {
-    const { data, error } = await supabase.from("culto_sessoes").select("id, titulo, tipo, inicio_em, fim_em, status, dirigente, link_ao_vivo, observacoes").eq("igreja_id", id).order("inicio_em", { ascending: false });
+  const limparDadosContexto = () => {
+    setIgrejaId(null);
+    setSessoes([]);
+    setProgramacao([]);
+    setProgramacoesAnuais([]);
+    setTiposCulto([]);
+    setSessaoSelecionada(null);
+    setRegistros([]);
+    setLoadingRegistros(false);
+    setBusca("");
+    setNovoTipoCulto("");
+    setTipoEditandoId(null);
+    setNomeTipoEditado("");
+    setPodeGerirProgramacao(false);
+    setModeloEditandoId(null);
+    setFormEdicaoModelo(null);
+  };
+
+  const criarOperacaoContexto = (id: string, signal?: AbortSignal) => {
+    const atual = contextoAtualRef.current;
+    if (!atual || atual.igrejaId !== id) return null;
+    return {
+      contexto: atual,
+      versao: contextoVersaoRef.current,
+      signal,
+    };
+  };
+
+  const operacaoContextoAtiva = (operacao: ReturnType<typeof criarOperacaoContexto>) => {
+    if (!operacao) return false;
+    const atual = contextoAtualRef.current;
+    return Boolean(
+      atual &&
+        atual.usuarioId === operacao.contexto.usuarioId &&
+        atual.igrejaId === operacao.contexto.igrejaId &&
+        contextoVersaoRef.current === operacao.versao &&
+        !operacao.signal?.aborted,
+    );
+  };
+
+  const carregarSessoes = async (id: string, signal?: AbortSignal) => {
+    const operacao = criarOperacaoContexto(id, signal);
+    if (!operacao) return;
+    const consulta = supabase.from("culto_sessoes").select("id, titulo, tipo, inicio_em, fim_em, status, dirigente, link_ao_vivo, observacoes").eq("igreja_id", id).order("inicio_em", { ascending: false });
+    const { data, error } = await (signal ? consulta.abortSignal(signal) : consulta);
     if (error) throw error;
+    if (!operacaoContextoAtiva(operacao)) return;
     const lista = (data || []) as CultoSessao[];
     setSessoes(lista);
     const aberta = lista.find((sessao) => sessao.status === "aberto");
-    if (aberta) setSessaoSelecionada((atual) => atual?.id === aberta.id ? atual : aberta);
+    setSessaoSelecionada((atual) => {
+      if (atual) return lista.find((sessao) => sessao.id === atual.id) || aberta || null;
+      return aberta || null;
+    });
   };
 
-  const carregarProgramacao = async (id: string) => {
-    const { data, error } = await supabase.from("culto_modelos").select("id, nome, tipo, dia_semana, horario_inicio, horario_fim, ativo, vigencia_desde").eq("igreja_id", id).order("dia_semana").order("horario_inicio");
+  const carregarProgramacao = async (id: string, signal?: AbortSignal) => {
+    const operacao = criarOperacaoContexto(id, signal);
+    if (!operacao) return;
+    const consulta = supabase.from("culto_modelos").select("id, nome, tipo, dia_semana, horario_inicio, horario_fim, ativo, vigencia_desde").eq("igreja_id", id).order("dia_semana").order("horario_inicio");
+    const { data, error } = await (signal ? consulta.abortSignal(signal) : consulta);
     if (error) throw error;
+    if (!operacaoContextoAtiva(operacao)) return;
     setProgramacao((data || []) as CultoModelo[]);
   };
 
-  const carregarProgramacoesAnuais = async (id: string, ano = anoAgenda) => {
+  const carregarProgramacoesAnuais = async (id: string, ano = anoAgenda, signal?: AbortSignal) => {
+    const operacao = criarOperacaoContexto(id, signal);
+    if (!operacao) return;
     const anoNumerico = Number(ano);
     if (!Number.isInteger(anoNumerico) || anoNumerico < 2000 || anoNumerico > 2100) {
-      setProgramacoesAnuais([]);
+      if (operacaoContextoAtiva(operacao)) setProgramacoesAnuais([]);
       return;
     }
-    const { data, error } = await supabase.from("programacoes_cultos_anuais").select("id, ano, data_culto, titulo, tipo, horario_inicio, horario_fim, observacoes, ativo, created_at, updated_at").eq("igreja_id", id).eq("ano", anoNumerico).order("data_culto").order("horario_inicio");
+    const consulta = supabase.from("programacoes_cultos_anuais").select("id, ano, data_culto, titulo, tipo, horario_inicio, horario_fim, observacoes, ativo, created_at, updated_at").eq("igreja_id", id).eq("ano", anoNumerico).order("data_culto").order("horario_inicio");
+    const { data, error } = await (signal ? consulta.abortSignal(signal) : consulta);
     if (error) throw error;
+    if (!operacaoContextoAtiva(operacao)) return;
     setProgramacoesAnuais((data || []) as ProgramacaoCultoAnual[]);
   };
 
@@ -107,48 +270,132 @@ export default function HistoricoCultosPage() {
     }
   };
 
-  const carregarTiposCulto = async (id: string) => {
-    const { data, error } = await supabase.from("culto_tipos").select("id, nome, ativo").eq("igreja_id", id).order("nome");
+  const carregarTiposCulto = async (id: string, signal?: AbortSignal) => {
+    const operacao = criarOperacaoContexto(id, signal);
+    if (!operacao) return;
+    const consulta = supabase.from("culto_tipos").select("id, nome, ativo").eq("igreja_id", id).order("nome");
+    const { data, error } = await (signal ? consulta.abortSignal(signal) : consulta);
     if (error) throw error;
+    if (!operacaoContextoAtiva(operacao)) return;
     setTiposCulto((data || []) as TipoCulto[]);
   };
 
   useEffect(() => {
+    const usuarioId = contexto?.usuarioId || null;
+    const id = contexto?.igrejaId || null;
+    let invalidado = false;
+    const controller = new AbortController();
+    const contextoAtivo = () => Boolean(
+      !invalidado &&
+        usuarioId &&
+        id &&
+        contextoAtualRef.current?.usuarioId === usuarioId &&
+        contextoAtualRef.current?.igrejaId === id &&
+        !controller.signal.aborted,
+    );
+    const invalidar = () => {
+      if (invalidado) return;
+      invalidado = true;
+      contextoVersaoRef.current += 1;
+      controller.abort();
+      limparDadosContexto();
+      setLoading(false);
+    };
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session || session.user.id !== usuarioId) invalidar();
+    });
+
     const init = async () => {
+      limparDadosContexto();
+      if (!usuarioId || !id) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data: user } = await supabase.from("usuarios").select("igreja_id, role").eq("id", session.user.id).maybeSingle();
-        if (!user?.igreja_id) return;
+        if (!contextoAtivo() || !session || session.user.id !== usuarioId) {
+          invalidar();
+          return;
+        }
+        const userQuery = supabase.from("usuarios").select("igreja_id, role").eq("id", session.user.id);
+        const { data: user, error: userError } = await (userQuery.abortSignal(controller.signal).maybeSingle());
+        if (userError) throw userError;
+        if (!contextoAtivo() || !user?.igreja_id || user.igreja_id !== id) {
+          invalidar();
+          return;
+        }
         setIgrejaId(user.igreja_id);
         setPodeGerirProgramacao(user.role === "admin");
-        const { error: syncError } = await supabase.rpc("materializar_sessoes_culto", { p_igreja_id: user.igreja_id });
+        const syncQuery = supabase.rpc("materializar_sessoes_culto", { p_igreja_id: user.igreja_id });
+        const { error: syncError } = await syncQuery.abortSignal(controller.signal);
         if (syncError) throw syncError;
-        const carregarAgendaInicial = async () => {
-          const { data, error } = await supabase.from("programacoes_cultos_anuais").select("id, ano, data_culto, titulo, tipo, horario_inicio, horario_fim, observacoes, ativo, created_at, updated_at").eq("igreja_id", user.igreja_id).eq("ano", Number(anoAtualAgenda())).order("data_culto").order("horario_inicio");
-          if (error) throw error;
-          setProgramacoesAnuais((data || []) as ProgramacaoCultoAnual[]);
-        };
-        await Promise.all([carregarSessoes(user.igreja_id), carregarProgramacao(user.igreja_id), carregarTiposCulto(user.igreja_id), carregarAgendaInicial()]);
+        await Promise.all([
+          carregarSessoes(user.igreja_id, controller.signal),
+          carregarProgramacao(user.igreja_id, controller.signal),
+          carregarTiposCulto(user.igreja_id, controller.signal),
+          carregarProgramacoesAnuais(user.igreja_id, anoAtualAgenda(), controller.signal),
+        ]);
+        if (!contextoAtivo()) return;
       } catch (error) {
+        if (!contextoAtivo()) return;
         setModal({ isOpen: true, type: "error", title: "Não foi possível carregar", message: error instanceof Error ? error.message : "Execute as migrations do histórico e da programação de cultos." });
       } finally {
-        setLoading(false);
+        if (contextoAtivo()) setLoading(false);
       }
     };
     void init();
-  }, []);
+    return () => {
+      invalidado = true;
+      controller.abort();
+      subscription.unsubscribe();
+    };
+  // Os loaders são closures intencionais do ciclo de contexto; o efeito só deve reiniciar pelos IDs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contexto?.usuarioId, contexto?.igrejaId]);
 
   useEffect(() => {
-    const carregarRegistros = async () => {
-      if (!sessaoSelecionada) { setRegistros([]); return; }
-      setLoadingRegistros(true);
-      const { data } = await supabase.from("culto_registros").select("id, tipo, origem_tabela, titulo, resumo, criado_em").eq("culto_id", sessaoSelecionada.id).order("criado_em", { ascending: true });
-      setRegistros((data || []) as CultoRegistro[]);
-      setLoadingRegistros(false);
+    const usuarioId = contexto?.usuarioId || null;
+    const id = contexto?.igrejaId || null;
+    const sessao = sessaoSelecionada;
+    const controller = new AbortController();
+    const versaoContexto = contextoVersaoRef.current;
+    let invalidado = false;
+    const contextoAtivo = () => Boolean(
+      !invalidado &&
+        usuarioId &&
+        id &&
+        sessao &&
+        contextoAtualRef.current?.usuarioId === usuarioId &&
+        contextoAtualRef.current?.igrejaId === id &&
+        contextoVersaoRef.current === versaoContexto &&
+        !controller.signal.aborted,
+    );
+    const carregar = async () => {
+      setRegistros([]);
+      setLoadingRegistros(Boolean(sessao && usuarioId && id));
+      if (!sessao || !usuarioId || !id) return;
+      const escopo: EscopoHistorico = {
+        contexto: { usuarioId, igrejaId: id },
+        cultoId: sessao.id,
+        signal: controller.signal,
+      };
+      const dados = await carregarRegistrosHistorico(
+        supabase as unknown as ClienteHistorico,
+        escopo,
+        contextoAtivo,
+      );
+      if (contextoAtivo()) setRegistros(dados);
+      if (contextoAtivo()) setLoadingRegistros(false);
     };
-    void carregarRegistros();
-  }, [sessaoSelecionada]);
+    void carregar();
+    return () => {
+      invalidado = true;
+      controller.abort();
+    };
+  }, [sessaoSelecionada, contexto?.usuarioId, contexto?.igrejaId]);
 
   const sessoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -472,7 +719,7 @@ export default function HistoricoCultosPage() {
           <Card className="border-gray-800 p-4"><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar culto por nome ou tipo..." className="input-ohel w-full rounded-md py-2.5 pl-9 pr-3 text-xs" /></div><div className="mt-4 flex max-h-[520px] flex-col gap-2 overflow-y-auto">{sessoesFiltradas.length === 0 ? <p className="py-5 text-center text-xs text-gray-500">Nenhum culto encontrado.</p> : sessoesFiltradas.map((sessao) => <button type="button" key={sessao.id} onClick={() => setSessaoSelecionada(sessao)} className={`rounded-lg border p-3 text-left transition-colors ${sessaoSelecionada?.id === sessao.id ? "border-ohel-blue bg-ohel-blue/10" : "border-gray-800 bg-ohel-bg hover:border-gray-600"}`}><div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold text-white">{sessao.titulo}</span><span className={`rounded-full px-2 py-1 text-[9px] uppercase ${sessao.status === "aberto" ? "bg-green-500/10 text-green-400" : "bg-gray-700 text-gray-400"}`}>{sessao.status}</span></div><span className="mt-2 block text-[10px] text-gray-500">{new Date(sessao.inicio_em).toLocaleString("pt-BR")}</span>{sessao.link_ao_vivo && <span className="mt-1 block text-[10px] text-red-400">Transmissão ao vivo vinculada</span>}</button>)}</div></Card>
         </div>
 
-        <Card className="min-h-[600px] border-gray-800 p-5 lg:col-span-2">{!sessaoSelecionada ? <div className="flex h-full flex-col items-center justify-center text-center text-gray-500"><CalendarDays className="mb-3 h-10 w-10" /><p className="text-sm">Selecione um culto para ver o diário.</p></div> : <><div className="flex flex-col justify-between gap-4 border-b border-gray-800 pb-4 md:flex-row md:items-start"><div><p className="text-[10px] font-bold uppercase text-ohel-blue">{sessaoSelecionada.tipo}</p><h2 className="mt-1 text-xl font-bold text-white">{sessaoSelecionada.titulo}</h2><p className="mt-2 text-xs text-gray-500">{new Date(sessaoSelecionada.inicio_em).toLocaleString("pt-BR")}{sessaoSelecionada.fim_em ? ` até ${new Date(sessaoSelecionada.fim_em).toLocaleString("pt-BR")}` : " · em andamento"}</p>{sessaoSelecionada.dirigente && <p className="mt-2 text-xs text-gray-300">Dirigente: {sessaoSelecionada.dirigente}</p>}{sessaoSelecionada.link_ao_vivo && <a href={sessaoSelecionada.link_ao_vivo} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><ExternalLink className="h-3 w-3" /> Abrir culto ao vivo</a>}</div>{sessaoSelecionada.status === "aberto" && <Button type="button" variant="secondary" onClick={encerrarCulto} disabled={saving} className="w-full md:w-auto"><Square className="mr-2 h-3.5 w-3.5" /> Encerrar culto</Button>}</div><div className="mb-3 mt-5 flex items-center justify-between"><h3 className="text-sm font-bold text-white">Diário do culto</h3><span className="text-xs text-gray-500">{registros.length} registros</span></div>{loadingRegistros ? <p className="py-10 text-center text-xs text-gray-500">Carregando registros...</p> : registros.length === 0 ? <div className="rounded-lg border border-dashed border-gray-700 p-10 text-center text-xs text-gray-500"><BookOpen className="mx-auto mb-2 h-8 w-8" />Nenhuma ação foi registrada nesta sessão.</div> : <div className="flex flex-col gap-2">{registros.map((registro) => <div key={registro.id} className="rounded-lg border border-gray-800 bg-ohel-bg p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="text-[10px] font-bold uppercase text-ohel-blue">{nomeTipo(registro.tipo)}</span><p className="mt-1 truncate text-sm font-semibold text-white">{registro.titulo || "Registro do culto"}</p><p className="mt-1 line-clamp-2 text-xs text-gray-400">{registro.resumo || "Sem detalhes adicionais."}</p></div><span className="shrink-0 text-[10px] text-gray-600">{new Date(registro.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span></div></div>)}</div>}</>}</Card>
+        <Card className="min-h-[600px] border-gray-800 p-5 lg:col-span-2">{!sessaoSelecionada ? <div className="flex h-full flex-col items-center justify-center text-center text-gray-500"><CalendarDays className="mb-3 h-10 w-10" /><p className="text-sm">Selecione um culto para ver o diário.</p></div> : <><div className="flex flex-col justify-between gap-4 border-b border-gray-800 pb-4 md:flex-row md:items-start"><div><p className="text-[10px] font-bold uppercase text-ohel-blue">{sessaoSelecionada.tipo}</p><h2 className="mt-1 text-xl font-bold text-white">{sessaoSelecionada.titulo}</h2><p className="mt-2 text-xs text-gray-500">{new Date(sessaoSelecionada.inicio_em).toLocaleString("pt-BR")}{sessaoSelecionada.fim_em ? ` até ${new Date(sessaoSelecionada.fim_em).toLocaleString("pt-BR")}` : " · em andamento"}</p>{sessaoSelecionada.dirigente && <p className="mt-2 text-xs text-gray-300">Dirigente: {sessaoSelecionada.dirigente}</p>}{sessaoSelecionada.link_ao_vivo && <a href={sessaoSelecionada.link_ao_vivo} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><ExternalLink className="h-3 w-3" /> Abrir culto ao vivo</a>}</div>{sessaoSelecionada.status === "aberto" && <Button type="button" variant="secondary" onClick={encerrarCulto} disabled={saving} className="w-full md:w-auto"><Square className="mr-2 h-3.5 w-3.5" /> Encerrar culto</Button>}</div><div className="mb-3 mt-5 flex items-center justify-between"><div><h3 className="text-sm font-bold text-white">Diário do culto</h3><p className="mt-1 text-[10px] text-gray-500">Registro histórico: excluir um pedido atual não apaga o que foi registrado no culto.</p></div><span className="text-xs text-gray-500">{registros.length} registros</span></div>{loadingRegistros ? <p className="py-10 text-center text-xs text-gray-500">Carregando registros...</p> : registros.length === 0 ? <div className="rounded-lg border border-dashed border-gray-700 p-10 text-center text-xs text-gray-500"><BookOpen className="mx-auto mb-2 h-8 w-8" />Nenhuma ação foi registrada nesta sessão.</div> : <div className="flex flex-col gap-2">{registros.map((registro) => <div key={registro.id} className="rounded-lg border border-gray-800 bg-ohel-bg p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="text-[10px] font-bold uppercase text-ohel-blue">{nomeTipo(registro.tipo)}</span><p className="mt-1 truncate text-sm font-semibold text-white">{registro.titulo || "Registro do culto"}</p><p className="mt-1 line-clamp-2 text-xs text-gray-400">{registro.resumo || "Sem detalhes adicionais."}</p></div><span className="shrink-0 text-[10px] text-gray-600">{new Date(registro.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span></div></div>)}</div>}</>}</Card>
       </div>
 
       <AgendaAnualCard programacoes={programacoesAnuais} tiposCulto={tiposCulto} anoSelecionado={anoAgenda} onAnoChange={mudarAnoAgenda} podeGerir={podeGerirProgramacao} saving={savingAgenda} onCreate={criarAgendaAnual} onEdit={editarAgendaAnual} onToggle={alternarAgendaAnual} />
