@@ -57,3 +57,15 @@ Carregamento discreto, falha com tentativa de atualizar e preservação dos cont
 Ajustar apenas os rótulos do menu e links de retorno pessoal para Meu dashboard. Reutilizar as APIs/páginas de oração autenticada, perfil, check-in e cestas sem modificar seus fluxos. O endereço vem de `igrejas.endereco`, já editável em Configurações: não requer migration nova. Informações financeiras, contatos de visitantes e pedidos pendentes não entram no dashboard.
 
 As listas são consultadas em páginas de 100 registros no servidor até completar os conteúdos publicados, sempre com filtro da igreja, ordenação estável e limite temporal da consulta. O botão Mostrar mais expande a lista completa recebida, sem truncamento silencioso. O detalhe do evento mantém início, término e horário de abertura. Imagens e transmissão externas só aceitam HTTPS.
+
+## Ampliação de QR Codes, finanças, sorteios, cestas e notificações
+
+Reutilizar primeiro as páginas públicas e componentes de QR Codes de congregados/visitantes existentes. Os QR Codes continuam vinculados à igreja e usam o domínio oficial, sem duplicar cadastros ou conceder acesso administrativo.
+
+O financeiro passa a compartilhar a fonte dos dados entre movimentação e indicadores administrativos. Saldos de contas, valores iniciais, receitas/despesas e transferências permanecem conceitos separados; não criar correções de registros reais automaticamente. Consultas/erros e filtros precisam refletir o fluxo atual, sempre com autorização por módulo e igreja.
+
+Cada sorteio mantém a compra pública atual e ganha gestão administrativa de vendedor por número, registro manual protegido contra conflito, foto enviada e geração de imagem opcional. As imagens devem ser validadas e persistidas em storage; a geração depende de provedor configurado no servidor e nunca pode expor chaves ou usar credenciais do sandbox na Vercel. O dashboard dos membros recebe um componente independente com somente sorteios ativos e informações públicas da própria igreja.
+
+Campanhas de cestas incluem quantidade de cestas e totais de itens explicitamente calculados. Sugestões vêm da história da própria igreja e de opções básicas; edição preserva as reservas/doações e não permite diminuir a necessidade abaixo dos compromissos existentes. Migrações necessárias serão aditivas e compatíveis com campanhas legadas.
+
+Notificações pessoais de oração seguem os mesmos critérios de publicação e privacidade do mural. Um pedido pendente de outra pessoa não pode aparecer para o membro. Controlar IDs lidos por conta/membro/igreja, avisar aprovações posteriores e evitar notificações repetidas em foco/atualização. Novos blocos ficam em `components/member/`, estilos isolados e APIs privadas específicas; o pai integra os componentes no dashboard existente, sem alterar os recursos do culto e do cuidado pastoral.

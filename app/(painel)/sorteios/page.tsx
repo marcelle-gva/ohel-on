@@ -1,21 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Gift, Plus, Search, CalendarDays, Ticket, ArrowUpRight } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Gift, Plus, Search, CalendarDays, Ticket, ArrowUpRight, ListChecks } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
+import { obterOrigemPublica } from "@/lib/public-site";
+
+type SorteioLista = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  status: string;
+  data_sorteio: string | null;
+  total_numeros: number;
+  valor_bilhete: number;
+  sorteio_participantes?: Array<{ count: number }>;
+  inscritos_total: number;
+};
 
 export default function SorteiosPage() {
-  const [sorteios, setSorteios] = useState<any[]>([]);
+  const [sorteios, setSorteios] = useState<SorteioLista[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    fetchSorteios();
-  }, []);
-
-  const fetchSorteios = async () => {
+  const fetchSorteios = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("sorteios")
@@ -23,7 +32,7 @@ export default function SorteiosPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setSorteios((data || []).map((item: any) => ({
+      setSorteios(((data || []) as SorteioLista[]).map((item) => ({
         ...item,
         inscritos_total: item.sorteio_participantes?.[0]?.count || 0,
       })));
@@ -32,7 +41,12 @@ export default function SorteiosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchSorteios(), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchSorteios]);
 
   const sorteiosFiltrados = sorteios.filter((item) => {
     const text = `${item.nome} ${item.descricao || ""}`.toLowerCase();
@@ -71,7 +85,7 @@ export default function SorteiosPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {sorteiosFiltrados.map((item) => {
-            const linkPublico = typeof window !== "undefined" ? `${window.location.origin}/sorteio/${item.id}` : `#/sorteio/${item.id}`;
+            const linkPublico = `${obterOrigemPublica()}/sorteio/${item.id}`;
             return (
               <Card key={item.id} className="p-0 overflow-hidden border-gray-800 bg-ohel-surface">
                 <div className="h-28 bg-gradient-to-br from-violet-500/20 via-ohel-surface to-ohel-bg flex items-center justify-center">
@@ -100,8 +114,11 @@ export default function SorteiosPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-auto">
-                    <Link href={`/sorteios/novo?editar=${item.id}`} className="flex-1 rounded-md border border-gray-700 px-3 py-2 text-center text-sm text-gray-200 hover:border-ohel-blue">Editar</Link>
+                  <div className="flex flex-wrap gap-2 mt-auto">
+                    <Link href={`/sorteios/${item.id}`} className="flex-1 min-w-[10rem] rounded-md bg-ohel-blue px-3 py-2 text-center text-sm text-white hover:bg-blue-600 flex items-center justify-center gap-2">
+                      <ListChecks className="w-3.5 h-3.5" /> Números e vendedores
+                    </Link>
+                    <Link href={`/sorteios/novo?editar=${item.id}`} className="rounded-md border border-gray-700 px-3 py-2 text-center text-sm text-gray-200 hover:border-ohel-blue">Editar</Link>
                     <a href={linkPublico} target="_blank" rel="noreferrer" className="flex-1 rounded-md bg-ohel-blue px-3 py-2 text-center text-sm text-white hover:bg-blue-600 flex items-center justify-center gap-2">
                       Abrir <ArrowUpRight className="w-3.5 h-3.5" />
                     </a>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { Search, Plus, Edit, Trash2, AlertTriangle, User } from "lucide-react";
+import { Search, Plus, Edit, Trash2, AlertTriangle, User, QrCode } from "lucide-react";
 
 interface Visitante {
   id: string; nome: string; telefone: string; data_visita: string;
@@ -25,11 +25,7 @@ export default function VisitantesPage() {
   const [visitanteToDelete, setVisitanteToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    fetchDados();
-  }, []);
-
-  const fetchDados = async () => {
+  const fetchDados = useCallback(async () => {
     try {
       setLoading(true);
       const { data: dataCong } = await supabase.from("congregacoes").select("id, nome");
@@ -47,7 +43,12 @@ export default function VisitantesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchDados(), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchDados]);
 
   const handleDelete = async () => {
     if (!visitanteToDelete) return;
@@ -56,7 +57,7 @@ export default function VisitantesPage() {
       await supabase.from("visitantes").delete().eq("id", visitanteToDelete);
       setVisitantes(visitantes.filter((v) => v.id !== visitanteToDelete));
       setVisitanteToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao excluir:", error);
     } finally {
       setIsDeleting(false);
@@ -83,7 +84,10 @@ export default function VisitantesPage() {
           <p className="text-gray-400 text-sm mt-1">Gerencie as pessoas que visitaram a igreja.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/secretaria/visitantes/qrcode" className="border border-gray-700 hover:border-ohel-blue text-gray-200 font-medium py-2.5 px-4 rounded-md transition-colors flex items-center gap-2 text-sm">
+            <QrCode className="w-4 h-4" /> QR Code
+          </Link>
           <Link href="/secretaria/visitantes/novo" className="bg-ohel-blue hover:bg-blue-600 text-white font-medium py-2.5 px-6 rounded-md transition-all shadow-[0_0_15px_rgba(0,123,255,0.2)] flex items-center gap-2 text-sm">
             <Plus className="w-4 h-4" /> Novo Visitante
           </Link>

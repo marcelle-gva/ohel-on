@@ -7,11 +7,12 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { Wallet, TrendingUp, TrendingDown, Landmark, FileText, Users2, PieChart, Upload, Lock, Unlock, Package } from "lucide-react";
+import { obterPeriodoAtualSaoPaulo } from "@/lib/financeiro/resumoMensal";
 
 export default function FinanceiroHubPage() {
   const [loading, setLoading] = useState(true);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
-  const [mesAtual, setMesAtual] = useState(new Date().toISOString().slice(0, 7));
+  const [mesAtual, setMesAtual] = useState(obterPeriodoAtualSaoPaulo);
   const [isMesFechado, setIsMesFechado] = useState(false);
   const [savingFechamento, setSavingFechamento] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });

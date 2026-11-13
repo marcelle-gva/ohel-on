@@ -27,6 +27,8 @@ import type {
 import { VisitorInviteCard } from "./VisitorInviteCard";
 import { NoticeDetails } from "./NoticeDetails";
 import { PastoralCareCard } from "./PastoralCareCard";
+import { MemberRafflesCard } from "./MemberRafflesCard";
+import { PrayerNotifications } from "./PrayerNotifications";
 import { VerseCallout } from "@/components/shared/VerseCallout";
 import styles from "@/app/area-membro/dashboard.module.css";
 
@@ -87,6 +89,8 @@ export function MemberDashboard() {
   const [louvoresVisiveis, setLouvoresVisiveis] = useState(3);
   const [slide, setSlide] = useState(0);
   const [cuidadoRefreshKey, setCuidadoRefreshKey] = useState(0);
+  const [sorteiosRefreshKey, setSorteiosRefreshKey] = useState(0);
+  const [prayerRefreshKey, setPrayerRefreshKey] = useState(0);
   const emAndamento = useRef<AbortController | null>(null);
   const recarregarPendente = useRef(false);
   const carregarRef = useRef<(() => Promise<void>) | null>(null);
@@ -255,6 +259,8 @@ export function MemberDashboard() {
           type="button"
           onClick={() => {
             setCuidadoRefreshKey((valor) => valor + 1);
+            setSorteiosRefreshKey((valor) => valor + 1);
+            setPrayerRefreshKey((valor) => valor + 1);
             void carregar();
           }}
           disabled={atualizando}
@@ -284,6 +290,17 @@ export function MemberDashboard() {
           </Link>
         ))}
       </nav>
+
+      <PrayerNotifications
+        key={`oracoes-${contexto?.igrejaId}-${contexto?.membro?.id}`}
+        churchId={contexto?.igrejaId}
+        memberId={contexto?.membro?.id}
+        refreshKey={prayerRefreshKey}
+      />
+      <MemberRafflesCard
+        key={`sorteios-${contexto?.igrejaId}-${contexto?.membro?.id}`}
+        refreshKey={sorteiosRefreshKey}
+      />
 
       {erro && (
         <p role="alert" className={styles.error}>

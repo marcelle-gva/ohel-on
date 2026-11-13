@@ -18,6 +18,9 @@ import {
 import { Card } from "@/components/ui/Card";
 import { ResumoContasPagar } from "@/components/financeiro/ResumoContasPagar";
 import { obterPeriodoAtualSaoPaulo, type ContaResumoMensal } from "@/lib/financeiro/resumoMensal";
+import { centavosParaReais } from "@/lib/financeiro/dinheiro";
+import type { ResumoFinanceiroApi } from "@/lib/financeiro/resumoFinanceiro";
+import { useAccess } from "@/components/layout/AccessShell";
 import { Users, UserPlus, HeartHandshake, Church, DollarSign, CalendarDays, CheckSquare, Bell, MonitorPlay, ArrowRight } from "lucide-react";
 
 interface AvisoMural {
@@ -44,6 +47,7 @@ interface OracaoRecente {
 interface ResumoFinanceiroDashboard {
   contas: ContaResumoMensal[];
   saldoMovimento: number;
+  saldoContas: number;
 }
 
 function formatarDataMural(data: string | null) {
@@ -62,6 +66,7 @@ function formatarDataAtualSaoPaulo(data = new Date()) {
 }
 
 export default function Dashboard() {
+  const contexto = useAccess();
   const [loading, setLoading] = useState(true);
   const [nomeUsuario, setNomeUsuario] = useState("Líder");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -231,35 +236,70 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isAdmin) return;
     const controller = new AbortController();
+    let emAndamento = false;
+    let pendente = false;
     const carregarResumoFinanceiro = async () => {
+      if (controller.signal.aborted) return;
+      if (emAndamento) { pendente = true; return; }
+      emAndamento = true;
       setLoadingFinanceiro(true);
       setErroFinanceiro("");
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (controller.signal.aborted) return;
         if (!session?.access_token) throw new Error("Sua sessão expirou. Entre novamente.");
-        const response = await fetch(`/api/dashboard/resumo-financeiro?periodo=${encodeURIComponent(periodoFinanceiro)}`, {
+        const response = await fetch(`/api/financeiro/resumo?periodo=${encodeURIComponent(periodoFinanceiro)}&modo=resumo`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
           signal: controller.signal,
         });
-        const result = (await response.json()) as {
-          contas?: ContaResumoMensal[];
-          anos?: string[];
-          saldoMovimento?: number;
-          error?: string;
-        };
-        if (!response.ok || !result.contas) throw new Error(result.error || "Não foi possível carregar o resumo financeiro.");
-        setResumoFinanceiro({ contas: result.contas, saldoMovimento: Number(result.saldoMovimento || 0) });
+        const result = (await response.json()) as Partial<ResumoFinanceiroApi> & { error?: string };
+        if (controller.signal.aborted) return;
+        if (!response.ok || !Array.isArray(result.contasPagar) || !Number.isSafeInteger(result.saldoMovimentoCentavos) || !Number.isSafeInteger(result.saldoContasCentavos) || result.contasPagar.some((conta) => !Number.isSafeInteger(conta.valorCentavos))) {
+          throw new Error(result.error || "Não foi possível carregar o resumo financeiro.");
+        }
+        setResumoFinanceiro({
+          saldoMovimento: centavosParaReais(result.saldoMovimentoCentavos!),
+          saldoContas: centavosParaReais(result.saldoContasCentavos!),
+          contas: result.contasPagar.filter((conta) => conta.status !== "Cancelado").map((conta) => ({
+            id: conta.id,
+            descricao: conta.descricao,
+            valor: centavosParaReais(conta.valorCentavos),
+            data_vencimento: conta.data_vencimento,
+            status: conta.status,
+          })),
+        });
         setAnosFinanceiros(result.anos?.length ? result.anos : [periodoFinanceiro.slice(0, 4)]);
       } catch (error) {
         if (!controller.signal.aborted) setErroFinanceiro(error instanceof Error ? error.message : "Não foi possível carregar o resumo financeiro.");
       } finally {
+        emAndamento = false;
         if (!controller.signal.aborted) setLoadingFinanceiro(false);
+        if (pendente && !controller.signal.aborted) {
+          pendente = false;
+          void carregarResumoFinanceiro();
+        }
       }
     };
+    const atualizarSeVisivel = () => { if (!document.hidden) void carregarResumoFinanceiro(); };
+    const interval = window.setInterval(atualizarSeVisivel, 30000);
+    document.addEventListener("visibilitychange", atualizarSeVisivel);
+    window.addEventListener("focus", atualizarSeVisivel);
+    const channel = contexto?.igrejaId ? supabase
+      .channel(`dashboard-financeiro-${contexto.igrejaId}-${periodoFinanceiro}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "caixas", filter: `igreja_id=eq.${contexto.igrejaId}` }, atualizarSeVisivel)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transacoes", filter: `igreja_id=eq.${contexto.igrejaId}` }, atualizarSeVisivel)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contas_pagar", filter: `igreja_id=eq.${contexto.igrejaId}` }, atualizarSeVisivel)
+      .subscribe() : null;
     void carregarResumoFinanceiro();
-    return () => controller.abort();
-  }, [isAdmin, periodoFinanceiro]);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", atualizarSeVisivel);
+      window.removeEventListener("focus", atualizarSeVisivel);
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [isAdmin, periodoFinanceiro, contexto?.igrejaId]);
 
   const aniversariantesDoMes = filtroAniversariantes === "mes";
   const tituloAniversariantes = aniversariantesDoMes ? "Aniversariantes do mês" : "Aniversariantes de hoje";
@@ -347,12 +387,15 @@ export default function Dashboard() {
           <Link href="/financeiro/movimento" className="block outline-none">
             <Card className="p-4 flex flex-col justify-between group hover:border-green-500/50 hover:shadow-[0_0_24px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all cursor-pointer h-full bg-ohel-surface/40">
               <div className="flex justify-between items-start mb-2">
-                <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Saldo do mês (movimento)</p>
+                <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Saldo nas contas</p>
                 <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center"><DollarSign className="w-4 h-4 text-green-500" /></div>
               </div>
-              <h2 className={`text-2xl font-bold ${erroFinanceiro ? "text-gray-500" : (resumoFinanceiro?.saldoMovimento || 0) >= 0 ? 'text-white' : 'text-red-500'}`}>
-                {loadingFinanceiro || (!resumoFinanceiro && !erroFinanceiro) ? "-" : erroFinanceiro ? "—" : (resumoFinanceiro?.saldoMovimento || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              <h2 className={`text-2xl font-bold ${erroFinanceiro ? "text-gray-500" : (resumoFinanceiro?.saldoContas || 0) >= 0 ? 'text-white' : 'text-red-500'}`}>
+                {loadingFinanceiro || (!resumoFinanceiro && !erroFinanceiro) ? "-" : erroFinanceiro ? "—" : (resumoFinanceiro?.saldoContas || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </h2>
+              <p className="mt-2 text-[11px] text-gray-400">
+                Movimento de {periodoFinanceiro.slice(5)}/{periodoFinanceiro.slice(0, 4)}: {erroFinanceiro || !resumoFinanceiro ? "—" : resumoFinanceiro.saldoMovimento.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
             </Card>
           </Link>
         )}

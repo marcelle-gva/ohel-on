@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
-import { Search, Plus, Edit, Trash2, AlertTriangle, User } from "lucide-react";
+import { Search, Plus, Edit, Trash2, AlertTriangle, User, QrCode } from "lucide-react";
 import Image from "next/image";
 
 interface Congregado {
@@ -28,11 +28,7 @@ export default function CongregadosPage() {
   const [congregadoToDelete, setCongregadoToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    fetchDados();
-  }, []);
-
-  const fetchDados = async () => {
+  const fetchDados = useCallback(async () => {
     try {
       setLoading(true);
       const { data: dataCong } = await supabase.from("congregacoes").select("id, nome");
@@ -50,7 +46,12 @@ export default function CongregadosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchDados(), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchDados]);
 
   const handleDelete = async () => {
     if (!congregadoToDelete) return;
@@ -59,7 +60,7 @@ export default function CongregadosPage() {
       await supabase.from("congregados").delete().eq("id", congregadoToDelete);
       setCongregados(congregados.filter((c) => c.id !== congregadoToDelete));
       setCongregadoToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao excluir:", error);
     } finally {
       setIsDeleting(false);
@@ -94,7 +95,10 @@ export default function CongregadosPage() {
           <p className="text-gray-400 text-sm mt-1">Gerencie as pessoas que frequentam a igreja.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/secretaria/congregados/qrcode" className="border border-gray-700 hover:border-ohel-blue text-gray-200 font-medium py-2.5 px-4 rounded-md transition-colors flex items-center gap-2 text-sm">
+            <QrCode className="w-4 h-4" /> QR Code
+          </Link>
           <Link href="/secretaria/congregados/novo" className="bg-ohel-blue hover:bg-blue-600 text-white font-medium py-2.5 px-6 rounded-md transition-all shadow-[0_0_15px_rgba(0,123,255,0.2)] flex items-center gap-2 text-sm">
             <Plus className="w-4 h-4" /> Novo Congregado
           </Link>
