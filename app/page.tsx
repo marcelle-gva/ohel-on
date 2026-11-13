@@ -119,6 +119,12 @@ export default async function HomePage({
                 className="absolute inset-0 h-full w-full overflow-visible"
               >
                 <defs>
+                  <linearGradient id="ipo-cloud-bevel" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#d9f0ff" />
+                    <stop offset="24%" stopColor="#68b8ff" />
+                    <stop offset="62%" stopColor="#2583f2" />
+                    <stop offset="100%" stopColor="#0a398d" />
+                  </linearGradient>
                   <filter id="ipo-cloud-neon" x="-20%" y="-25%" width="140%" height="150%">
                     <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="cyanBlur" />
                     <feFlood floodColor="#66b7ff" floodOpacity="0.95" result="cyanColor" />
@@ -133,23 +139,39 @@ export default async function HomePage({
                     </feMerge>
                   </filter>
                 </defs>
-                <path
-                  d="M 137 390 C 82 390 43 351 43 300 C 43 251 78 211 132 198 C 137 107 210 45 315 45 C 420 45 493 107 498 198 C 552 211 587 251 587 300 C 587 351 548 390 493 390 Z"
-                  fill="none"
-                  stroke="#45a5ff"
-                  strokeOpacity="0.95"
-                  strokeWidth="2.5"
-                  filter="url(#ipo-cloud-neon)"
-                />
-                <path
-                  d="M 137 390 C 82 390 43 351 43 300 C 43 251 78 211 132 198 C 137 107 210 45 315 45 C 420 45 493 107 498 198 C 552 211 587 251 587 300 C 587 351 548 390 493 390 Z"
-                  fill="none"
-                  stroke="#b9dcff"
-                  strokeOpacity="0.9"
-                  strokeWidth="1.4"
-                />
+                <g transform="translate(0 4.5)">
+                  <path
+                    d="M 120 408 C 70 408 38 374 38 326 C 38 280 49 244 80 230 C 80 181 126 142 182 142 C 214 142 244 159 262 188 C 279 110 311 55 340 43 C 369 55 401 110 418 188 C 436 159 466 142 498 142 C 554 142 600 181 600 230 C 631 244 642 280 642 326 C 642 374 610 408 560 408 Z"
+                    transform="translate(0 7)"
+                    fill="none"
+                    stroke="#073d86"
+                    strokeOpacity="0.98"
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M 120 408 C 70 408 38 374 38 326 C 38 280 49 244 80 230 C 80 181 126 142 182 142 C 214 142 244 159 262 188 C 279 110 311 55 340 43 C 369 55 401 110 418 188 C 436 159 466 142 498 142 C 554 142 600 181 600 230 C 631 244 642 280 642 326 C 642 374 610 408 560 408 Z"
+                    fill="none"
+                    stroke="url(#ipo-cloud-bevel)"
+                    strokeOpacity="0.98"
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#ipo-cloud-neon)"
+                  />
+                  <path
+                    d="M 120 408 C 70 408 38 374 38 326 C 38 280 49 244 80 230 C 80 181 126 142 182 142 C 214 142 244 159 262 188 C 279 110 311 55 340 43 C 369 55 401 110 418 188 C 436 159 466 142 498 142 C 554 142 600 181 600 230 C 631 244 642 280 642 326 C 642 374 610 408 560 408 Z"
+                    fill="none"
+                    stroke="#d8efff"
+                    strokeOpacity="0.9"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
               </svg>
-              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[70%] translate-x-[2.5%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[64%]" />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[70%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[64%]" />
             </div>
           </div>
         </div>
