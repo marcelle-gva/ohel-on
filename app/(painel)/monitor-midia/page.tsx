@@ -8,10 +8,11 @@ import {
   STATUS_ORACAO_PUBLICADA,
   VISIBILIDADE_ORACAO_PUBLICA,
 } from "@/lib/mural-rules";
-import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, Sparkles, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
+import { ArrowLeft, MonitorPlay, Users, Music, MessageSquare, HeartHandshake, CalendarDays, Maximize, BookOpen, QrCode, X, ChevronLeft, ChevronRight, Minus, Plus, AlertTriangle, Edit, Lock, Calendar, History, MapPin, Ticket, Download, Save } from "lucide-react";
 import QRCode from "react-qr-code";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { PalavraPanel, type PalavraProjectionPayload } from "@/components/monitor/PalavraPanel";
+import { VerseCallout } from "@/components/shared/VerseCallout";
 
 interface AvisoFonte {
   id: string;
@@ -444,15 +445,12 @@ export default function MonitorMidiaPage() {
                     </div>
                   ))
                 }
-                <div className="mt-4 bg-purple-500/10 border border-purple-500/30 p-4 rounded-xl text-center blessing-box">
-                  <p className="text-purple-400 font-bold text-sm mb-1 blessing-title flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" /> Seja bem-vindo!
-                  </p>
-                  <p className="text-gray-200 text-xs mb-3 blessing-text">Sinta-se em casa e abrace o seu irmão.</p>
-                  <p className="text-purple-300 italic text-[11px] blessing-verse">
-                    "Portanto, acolham-se uns aos outros..." (Rm 15:7)
-                  </p>
-                </div>
+                <VerseCallout
+                  tone="purple"
+                  title="Seja bem-vindo!"
+                  message="Sinta-se em casa e abrace o seu irmão."
+                  verse={'"Portanto, acolham-se uns aos outros..." (Rm 15:7)'}
+                />
               </div>
             </div>
 
@@ -474,15 +472,12 @@ export default function MonitorMidiaPage() {
                     </button>
                   ))
                 }
-                <div className="mt-4 bg-teal-500/10 border border-teal-500/30 p-4 rounded-xl text-center blessing-box">
-                  <p className="text-teal-400 font-bold text-sm mb-1 blessing-title flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" /> Fique por dentro!
-                  </p>
-                  <p className="text-gray-200 text-xs mb-3 blessing-text">Deus tem feito coisas lindas na casa do Pai.</p>
-                  <p className="text-teal-300 italic text-[11px] blessing-verse">
-                    "Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)
-                  </p>
-                </div>
+                <VerseCallout
+                  tone="teal"
+                  title="Fique por dentro!"
+                  message="Deus tem feito coisas lindas na casa do Pai."
+                  verse={'"Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)'}
+                />
               </div>
             </div>
           </div>
@@ -580,15 +575,12 @@ export default function MonitorMidiaPage() {
                   })
                 }
                 
-                <div className="mt-4 bg-ohel-blue/10 border border-ohel-blue/30 p-4 rounded-xl text-center blessing-box">
-                  <p className="text-ohel-blue font-bold text-sm mb-1 blessing-title flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" /> Momento de Adoração
-                  </p>
-                  <p className="text-gray-200 text-xs mb-3 blessing-text">Adore ao Senhor com todo o seu coração.</p>
-                  <p className="text-blue-300 italic text-[11px] blessing-verse">
-                    "Cantem ao Senhor um novo cântico; cantem ao Senhor, todos os habitantes da terra!" (Salmos 96:1)
-                  </p>
-                </div>
+                <VerseCallout
+                  tone="blue"
+                  title="Momento de Adoração"
+                  message="Adore ao Senhor com todo o seu coração."
+                  verse={'"Cantem ao Senhor um novo cântico; cantem ao Senhor, todos os habitantes da terra!" (Salmos 96:1)'}
+                />
               </div>
             </div>
 
@@ -633,15 +625,13 @@ export default function MonitorMidiaPage() {
                   </button>
                 )}
 
-                <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-xl text-center blessing-box mt-2">
-                  <p className="text-yellow-500 font-bold text-sm mb-1 blessing-title flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" /> Serviço com Amor
-                  </p>
-                  <p className="text-gray-200 text-xs mb-3 blessing-text">Sirva ao Senhor com alegria e dedicação.</p>
-                  <p className="text-yellow-300 italic text-[11px] blessing-verse">
-                    "Sirvam ao Senhor com alegria; apresentem-se diante dele com cânticos de júbilo." (Salmos 100:2)
-                  </p>
-                </div>
+                <VerseCallout
+                  tone="yellow"
+                  className="mt-2"
+                  title="Serviço com Amor"
+                  message="Sirva ao Senhor com alegria e dedicação."
+                  verse={'"Sirvam ao Senhor com alegria; apresentem-se diante dele com cânticos de júbilo." (Salmos 100:2)'}
+                />
               </div>
             </div>
           </div>
@@ -673,15 +663,12 @@ export default function MonitorMidiaPage() {
                     </div>
                   ))
                 }
-                <div className="mt-4 bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-center blessing-box">
-                  <p className="text-red-400 font-bold text-sm mb-1 blessing-title flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 shrink-0" /> Ore pelo seu irmão!
-                  </p>
-                  <p className="text-gray-200 text-xs mb-3 blessing-text">A oração do justo é poderosa e eficaz.</p>
-                  <p className="text-red-300 italic text-[11px] blessing-verse">
-                    "Confessem os seus pecados uns aos outros e orem uns pelos outros..." (Tiago 5:16)
-                  </p>
-                </div>
+                <VerseCallout
+                  tone="red"
+                  title="Ore pelo seu irmão!"
+                  message="A oração do justo é poderosa e eficaz."
+                  verse={'"Confessem os seus pecados uns aos outros e orem uns pelos outros..." (Tiago 5:16)'}
+                />
               </div>
             </div>
           </div>

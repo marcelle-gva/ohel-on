@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FeedbackModal } from "@/components/ui/FeedbackModal";
 import { BibleSearchModal } from "@/components/ui/BibleSearchModal";
 import { Logo } from "@/components/brand/Logo";
-import { CheckCircle, Music, BookOpen, Search, Loader2, Wand2 } from "lucide-react";
+import { Clock3, Music, BookOpen, Search, Loader2, Wand2 } from "lucide-react";
 import publicLayout from "@/components/public/public-layout.module.css";
 import styles from "./page.module.css";
 
@@ -75,22 +74,24 @@ export default function PublicWorshipForm() {
 
     setLoading(true);
     try {
-      const hoje = new Date().toISOString().split('T')[0];
-      const { error } = await supabase.from('louvores').insert([{
-        igreja_id: igrejaId,
-        titulo: formData.titulo,
-        tom: formData.tom,
-        ministro: formData.ministro,
-        link_cifra: formData.link_cifra,
-        link_video: formData.link_video,
-        palavra_vinculada: formData.palavra_vinculada,
-        data: hoje
-      }]);
-
-      if (error) throw error;
+      const response = await fetch("/api/louvores/submissoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          igreja_id: igrejaId,
+          titulo: formData.titulo,
+          tom: formData.tom,
+          ministro: formData.ministro,
+          link_cifra: formData.link_cifra,
+          link_video: formData.link_video,
+          palavra_vinculada: formData.palavra_vinculada,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Não foi possível enviar a música para avaliação.");
       setSucesso(true);
-    } catch {
-      setModal({ isOpen: true, type: "error", title: "Erro", message: "Não foi possível adicionar a música." });
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Erro", message: error instanceof Error ? error.message : "Não foi possível enviar a música para avaliação." });
     } finally {
       setLoading(false);
     }
@@ -105,12 +106,12 @@ export default function PublicWorshipForm() {
           className={`${publicLayout.panel} ${publicLayout.compact} w-full max-w-md flex flex-col items-center text-center animate-in zoom-in-95`}
         >
           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
-            <CheckCircle className="w-10 h-10 text-green-500" />
+            <Clock3 className="w-10 h-10 text-yellow-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Música Adicionada!</h1>
-          <p className="text-gray-400 text-sm mb-8">Ela já está no telão.</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Música enviada para aprovação</h1>
+          <p className="text-gray-400 text-sm mb-8">Ela aparecerá no telão somente depois que o responsável do departamento de Louvor aprovar.</p>
           <Button onClick={() => { setSucesso(false); setFormData({ titulo: "", tom: "", ministro: "", link_cifra: "", link_video: "", palavra_vinculada: "" }); }} variant="primary" className="w-full">
-            Adicionar Outra
+            Enviar outra música
           </Button>
         </Card>
       </div>
@@ -171,7 +172,7 @@ export default function PublicWorshipForm() {
           )}
 
           <Button type="submit" variant="primary" disabled={loading} className="mt-4 py-3 w-full">
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</> : "Adicionar ao Telão"}
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</> : "Enviar para aprovação"}
           </Button>
         </form>
       </Card>

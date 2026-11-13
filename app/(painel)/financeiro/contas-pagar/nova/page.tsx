@@ -17,6 +17,9 @@ export default function NovaContaPagarPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [igrejaId, setIgrejaId] = useState<string | null>(null);
+  const [lancarIntermediarias, setLancarIntermediarias] = useState(false);
+  const [intermediarias, setIntermediarias] = useState<Array<{ id: number; mesAno: string; valor: string }>>([]);
+  const [proximoIdIntermediaria, setProximoIdIntermediaria] = useState(1);
   const [modal, setModal] = useState({ isOpen: false, type: "success" as "success" | "error", title: "", message: "" });
 
   // Listas
@@ -110,7 +113,7 @@ export default function NovaContaPagarPage() {
       const valorEmCentavos = Math.round(valorTotal * 100);
       const valorBaseEmCentavos = Math.floor(valorEmCentavos / qtdParcelas);
       const centavosRestantes = valorEmCentavos % qtdParcelas;
-      const contasParaInserir = [];
+      const contasParaInserir: Array<Record<string, string | number | boolean | null>> = [];
       const diaVencimento = diaInformado
         ? diaInformado
         : Number(formData.data_vencimento.split("-")[2]);
@@ -138,6 +141,41 @@ export default function NovaContaPagarPage() {
           observacoes: formData.observacoes,
           status: 'Pendente'
         });
+      }
+
+      if (formData.tipo_conta === "Recorrente") {
+        const recorrenciaGrupoId = crypto.randomUUID();
+        for (const conta of contasParaInserir) {
+          conta.recorrencia_grupo_id = recorrenciaGrupoId;
+        }
+        if (lancarIntermediarias) {
+          const primeiroMes = formData.data_vencimento.slice(0, 7);
+          const [anoInicial, mesInicial] = primeiroMes.split("-").map(Number);
+          const mesesJaInformados = new Set<string>();
+          for (const intermediaria of intermediarias) {
+            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(intermediaria.mesAno)) {
+              throw new Error("Informe o mês e o ano de cada ocorrência intermediária.");
+            }
+            if (intermediaria.mesAno <= primeiroMes) {
+              throw new Error("As ocorrências intermediárias devem ser de meses posteriores ao primeiro vencimento.");
+            }
+            if (mesesJaInformados.has(intermediaria.mesAno)) {
+              throw new Error("Não é possível informar o mesmo mês mais de uma vez.");
+            }
+            mesesJaInformados.add(intermediaria.mesAno);
+            const valorIntermediario = parseCurrencyInput(intermediaria.valor);
+            if (!Number.isFinite(valorIntermediario) || valorIntermediario <= 0) {
+              throw new Error(`Informe um valor maior que zero para ${intermediaria.mesAno}.`);
+            }
+            const [anoIntermediario, mesIntermediario] = intermediaria.mesAno.split("-").map(Number);
+            const mesesAdiante = (anoIntermediario - anoInicial) * 12 + mesIntermediario - mesInicial;
+            contasParaInserir.push({
+              ...contasParaInserir[0],
+              valor: valorIntermediario,
+              data_vencimento: getMonthlyDate(formData.data_vencimento, mesesAdiante, diaVencimento),
+            });
+          }
+        }
       }
 
       const { error } = await supabase.from('contas_pagar').insert(contasParaInserir);
@@ -218,12 +256,74 @@ export default function NovaContaPagarPage() {
                   <Input label="Quantidade de Parcelas *" type="number" name="total_parcelas" min="2" max="120" placeholder="Ex: 12" value={formData.total_parcelas} onChange={handleChange} required className="py-2 text-xs" />
                 ) : (
                   <p className="md:col-span-2 self-center text-xs text-gray-400">
-                    Em uma conta fixa mensal, cada vencimento é independente: ao baixar esta conta, o próximo mês será criado e você poderá ajustar o valor (por exemplo, da luz) antes de pagar.
+                    Em uma conta fixa mensal, cada vencimento é independente. Você pode informar meses intermediários com valor próprio; nos demais meses, o valor anterior continua e pode ser ajustado antes do pagamento.
                   </p>
                 )}
               </>
             )}
           </div>
+          {formData.tipo_conta === "Recorrente" && (
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-ohel-bg/50 p-4">
+              <label className="flex items-center gap-2 text-xs font-semibold text-white">
+                <input
+                  type="checkbox"
+                  checked={lancarIntermediarias}
+                  onChange={(event) => {
+                    const habilitar = event.target.checked;
+                    setLancarIntermediarias(habilitar);
+                    if (habilitar && intermediarias.length === 0) {
+                      setIntermediarias([{ id: proximoIdIntermediaria, mesAno: "", valor: "" }]);
+                      setProximoIdIntermediaria((id) => id + 1);
+                    }
+                  }}
+                  className="h-4 w-4 accent-blue-500"
+                />
+                Intermediárias
+              </label>
+              <p className="text-[10px] leading-relaxed text-gray-400">
+                Ative para pré-lançar meses específicos com valor próprio. Os outros vencimentos continuam com o valor da ocorrência anterior e poderão ser ajustados; meses já lançados não serão duplicados na baixa.
+              </p>
+              {lancarIntermediarias && (
+                <div className="flex flex-col gap-3">
+                  {intermediarias.map((intermediaria) => (
+                    <div key={intermediaria.id} className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                      <Input
+                        label="Mês e ano *"
+                        type="month"
+                        value={intermediaria.mesAno}
+                        onChange={(event) => setIntermediarias((atuais) => atuais.map((item) => item.id === intermediaria.id ? { ...item, mesAno: event.target.value } : item))}
+                        className="py-2 text-xs"
+                      />
+                      <CurrencyInput
+                        label="Valor próprio (R$) *"
+                        name={`valor_intermediaria_${intermediaria.id}`}
+                        value={intermediaria.valor}
+                        onChange={(novoValor) => setIntermediarias((atuais) => atuais.map((item) => item.id === intermediaria.id ? { ...item, valor: novoValor } : item))}
+                        className="py-2 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIntermediarias((atuais) => atuais.filter((item) => item.id !== intermediaria.id))}
+                        className="w-full rounded-md border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-white/5 sm:w-auto"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIntermediarias((atuais) => [...atuais, { id: proximoIdIntermediaria, mesAno: "", valor: "" }]);
+                      setProximoIdIntermediaria((id) => id + 1);
+                    }}
+                    className="w-full rounded-md border border-ohel-blue/40 px-4 py-2 text-xs font-medium text-ohel-blue hover:bg-ohel-blue/10 sm:w-fit"
+                  >
+                    Adicionar mês intermediário
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
         {/* CARD 3: CLASSIFICAÇÃO */}

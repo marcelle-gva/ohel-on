@@ -26,6 +26,7 @@ import type {
 } from "@/lib/member-dashboard";
 import { VisitorInviteCard } from "./VisitorInviteCard";
 import { NoticeDetails } from "./NoticeDetails";
+import { VerseCallout } from "@/components/shared/VerseCallout";
 import styles from "@/app/area-membro/dashboard.module.css";
 
 function urlSegura(url: string | null | undefined) {
@@ -321,7 +322,7 @@ export function MemberDashboard() {
               <Bloco
                 titulo="Acontece na igreja"
                 descricao="Avisos, encontros e eventos para você participar."
-                icone={<CalendarDays size={17} className="text-blue-400" />}
+                icone={<CalendarDays size={17} className="text-teal-500" />}
                 total={dashboard.avisos.length}
               >
                 <div className={styles.tools}>
@@ -436,6 +437,12 @@ export function MemberDashboard() {
                     {avisos.length - avisosVisiveis})
                   </button>
                 )}
+                <VerseCallout
+                  tone="teal"
+                  title="Fique por dentro!"
+                  message="Deus tem feito coisas lindas na casa do Pai."
+                  verse={'"Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)'}
+                />
               </Bloco>
             </div>
             <div className={styles.column}>
@@ -454,7 +461,7 @@ export function MemberDashboard() {
               <Bloco
                 titulo="Palavra"
                 descricao="A mensagem compartilhada durante a celebração."
-                icone={<BookOpen size={16} className="text-blue-400" />}
+                icone={<BookOpen size={16} className="text-ohel-blue" />}
               >
                 {palavra ? (
                   <>
@@ -503,11 +510,17 @@ export function MemberDashboard() {
                     "Quando a equipe projetar a mensagem durante o culto, ela aparecerá neste espaço.",
                   )
                 )}
+                <VerseCallout
+                  tone="blue"
+                  title="Palavra para o caminho"
+                  message="Deixe a mensagem iluminar sua caminhada com Deus."
+                  verse={'"Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho." (Salmos 119:105)'}
+                />
               </Bloco>
               <Bloco
                 titulo="Repertório de hoje"
                 descricao="Os louvores que fazem parte da celebração."
-                icone={<Music size={16} className="text-blue-400" />}
+                icone={<Music size={16} className="text-ohel-blue" />}
                 total={dashboard.louvores.length}
               >
                 {dashboard.louvores
@@ -545,6 +558,12 @@ export function MemberDashboard() {
                     {dashboard.louvores.length - louvoresVisiveis})
                   </button>
                 )}
+                <VerseCallout
+                  tone="blue"
+                  title="Momento de Adoração"
+                  message="Adore ao Senhor com todo o seu coração."
+                  verse={'"Cantem ao Senhor um novo cântico; cantem ao Senhor, todos os habitantes da terra!" (Salmos 96:1)'}
+                />
               </Bloco>
             </div>
           </section>

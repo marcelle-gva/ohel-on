@@ -14,6 +14,7 @@ import {
   obterMapaUrlSeguro,
 } from "@/lib/member-dashboard";
 import type { DashboardMembroData } from "@/lib/member-dashboard";
+import { VerseCallout } from "@/components/shared/VerseCallout";
 
 type VisitorInviteCardProps = {
   igreja: DashboardMembroData["igreja"];
@@ -53,7 +54,7 @@ export function VisitorInviteCard({
     <section className="rounded-xl border border-gray-800 bg-ohel-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
             <Users className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="min-w-0">
@@ -144,6 +145,12 @@ export function VisitorInviteCard({
           )}
         </>
       )}
+      <VerseCallout
+        tone="purple"
+        title="Seja bem-vindo!"
+        message="Sinta-se em casa e abrace o seu irmão."
+        verse={'"Portanto, acolham-se uns aos outros..." (Rm 15:7)'}
+      />
     </section>
   );
 }

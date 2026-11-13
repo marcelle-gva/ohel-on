@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ContextoAcesso, PermissaoAcesso } from "./access";
 
 export class AcessoError extends Error {
@@ -9,6 +9,26 @@ export class AcessoError extends Error {
   ) {
     super(message);
   }
+}
+
+async function responsavelLouvor(
+  service: SupabaseClient,
+  igrejaId: string,
+  usuarioId: string,
+) {
+  const { data, error } = await service
+    .from("departamentos")
+    .select("id")
+    .eq("igreja_id", igrejaId)
+    .eq("responsavel_usuario_id", usuarioId)
+    .eq("ativo", true)
+    .ilike("nome", "%louvor%")
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new AcessoError("Não foi possível conferir a responsabilidade pelo departamento de Louvor.", 503);
+  }
+  return Boolean(data);
 }
 
 export async function resolverAcesso(request: Request, exigirMembro = false) {
@@ -83,6 +103,10 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
       .eq("grupo_id", grupo.id);
     if (permsError)
       throw new AcessoError("Não foi possível consultar as permissões do Monitor.", 503);
+    const permissoesMonitor = (perms || []) as PermissaoAcesso[];
+    if (await responsavelLouvor(service, usuario.igreja_id, user.id)) {
+      permissoesMonitor.push({ modulo: "monitor-louvores", acao: "ler" });
+    }
     const { data: igreja, error: churchError } = await service
       .from("igrejas")
       .select("nome")
@@ -98,7 +122,7 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
       grupoId: grupo.id,
       grupoNome: grupo.nome,
       membro: null,
-      permissoes: (perms || []) as PermissaoAcesso[],
+      permissoes: permissoesMonitor,
     };
     return { contexto, service, user };
   }
@@ -293,6 +317,10 @@ export async function resolverAcesso(request: Request, exigirMembro = false) {
         );
       permissoes = (perms || []) as PermissaoAcesso[];
     }
+  }
+  if (await responsavelLouvor(service, igrejaId, user.id) &&
+      !permissoes.some((permissao) => permissao.modulo === "monitor-louvores" && permissao.acao === "ler")) {
+    permissoes.push({ modulo: "monitor-louvores", acao: "ler" });
   }
   const { data: igreja, error: churchError } = await service
     .from("igrejas")

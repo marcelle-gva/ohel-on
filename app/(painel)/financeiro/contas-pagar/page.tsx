@@ -32,6 +32,7 @@ interface Conta {
   forma_pagamento_id: string | null;
   congregacao_id: string | null;
   dia_vencimento_mensal?: number | null;
+  recorrencia_grupo_id?: string | null;
   data_emissao?: string | null;
   observacoes?: string | null;
 }
@@ -109,6 +110,7 @@ export default function ContasPagarPage() {
     try {
       const hoje = new Date().toISOString().split('T')[0];
       const mesAtual = hoje.slice(0, 7);
+      let proximaJaCadastrada = false;
 
       // 1. Cria a transação de despesa no Movimento Financeiro
       const { error: transError } = await supabase.from('transacoes').insert([{
@@ -139,7 +141,8 @@ export default function ContasPagarPage() {
       if (conta.recorrente) {
         const dueDay = conta.dia_vencimento_mensal || Number(conta.data_vencimento.split("-")[2]);
         const nextDueDate = getMonthlyDate(conta.data_vencimento, 1, dueDay);
-        const { error: recurrenceError } = await supabase.from("contas_pagar").insert([{
+        const dataProximaOcorrencia = nextDueDate > hoje ? nextDueDate : getMonthlyDate(hoje, 1, dueDay);
+        const proximaOcorrencia = {
           igreja_id: igrejaId,
           fornecedor_id: conta.fornecedor_id,
           descricao: conta.descricao,
@@ -150,7 +153,7 @@ export default function ContasPagarPage() {
           recorrente: true,
           valor: Number(conta.valor),
           data_emissao: null,
-          data_vencimento: nextDueDate > hoje ? nextDueDate : getMonthlyDate(hoje, 1, dueDay),
+          data_vencimento: dataProximaOcorrencia,
           dia_vencimento_mensal: dueDay,
           categoria_id: conta.categoria_id,
           caixa_id: conta.caixa_id,
@@ -158,7 +161,22 @@ export default function ContasPagarPage() {
           congregacao_id: conta.congregacao_id,
           observacoes: conta.observacoes || null,
           status: "Pendente",
-        }]);
+          ...(conta.recorrencia_grupo_id ? { recorrencia_grupo_id: conta.recorrencia_grupo_id } : {}),
+        };
+        if (conta.recorrencia_grupo_id) {
+          const { data: ocorrenciaExistente, error: consultaError } = await supabase
+            .from("contas_pagar")
+            .select("id")
+            .eq("igreja_id", igrejaId)
+            .eq("recorrencia_grupo_id", conta.recorrencia_grupo_id)
+            .eq("data_vencimento", dataProximaOcorrencia)
+            .maybeSingle();
+          if (consultaError) throw consultaError;
+          proximaJaCadastrada = Boolean(ocorrenciaExistente);
+        }
+        const { error: recurrenceError } = proximaJaCadastrada
+          ? { error: null }
+          : await supabase.from("contas_pagar").insert([proximaOcorrencia]);
 
         if (recurrenceError) {
           await fetchData(igrejaId);
@@ -178,7 +196,9 @@ export default function ContasPagarPage() {
         type: "success",
         title: "Baixa Realizada",
         message: conta.recorrente
-          ? "Conta paga. O próximo vencimento foi criado com o valor atual; ajuste o valor quando receber a próxima fatura."
+          ? proximaJaCadastrada
+            ? "Conta paga. O próximo vencimento desta série já estava cadastrado com valor próprio e não foi duplicado. Nos demais meses, o valor anterior continua e pode ser ajustado."
+            : "Conta paga. O próximo vencimento foi criado com o valor atual; nos meses ainda não informados, o valor anterior continua e pode ser ajustado quando receber a próxima fatura."
           : "Título pago com sucesso! A despesa já foi lançada no Movimento.",
       });
     } catch (error: unknown) {
@@ -260,7 +280,7 @@ export default function ContasPagarPage() {
             <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
               <FileText className="w-5 h-5 text-ohel-blue" /> Contas a Pagar
             </h1>
-            <p className="text-gray-400 text-xs mt-0.5">Gestão de compromissos financeiros, parcelamento e liquidação de contas a pagar.</p>
+            <p className="text-gray-400 text-xs mt-0.5">Gestão de compromissos financeiros, parcelamento e liquidação. Em séries recorrentes, meses informados podem ter valor próprio; os demais mantêm o valor anterior, que pode ser ajustado.</p>
           </div>
         </div>
         

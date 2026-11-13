@@ -30,6 +30,7 @@ export const MODULOS_ADMIN = [
   "financeiro",
   "mural",
   "monitor-midia",
+  "monitor-louvores",
   "monitor-oracoes",
   "escalas",
   "reunioes",
@@ -60,6 +61,8 @@ export function podeAcessar(
 
 export function moduloDaRota(pathname: string): string | null {
   if (pathname === "/dashboard") return "dashboard";
+  if (pathname === "/monitor-midia/louvores/pendentes" || pathname.startsWith("/monitor-midia/louvores/pendentes/"))
+    return "monitor-louvores";
   if (pathname === "/monitor-midia" || pathname.startsWith("/monitor-midia/"))
     return "monitor-midia";
   const match = pathname.match(/^\/secretaria\/([^/]+)/);

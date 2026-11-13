@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay, Gift } from "lucide-react";
+import { LayoutDashboard, Users, Wallet, Package, Church, BookOpen, Calendar, Settings, ChevronDown, X, MonitorPlay, Gift, Music } from "lucide-react";
 import { Logo } from "../brand/Logo";
 
 interface SidebarProps {
@@ -30,6 +30,9 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false }: Sideb
     },
     { 
       name: "Monitor de Mídia", href: "/monitor-midia", icon: MonitorPlay, modulo: "monitor-midia"
+    },
+    {
+      name: "Louvores Pendentes", href: "/monitor-midia/louvores/pendentes", icon: Music, modulo: "monitor-louvores"
     },
     {
       name: "Histórico de Cultos", href: "/monitor-midia/historico-cultos", icon: Calendar, modulo: "monitor-midia"
