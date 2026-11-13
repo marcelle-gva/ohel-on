@@ -121,7 +121,7 @@ export default async function HomePage({
                 <defs>
                   <filter id="ipo-cloud-neon" x="-20%" y="-25%" width="140%" height="150%">
                     <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="cyanBlur" />
-                    <feFlood floodColor="#00eaff" floodOpacity="0.95" result="cyanColor" />
+                    <feFlood floodColor="#66b7ff" floodOpacity="0.95" result="cyanColor" />
                     <feComposite in="cyanColor" in2="cyanBlur" operator="in" result="cyanGlow" />
                     <feGaussianBlur in="SourceAlpha" stdDeviation="17" result="blueBlur" />
                     <feFlood floodColor="#007bff" floodOpacity="0.8" result="blueColor" />
@@ -136,7 +136,7 @@ export default async function HomePage({
                 <path
                   d="M 112 337 C 69 337 38 304 38 261 C 38 219 68 185 109 177 C 112 121 158 79 216 79 C 248 79 276 92 297 114 C 316 55 369 17 429 17 C 496 17 548 69 550 135 C 607 135 651 179 651 235 C 681 248 696 279 684 309 C 672 338 646 353 612 353 C 601 379 578 394 550 394 L 159 394 C 130 394 112 372 112 344 Z"
                   fill="none"
-                  stroke="#55f2ff"
+                  stroke="#45a5ff"
                   strokeOpacity="0.95"
                   strokeWidth="2.5"
                   filter="url(#ipo-cloud-neon)"
@@ -144,12 +144,12 @@ export default async function HomePage({
                 <path
                   d="M 112 337 C 69 337 38 304 38 261 C 38 219 68 185 109 177 C 112 121 158 79 216 79 C 248 79 276 92 297 114 C 316 55 369 17 429 17 C 496 17 548 69 550 135 C 607 135 651 179 651 235 C 681 248 696 279 684 309 C 672 338 646 353 612 353 C 601 379 578 394 550 394 L 159 394 C 130 394 112 372 112 344 Z"
                   fill="none"
-                  stroke="#a6fbff"
+                  stroke="#b9dcff"
                   strokeOpacity="0.9"
                   strokeWidth="1.4"
                 />
               </svg>
-              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[70%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[64%]" />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[70%] translate-x-[2.5%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[64%]" />
             </div>
           </div>
         </div>
