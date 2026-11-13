@@ -112,9 +112,23 @@ export default async function HomePage({
           </div>
           <div className="relative flex min-h-[360px] items-center justify-center lg:min-h-[500px]">
             <div aria-hidden="true" className="absolute h-[22rem] w-[22rem] rounded-full bg-blue-500/20 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
-            <div className="relative flex h-[360px] w-full max-w-[560px] items-center justify-center rounded-[3rem] border border-cyan-300/15 bg-[#061323]/45 shadow-[0_0_80px_rgba(0,119,255,0.2)] backdrop-blur-sm sm:h-[440px]">
-              <div className="absolute inset-8 rounded-full border border-cyan-300/20 shadow-[0_0_35px_rgba(34,211,238,0.18)]" />
-              <div className="absolute inset-14 rounded-full border border-blue-400/15" />
+            <div className="relative flex h-[320px] w-full max-w-[560px] items-center justify-center sm:aspect-[56/44] sm:h-auto">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 560 440"
+                preserveAspectRatio="none"
+                className="absolute inset-0 h-full w-full drop-shadow-[0_0_42px_rgba(0,119,255,0.2)]"
+              >
+                <path
+                  d="M 124 91 C 127 54 158 30 196 34 C 220 1 273 -4 303 29 C 335 0 390 9 406 47 C 454 35 497 67 495 111 C 536 121 559 159 546 196 C 573 232 552 278 515 291 C 517 333 475 360 436 344 C 411 382 356 393 323 366 C 287 396 233 384 210 350 C 170 369 125 343 131 303 C 86 318 46 287 59 247 C 19 228 18 181 52 157 C 40 120 77 88 114 97 C 117 95 120 93 124 91 Z"
+                  fill="#061323"
+                  fillOpacity="0.72"
+                  stroke="rgba(103,232,249,0.24)"
+                  strokeWidth="1.5"
+                />
+              </svg>
+              <div className="absolute inset-[16%] rounded-full border border-cyan-300/20 shadow-[0_0_35px_rgba(34,211,238,0.18)]" />
+              <div className="absolute inset-[24%] rounded-full border border-blue-400/15" />
               <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[82%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)]" />
             </div>
           </div>
