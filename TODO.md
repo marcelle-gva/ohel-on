@@ -116,3 +116,8 @@
 
 - [x] Gerar o QR Code e o link de Kids & Teens com o domínio público HTTPS configurado em `NEXT_PUBLIC_APP_URL` (IPO CLOUD como padrão), sem copiar endereços temporários ou protegidos da Vercel da barra do navegador.
 - [x] Preservar a identificação da igreja, o formulário público, o consentimento do responsável e os controles de acesso internos; validar a abertura sem login e avisar que QR Codes antigos com endereço temporário devem ser substituídos.
+
+## Nuvem da página inicial
+
+- [x] Comparar e corrigir a nuvem da página inicial para ficar igual à referência anexada: cúpula arredondada, laterais amplas, contorno azul fino e brilho suave, com o logo metálico e suas proporções preservados. Arte reaproveitada da própria referência, sem redesenhar a marca.
+- [x] Preservar os textos, botões, navegação, demais seções, logos compartilhados e funcionalidades do site; manter a arte inteira e sem distorção em desktop e celular. Conferido em 1560 px e 390 px, sem rolagem horizontal; TypeScript sem erros e ESLint sem erros (somente três avisos anteriores à alteração).

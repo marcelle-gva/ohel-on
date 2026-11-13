@@ -23,6 +23,18 @@ body {
    ESTILOS DE COMPONENTES CUSTOMIZADOS
    ========================================== */
 
+/* Mantém a arte original da nuvem e suaviza somente as bordas do recorte. */
+.ipo-cloud-hero-art {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 5%, #000 95%, transparent),
+    linear-gradient(to bottom, transparent, #000 8%, #000 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 5%, #000 95%, transparent),
+    linear-gradient(to bottom, transparent, #000 8%, #000 88%, transparent);
+  mask-composite: intersect;
+}
+
 /* Efeito de Vidro Premium com Neon Azul */
 .glass-panel {
   background: rgba(8, 14, 27, 0.75);
