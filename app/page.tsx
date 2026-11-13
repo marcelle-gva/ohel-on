@@ -112,24 +112,46 @@ export default async function HomePage({
           </div>
           <div className="relative flex min-h-[360px] items-center justify-center lg:min-h-[500px]">
             <div aria-hidden="true" className="absolute h-[22rem] w-[22rem] rounded-full bg-blue-500/20 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
-            <div className="relative flex h-[320px] w-full max-w-[680px] items-center justify-center sm:aspect-[68/46] sm:h-auto">
+            <div className="relative flex aspect-[68/46] w-full max-w-[700px] items-center justify-center">
               <svg
                 aria-hidden="true"
                 viewBox="0 0 680 460"
                 preserveAspectRatio="none"
-                className="absolute inset-0 h-full w-full drop-shadow-[0_0_42px_rgba(0,119,255,0.2)]"
+                className="absolute inset-0 h-full w-full overflow-visible"
               >
+                <defs>
+                  <filter id="ipo-cloud-neon" x="-20%" y="-25%" width="140%" height="150%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="cyanBlur" />
+                    <feFlood floodColor="#00eaff" floodOpacity="0.95" result="cyanColor" />
+                    <feComposite in="cyanColor" in2="cyanBlur" operator="in" result="cyanGlow" />
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="17" result="blueBlur" />
+                    <feFlood floodColor="#007bff" floodOpacity="0.8" result="blueColor" />
+                    <feComposite in="blueColor" in2="blueBlur" operator="in" result="blueGlow" />
+                    <feMerge>
+                      <feMergeNode in="blueGlow" />
+                      <feMergeNode in="cyanGlow" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
                 <path
-                  d="M 113 139 C 115 83 160 39 216 39 C 240 39 263 47 282 62 C 305 18 352 -3 400 5 C 453 13 489 54 494 105 C 503 103 512 102 521 103 C 578 106 620 152 620 208 C 648 218 668 244 670 276 C 675 324 641 365 595 371 C 579 414 535 439 489 430 C 454 454 408 452 376 427 C 340 456 286 449 257 417 C 215 438 164 419 150 378 C 99 387 52 354 49 307 C 16 288 7 247 26 216 C 39 184 68 162 103 160 C 105 152 108 145 113 139 Z"
+                  d="M 112 337 C 69 337 38 304 38 261 C 38 219 68 185 109 177 C 112 121 158 79 216 79 C 248 79 276 92 297 114 C 316 55 369 17 429 17 C 496 17 548 69 550 135 C 607 135 651 179 651 235 C 681 248 696 279 684 309 C 672 338 646 353 612 353 C 601 379 578 394 550 394 L 159 394 C 130 394 112 372 112 344 Z"
                   fill="#061323"
-                  fillOpacity="0.72"
-                  stroke="rgba(103,232,249,0.24)"
-                  strokeWidth="1.5"
+                  fillOpacity="0.82"
+                  stroke="#55f2ff"
+                  strokeOpacity="0.95"
+                  strokeWidth="2.5"
+                  filter="url(#ipo-cloud-neon)"
+                />
+                <path
+                  d="M 112 337 C 69 337 38 304 38 261 C 38 219 68 185 109 177 C 112 121 158 79 216 79 C 248 79 276 92 297 114 C 316 55 369 17 429 17 C 496 17 548 69 550 135 C 607 135 651 179 651 235 C 681 248 696 279 684 309 C 672 338 646 353 612 353 C 601 379 578 394 550 394 L 159 394 C 130 394 112 372 112 344 Z"
+                  fill="none"
+                  stroke="#a6fbff"
+                  strokeOpacity="0.9"
+                  strokeWidth="1.4"
                 />
               </svg>
-              <div className="absolute inset-[18%] rounded-full border border-cyan-300/20 shadow-[0_0_35px_rgba(34,211,238,0.18)]" />
-              <div className="absolute inset-[27%] rounded-full border border-blue-400/15" />
-              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[74%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[70%]" />
+              <Image src="/ipo-cloud-art.png" alt="IPO CLOUD" width={1535} height={1024} priority className="relative z-10 h-auto w-[70%] object-contain drop-shadow-[0_0_28px_rgba(0,170,255,0.7)] sm:w-[64%]" />
             </div>
           </div>
         </div>
