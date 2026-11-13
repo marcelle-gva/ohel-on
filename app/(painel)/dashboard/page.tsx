@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
+  buscarMembrosParaAniversarios,
+  obterDataAtualSaoPaulo,
+  selecionarAniversariantesDoDia,
+  type MembroAniversariante,
+} from "@/lib/aniversariantes";
+import {
   inicioJanelaOracaoRecente,
   STATUS_ORACAO_PUBLICADA,
   VISIBILIDADE_ORACAO_PUBLICA,
@@ -62,7 +68,9 @@ export default function Dashboard() {
   const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
   const [erroFinanceiro, setErroFinanceiro] = useState("");
   const [pedidosOracao, setPedidosOracao] = useState(0);
-  const [aniversariantes, setAniversariantes] = useState(0);
+  const [aniversariantes, setAniversariantes] = useState<MembroAniversariante[]>([]);
+  const [erroAniversariantes, setErroAniversariantes] = useState("");
+  const [dataAniversariantes, setDataAniversariantes] = useState(obterDataAtualSaoPaulo);
   const [preCadastros, setPreCadastros] = useState(0);
   const [totalAvisos, setTotalAvisos] = useState(0);
   const [avisosMural, setAvisosMural] = useState<AvisoMural[]>([]);
@@ -75,8 +83,11 @@ export default function Dashboard() {
     let requisicaoEmAndamento = false;
     let atualizarNovamente = false;
     let primeiraCarga = true;
+    let encerrado = false;
+    const controller = new AbortController();
 
     const fetchDashboardData = async () => {
+      if (encerrado) return;
       if (requisicaoEmAndamento) {
         atualizarNovamente = true;
         return;
@@ -88,7 +99,7 @@ export default function Dashboard() {
         if (!session) return;
 
         const { data: userData } = await supabase.from("usuarios").select("nome, role, igreja_id").eq("id", session.user.id).maybeSingle();
-        if (!userData?.igreja_id) return;
+        if (encerrado || !userData?.igreja_id) return;
 
         if (!channel) {
           const atualizarPorMudanca = () => void fetchDashboardData();
@@ -98,6 +109,7 @@ export default function Dashboard() {
             .on("postgres_changes", { event: "*", schema: "public", table: "comunicacoes", filter: filtroIgreja }, atualizarPorMudanca)
             .on("postgres_changes", { event: "*", schema: "public", table: "eventos", filter: filtroIgreja }, atualizarPorMudanca)
             .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_oracao", filter: filtroIgreja }, atualizarPorMudanca)
+            .on("postgres_changes", { event: "*", schema: "public", table: "membros", filter: filtroIgreja }, atualizarPorMudanca)
             .subscribe();
         }
 
@@ -107,8 +119,6 @@ export default function Dashboard() {
         else if (userData?.nome) setNomeUsuario(userData.nome.split(" ")[0]);
 
         const hoje = new Date();
-        const diaHoje = hoje.getDate();
-        const mesHoje = hoje.getMonth() + 1;
         const instanteConsulta = hoje.toISOString();
         const semana = inicioJanelaOracaoRecente(hoje);
 
@@ -138,9 +148,10 @@ export default function Dashboard() {
           // Só pedidos aprovados e públicos entram no feed compartilhado.
           supabase.from("pedidos_oracao").select("id, nome_solicitante, descricao, created_at").eq("igreja_id", userData.igreja_id).eq("status", STATUS_ORACAO_PUBLICADA).eq("visibilidade", VISIBILIDADE_ORACAO_PUBLICA).gte("created_at", semana).lte("created_at", instanteConsulta).order("created_at", { ascending: false }).order("id"),
           
-          // Buscar todas as datas de nascimento para filtrar no JS (mais leve que RPC)
-          supabase.from("membros").select("data_nascimento").eq("igreja_id", userData.igreja_id).eq("status", "Ativo")
+          // Paginar evita omitir aniversariantes em igrejas com mais de 1.000 membros.
+          buscarMembrosParaAniversarios(supabase, userData.igreja_id, userData.role === "admin", controller.signal)
         ]);
+        if (encerrado) return;
 
         setTotalMembros(membrosRes.count || 0);
         setTotalCongregados(congregadosRes.count || 0);
@@ -154,25 +165,26 @@ export default function Dashboard() {
         setEventosMural((eventosMuralRes.data || []) as EventoMural[]);
         setOracoesRecentes((oracoesRecentesRes.data || []) as OracaoRecente[]);
 
-        // Cálculo de Aniversariantes
-        if (membrosNascRes.data) {
-          const aniversariantesCount = membrosNascRes.data.filter(m => {
-            if (!m.data_nascimento) return false;
-            const data = new Date(`${m.data_nascimento}T12:00:00`);
-            return data.getDate() === diaHoje && (data.getMonth() + 1) === mesHoje;
-          }).length;
-          setAniversariantes(aniversariantesCount);
-        }
+        // Compara dia/mês do cadastro sem converter o nascimento para UTC.
+        // Usa a data ao concluir a consulta, inclusive se ela atravessar meia-noite.
+        const dataAtual = obterDataAtualSaoPaulo();
+        setDataAniversariantes(dataAtual);
+        setErroAniversariantes(membrosNascRes.error || "");
+        setAniversariantes(membrosNascRes.error ? [] : selecionarAniversariantesDoDia(membrosNascRes.data || [], dataAtual));
 
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error);
+        if (!encerrado) {
+          setErroAniversariantes("Não foi possível carregar os aniversariantes. A consulta será tentada novamente.");
+          setAniversariantes([]);
+        }
       } finally {
         requisicaoEmAndamento = false;
-        if (primeiraCarga) {
+        if (!encerrado && primeiraCarga) {
           primeiraCarga = false;
           setLoading(false);
         }
-        if (atualizarNovamente) {
+        if (!encerrado && atualizarNovamente) {
           atualizarNovamente = false;
           void fetchDashboardData();
         }
@@ -185,10 +197,14 @@ export default function Dashboard() {
     void fetchDashboardData();
     interval = window.setInterval(atualizarSeVisivel, 30000);
     document.addEventListener("visibilitychange", atualizarSeVisivel);
+    window.addEventListener("focus", atualizarSeVisivel);
 
     return () => {
+      encerrado = true;
+      controller.abort();
       if (interval !== null) window.clearInterval(interval);
       document.removeEventListener("visibilitychange", atualizarSeVisivel);
+      window.removeEventListener("focus", atualizarSeVisivel);
       if (channel) void supabase.removeChannel(channel);
     };
   }, []);
@@ -325,10 +341,26 @@ export default function Dashboard() {
         
         <Card className="p-4 flex flex-col justify-between h-full bg-ohel-surface/40 border-gray-800 hover:border-orange-500/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.3)] transition-all">
           <div className="flex justify-between items-start mb-2">
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Aniversariantes</p>
+            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Aniversariantes de hoje</p>
             <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center"><CalendarDays className="w-4 h-4 text-orange-500" /></div>
           </div>
-          <h2 className="text-2xl font-bold text-white">{loading ? "-" : aniversariantes}</h2>
+          <h2 aria-live="polite" className="text-2xl font-bold text-white">{loading ? "-" : erroAniversariantes ? "—" : aniversariantes.length}</h2>
+          <p className="mt-1 text-[10px] text-gray-500">{dataAniversariantes.slice(8)}/{dataAniversariantes.slice(5, 7)} · Membros ativos</p>
+          {!loading && erroAniversariantes ? (
+            <p role="alert" className="mt-2 text-[11px] text-orange-300">{erroAniversariantes}</p>
+          ) : !loading && aniversariantes.length === 0 ? (
+            <p className="mt-2 text-[11px] text-gray-500">Nenhum aniversariante hoje.</p>
+          ) : !loading && isAdmin ? (
+            <ul aria-label="Membros aniversariantes de hoje" className="mt-2 max-h-32 space-y-1.5 overflow-y-auto border-t border-gray-800 pt-2">
+              {aniversariantes.map((membro) => (
+                <li key={membro.id}>
+                  <Link href={`/secretaria/membros/editar/${encodeURIComponent(membro.id)}`} className="block break-words text-xs text-orange-200 hover:text-white">
+                    {membro.nome || "Membro sem nome"}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </Card>
 
         <Link href="/secretaria/membros/aprovacao" className="block outline-none">

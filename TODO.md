@@ -121,3 +121,9 @@
 
 - [x] Comparar e corrigir a nuvem da página inicial para ficar igual à referência anexada: cúpula arredondada, laterais amplas, contorno azul fino e brilho suave, com o logo metálico e suas proporções preservados. Arte reaproveitada da própria referência, sem redesenhar a marca.
 - [x] Preservar os textos, botões, navegação, demais seções, logos compartilhados e funcionalidades do site; manter a arte inteira e sem distorção em desktop e celular. Conferido em 1560 px e 390 px, sem rolagem horizontal; TypeScript sem erros e ESLint sem erros (somente três avisos anteriores à alteração).
+
+## Aniversariantes no dashboard administrativo
+
+- [x] Usar `membros.data_nascimento` do cadastro, comparando dia e mês (independentemente do ano de nascimento) com a data atual de São Paulo; ignorar datas ausentes, inválidas ou futuras e preservar membros ativos da própria igreja. Criação, edição, pré-cadastro, aprovação e perfil rastreados; 13 testes passaram, inclusive sob outro fuso horário.
+- [x] Mostrar claramente o total de aniversariantes de hoje e seus nomes no dashboard de admin, com acesso ao cadastro; distinguir carregamento, ausência de aniversariantes e falha de consulta, sem apresentar erro como zero. Interface do build de produção conferida com autenticação/membros fictícios em cenários de lista, ausência, erro e recuperação, sem alterar cadastros reais.
+- [x] Não omitir membros por limite de 1.000 registros; atualizar ao mudar o cadastro/status, ao retornar à aba e na virada da data, sem requisições sobrepostas; preservar demais KPIs, permissões e fluxos de cadastro. Paginação validada com 1.505 membros; consulta de nomes limitada a admin, atualização por foco conferida e build, TypeScript e ESLint aprovados.
