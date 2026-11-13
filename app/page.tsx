@@ -111,7 +111,6 @@ export default async function HomePage({
             </div>
           </div>
           <div className="relative flex min-h-[360px] items-center justify-center lg:min-h-[500px]">
-            <div aria-hidden="true" className="absolute h-[22rem] w-[22rem] rounded-full bg-blue-500/20 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
             <div className="relative flex aspect-[68/46] w-full max-w-[700px] items-center justify-center">
               <svg
                 aria-hidden="true"
