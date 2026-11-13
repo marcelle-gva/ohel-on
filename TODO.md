@@ -127,3 +127,14 @@
 - [x] Usar `membros.data_nascimento` do cadastro, comparando dia e mês (independentemente do ano de nascimento) com a data atual de São Paulo; ignorar datas ausentes, inválidas ou futuras e preservar membros ativos da própria igreja. Criação, edição, pré-cadastro, aprovação e perfil rastreados; 13 testes passaram, inclusive sob outro fuso horário.
 - [x] Mostrar claramente o total de aniversariantes de hoje e seus nomes no dashboard de admin, com acesso ao cadastro; distinguir carregamento, ausência de aniversariantes e falha de consulta, sem apresentar erro como zero. Interface do build de produção conferida com autenticação/membros fictícios em cenários de lista, ausência, erro e recuperação, sem alterar cadastros reais.
 - [x] Não omitir membros por limite de 1.000 registros; atualizar ao mudar o cadastro/status, ao retornar à aba e na virada da data, sem requisições sobrepostas; preservar demais KPIs, permissões e fluxos de cadastro. Paginação validada com 1.505 membros; consulta de nomes limitada a admin, atualização por foco conferida e build, TypeScript e ESLint aprovados.
+
+## Conclusão: aniversariantes e cuidado pessoal do membro
+
+- [x] Adicionar os filtros “Hoje” e “Do mês”, com total, nomes e datas correspondentes, preservando paginação, São Paulo, atualização e demais KPIs.
+- [x] Permitir ao membro ativo solicitar atendimento pelo dashboard, acompanhar status e confirmação da liderança e cancelar somente atendimento próprio ainda em aberto, preservando os estados existentes.
+- [x] Permitir registrar e atualizar como está se sentindo e acompanhar seu histórico emocional, reutilizando o fluxo existente.
+- [x] Não retornar observações sigilosas ao membro; derivar identidade e igreja da sessão, impedir acesso cruzado entre membros e igrejas e preservar permissões por papel e grupo.
+- [x] Concluir edição com carregamento, validação, persistência e transições de estado e os caminhos incompletos da equipe autorizada; preservar criação para membros e visitantes.
+- [x] Preservar perfil, foto, oração, check-in, cestas, culto, avisos e convites, com erros, carregamento e layout responsivo; revisar a integração por agente somente leitura e verificações automatizadas.
+
+Evidências em 13/11/2026: 32 testes isolados aprovados, TypeScript e build de produção aprovados, ESLint sem erros nos arquivos afetados (somente aviso anterior de imagem no mural), revisão somente leitura concluída e combinação Realizado/responsável pendente corrigida. Schema e policies existentes conferidos somente por metadados, sem alterações no banco. Teste autenticado ponta a ponta não executado no sandbox por ausência da chave privada do servidor; nenhuma conta ou registro real foi criado para testar.

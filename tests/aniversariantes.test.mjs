@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   obterDataAtualSaoPaulo,
   selecionarAniversariantesDoDia,
+  selecionarAniversariantesDoMes,
   buscarMembrosParaAniversarios,
 } from "../lib/aniversariantes.ts";
 
@@ -42,6 +43,15 @@ test("dia e mês do cadastro determinam o aniversário, independentemente do ano
     membro("3", "1990-11-12"), membro("4", "1990-12-13"),
   ], "2026-11-13");
   assert.deepEqual(resultado.map((m) => m.id), ["2", "1"]);
+});
+
+test("filtro do mês inclui todos os dias do mês e ordena por dia, nome e id", () => {
+  const resultado = selecionarAniversariantesDoMes([
+    membro("1", "1980-11-13", "Zélia"), membro("2", "2000-11-02", "Ana"),
+    membro("3", "2000-11-13", "Ana"), membro("4", "2000-12-01", "Dezembro"),
+    membro("5", "2027-11-30", "Futuro"), membro("6", "2000-11-31", "Inválida"),
+  ], "2026-11-13");
+  assert.deepEqual(resultado.map((m) => m.id), ["2", "3", "1"]);
 });
 
 test("ignora data ausente, inválida, em formato incorreto e futura", () => {
@@ -88,6 +98,7 @@ test("consulta todas as páginas, inclusive aniversariantes após o milésimo re
   assert.equal(result.error, null);
   assert.equal(result.data.length, 1505);
   assert.equal(selecionarAniversariantesDoDia(result.data, "2026-11-13").length, 1);
+  assert.equal(selecionarAniversariantesDoMes(result.data, "2026-11-13").length, 1);
   assert.deepEqual(client.chamadas.map((c) => c.range), [[0, 999], [1000, 1999]]);
   for (const chamada of client.chamadas) {
     assert.equal(chamada.campos, "id, nome, data_nascimento");

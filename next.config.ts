@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
+          // Somente o ambiente Manus incorpora o Preview; demais implantações mantêm DENY.
+          ...(process.env.MANUS_PROJECT_ID ? [] : [{ key: 'X-Frame-Options', value: 'DENY' }]),
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
         ],

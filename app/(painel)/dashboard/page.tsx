@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
   buscarMembrosParaAniversarios,
   obterDataAtualSaoPaulo,
   selecionarAniversariantesDoDia,
+  selecionarAniversariantesDoMes,
   type MembroAniversariante,
 } from "@/lib/aniversariantes";
 import {
@@ -50,6 +51,16 @@ function formatarDataMural(data: string | null) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data a definir";
 }
 
+function formatarDataAtualSaoPaulo(data = new Date()) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(data);
+}
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [nomeUsuario, setNomeUsuario] = useState("Líder");
@@ -68,7 +79,8 @@ export default function Dashboard() {
   const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
   const [erroFinanceiro, setErroFinanceiro] = useState("");
   const [pedidosOracao, setPedidosOracao] = useState(0);
-  const [aniversariantes, setAniversariantes] = useState<MembroAniversariante[]>([]);
+  const [membrosAniversariantes, setMembrosAniversariantes] = useState<MembroAniversariante[]>([]);
+  const [filtroAniversariantes, setFiltroAniversariantes] = useState<"hoje" | "mes">("hoje");
   const [erroAniversariantes, setErroAniversariantes] = useState("");
   const [dataAniversariantes, setDataAniversariantes] = useState(obterDataAtualSaoPaulo);
   const [preCadastros, setPreCadastros] = useState(0);
@@ -76,6 +88,13 @@ export default function Dashboard() {
   const [avisosMural, setAvisosMural] = useState<AvisoMural[]>([]);
   const [eventosMural, setEventosMural] = useState<EventoMural[]>([]);
   const [oracoesRecentes, setOracoesRecentes] = useState<OracaoRecente[]>([]);
+
+  const aniversariantes = useMemo(
+    () => filtroAniversariantes === "mes"
+      ? selecionarAniversariantesDoMes(membrosAniversariantes, dataAniversariantes)
+      : selecionarAniversariantesDoDia(membrosAniversariantes, dataAniversariantes),
+    [dataAniversariantes, filtroAniversariantes, membrosAniversariantes],
+  );
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -170,13 +189,13 @@ export default function Dashboard() {
         const dataAtual = obterDataAtualSaoPaulo();
         setDataAniversariantes(dataAtual);
         setErroAniversariantes(membrosNascRes.error || "");
-        setAniversariantes(membrosNascRes.error ? [] : selecionarAniversariantesDoDia(membrosNascRes.data || [], dataAtual));
+        setMembrosAniversariantes(membrosNascRes.error ? [] : membrosNascRes.data || []);
 
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error);
         if (!encerrado) {
           setErroAniversariantes("Não foi possível carregar os aniversariantes. A consulta será tentada novamente.");
-          setAniversariantes([]);
+          setMembrosAniversariantes([]);
         }
       } finally {
         requisicaoEmAndamento = false;
@@ -242,6 +261,15 @@ export default function Dashboard() {
     return () => controller.abort();
   }, [isAdmin, periodoFinanceiro]);
 
+  const aniversariantesDoMes = filtroAniversariantes === "mes";
+  const tituloAniversariantes = aniversariantesDoMes ? "Aniversariantes do mês" : "Aniversariantes de hoje";
+  const periodoAniversariantes = aniversariantesDoMes
+    ? `${dataAniversariantes.slice(5, 7)}/${dataAniversariantes.slice(0, 4)}`
+    : `${dataAniversariantes.slice(8)}/${dataAniversariantes.slice(5, 7)}`;
+  const mensagemAniversariantesVazios = aniversariantesDoMes
+    ? "Nenhum aniversariante neste mês."
+    : "Nenhum aniversariante hoje.";
+
   return (
     <div className="flex flex-col gap-5 w-full max-w-7xl mx-auto pb-10">
       
@@ -251,7 +279,7 @@ export default function Dashboard() {
           <p className="text-gray-400 text-xs mt-0.5">Aqui está o resumo da sua igreja hoje.</p>
         </div>
         <div className="text-left md:text-right">
-          <p className="text-xs text-gray-500">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-xs text-gray-500">{formatarDataAtualSaoPaulo()}</p>
         </div>
       </div>
 
@@ -340,23 +368,46 @@ export default function Dashboard() {
         </Link>
         
         <Card className="p-4 flex flex-col justify-between h-full bg-ohel-surface/40 border-gray-800 hover:border-orange-500/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.3)] transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Aniversariantes de hoje</p>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">{tituloAniversariantes}</p>
+              <div role="group" aria-label="Filtro de aniversariantes" className="mt-2 inline-flex rounded-md border border-gray-700 bg-ohel-bg/50 p-0.5">
+                <button
+                  type="button"
+                  aria-pressed={!aniversariantesDoMes}
+                  onClick={() => setFiltroAniversariantes("hoje")}
+                  className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${!aniversariantesDoMes ? "bg-orange-500/20 text-orange-200" : "text-gray-500 hover:text-gray-200"}`}
+                >
+                  Hoje
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={aniversariantesDoMes}
+                  onClick={() => setFiltroAniversariantes("mes")}
+                  className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${aniversariantesDoMes ? "bg-orange-500/20 text-orange-200" : "text-gray-500 hover:text-gray-200"}`}
+                >
+                  Do mês
+                </button>
+              </div>
+            </div>
             <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center"><CalendarDays className="w-4 h-4 text-orange-500" /></div>
           </div>
           <h2 aria-live="polite" className="text-2xl font-bold text-white">{loading ? "-" : erroAniversariantes ? "—" : aniversariantes.length}</h2>
-          <p className="mt-1 text-[10px] text-gray-500">{dataAniversariantes.slice(8)}/{dataAniversariantes.slice(5, 7)} · Membros ativos</p>
+          <p className="mt-1 text-[10px] text-gray-500">{periodoAniversariantes} · Membros ativos</p>
           {!loading && erroAniversariantes ? (
             <p role="alert" className="mt-2 text-[11px] text-orange-300">{erroAniversariantes}</p>
           ) : !loading && aniversariantes.length === 0 ? (
-            <p className="mt-2 text-[11px] text-gray-500">Nenhum aniversariante hoje.</p>
+            <p className="mt-2 text-[11px] text-gray-500">{mensagemAniversariantesVazios}</p>
           ) : !loading && isAdmin ? (
-            <ul aria-label="Membros aniversariantes de hoje" className="mt-2 max-h-32 space-y-1.5 overflow-y-auto border-t border-gray-800 pt-2">
+            <ul aria-label={`Membros aniversariantes ${aniversariantesDoMes ? "do mês" : "de hoje"}`} className="mt-2 max-h-32 space-y-1.5 overflow-y-auto border-t border-gray-800 pt-2">
               {aniversariantes.map((membro) => (
-                <li key={membro.id}>
-                  <Link href={`/secretaria/membros/editar/${encodeURIComponent(membro.id)}`} className="block break-words text-xs text-orange-200 hover:text-white">
+                <li key={membro.id} className="flex items-center justify-between gap-2">
+                  <Link href={`/secretaria/membros/editar/${encodeURIComponent(membro.id)}`} className="block min-w-0 break-words text-xs text-orange-200 hover:text-white">
                     {membro.nome || "Membro sem nome"}
                   </Link>
+                  <time dateTime={membro.data_nascimento || undefined} className="shrink-0 text-[10px] text-gray-500">
+                    {membro.data_nascimento?.slice(8, 10)}/{membro.data_nascimento?.slice(5, 7)}
+                  </time>
                 </li>
               ))}
             </ul>

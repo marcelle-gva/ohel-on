@@ -38,6 +38,21 @@ export function selecionarAniversariantesDoDia(
     .sort((a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR") || a.id.localeCompare(b.id));
 }
 
+export function selecionarAniversariantesDoMes(
+  membros: MembroAniversariante[],
+  dataAtual = obterDataAtualSaoPaulo(),
+) {
+  if (!dataCadastroValida(dataAtual)) return [];
+  const mesAtual = dataAtual.slice(5, 7);
+  return membros
+    .filter((membro) => dataCadastroValida(membro.data_nascimento)
+      && membro.data_nascimento <= dataAtual
+      && membro.data_nascimento.slice(5, 7) === mesAtual)
+    .sort((a, b) => Number(a.data_nascimento!.slice(8, 10)) - Number(b.data_nascimento!.slice(8, 10))
+      || (a.nome || "").localeCompare(b.nome || "", "pt-BR")
+      || a.id.localeCompare(b.id));
+}
+
 export async function buscarMembrosParaAniversarios(
   client: SupabaseClient,
   igrejaId: string,

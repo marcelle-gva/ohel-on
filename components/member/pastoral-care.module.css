@@ -1,0 +1,679 @@
+.card {
+  width: 100%;
+  margin-top: 1rem;
+  overflow: hidden;
+  border: 1px solid #1a2638;
+  border-radius: 0.9rem;
+  color: #d1d8e2;
+  background: #080e1b;
+}
+.card * {
+  box-sizing: border-box;
+}
+.card button,
+.card input,
+.card select,
+.card textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+.card button:focus-visible,
+.card input:focus-visible,
+.card select:focus-visible,
+.card textarea:focus-visible {
+  outline: 2px solid #3c9aff;
+  outline-offset: 2px;
+}
+.card button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1rem 0.8rem;
+}
+.headingGroup {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+.headingIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.65rem;
+  color: #72d4ba;
+  background: #1c9d7d1a;
+}
+.headingText {
+  min-width: 0;
+}
+.eyebrow {
+  margin: 0 0 0.2rem;
+  color: #65d6b0;
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.title {
+  margin: 0;
+  color: #f0f4fa;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.subtitle {
+  margin: 0.32rem 0 0;
+  color: #7f8ca0;
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+.refresh {
+  display: inline-flex;
+  min-height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #1d2c40;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  color: #aebbd0;
+  background: #080e1b;
+  font-size: 0.66rem;
+  cursor: pointer;
+}
+.refresh:hover {
+  border-color: #375576;
+  color: #d8e8fb;
+}
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  border-top: 1px solid #17243a;
+  padding: 0.65rem 1rem;
+  color: #8194aa;
+  background: #091220;
+  font-size: 0.63rem;
+  line-height: 1.5;
+}
+.privacy svg {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: #6ec6a9;
+}
+.loadError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin: 0.8rem 1rem 0;
+  border: 1px solid #6f28374d;
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.7rem;
+  color: #efb4bd;
+  background: #2c121a66;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+.loadError button {
+  min-height: 32px;
+  flex-shrink: 0;
+  border: 1px solid #854252;
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  color: #ffd4d9;
+  background: transparent;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 150px;
+  padding: 1rem;
+  color: #71839f;
+  font-size: 0.76rem;
+}
+.content {
+  padding: 0 1rem 1rem;
+}
+.syncing {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.6rem;
+  color: #71839f;
+  font-size: 0.62rem;
+}
+.formCards,
+.historyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.formCard,
+.historyCard {
+  min-width: 0;
+  border: 1px solid #1a2a40;
+  border-radius: 0.7rem;
+  background: #0a1220;
+}
+.formCard {
+  padding: 0.85rem;
+}
+.cardHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 0.8rem;
+}
+.cardIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.5rem;
+}
+.cardIconBlue {
+  color: #75baff;
+  background: #007bff14;
+}
+.cardIconPurple {
+  color: #d5a8ff;
+  background: #a855f714;
+}
+.cardHeading h3,
+.historyHeader h3 {
+  margin: 0;
+  color: #eaf0f8;
+  font-size: 0.79rem;
+  font-weight: 650;
+}
+.cardHeading p,
+.historyHeader p {
+  margin: 0.22rem 0 0;
+  color: #7889a1;
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.label {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  gap: 0.32rem;
+  min-width: 0;
+  color: #b7c6da;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+.required,
+.optional {
+  margin-left: 0.2rem;
+  color: #7e94ae;
+  font-size: 0.57rem;
+  font-weight: 400;
+}
+.required {
+  color: #d2a3ac;
+}
+.field {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid #20334b;
+  border-radius: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  color: #d7e3f2;
+  outline: none;
+  background: #050a13;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+.field::placeholder {
+  color: #60728b;
+}
+.field:hover {
+  border-color: #2b4562;
+}
+.field:focus {
+  border-color: #3c9aff;
+}
+.textarea {
+  min-height: 74px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.counter {
+  align-self: flex-end;
+  margin-top: -0.16rem;
+  color: #62768f;
+  font-size: 0.56rem;
+  font-weight: 400;
+}
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.formHint {
+  margin: -0.1rem 0 0;
+  color: #71839b;
+  font-size: 0.61rem;
+  line-height: 1.5;
+}
+.formError,
+.formSuccess {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+.formError {
+  color: #efb4bd;
+}
+.formSuccess {
+  color: #8cddc2;
+}
+.primaryButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid #2478c8;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  color: #eef7ff;
+  background: #1265ac;
+  font-size: 0.68rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.primaryButton:hover {
+  border-color: #4aa7f5;
+  background: #1676c5;
+}
+.emotionFieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.emotionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.32rem;
+}
+.emotionOption {
+  display: flex;
+  min-width: 0;
+  min-height: 47px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  border: 1px solid #1d2d43;
+  border-radius: 0.45rem;
+  padding: 0.28rem 0.18rem;
+  color: #8ea0b6;
+  background: #07101c;
+  font-size: 0.56rem;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+}
+.emotionOption:hover {
+  border-color: #425c7a;
+  color: #ccd8e8;
+}
+.emotionSelected {
+  border-color: #9366ba;
+  color: #f0d8ff;
+  background: #462c5b55;
+  box-shadow: inset 0 0 0 1px #9366ba66;
+}
+.emotionEmoji {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.historyGrid {
+  margin-top: 0.75rem;
+}
+.historyCard {
+  padding: 0.85rem;
+}
+.historyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+.historyCount {
+  display: grid;
+  min-width: 24px;
+  min-height: 22px;
+  place-items: center;
+  border: 1px solid #253650;
+  border-radius: 0.4rem;
+  color: #91a6c0;
+  background: #101c2f;
+  font-size: 0.61rem;
+}
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.historyItem,
+.emotionHistoryItem {
+  min-width: 0;
+  border: 1px solid #192a40;
+  border-radius: 0.55rem;
+  padding: 0.65rem;
+  background: #080f1c;
+}
+.historyItemTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+.historyItemTop > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.historyItemTop strong {
+  color: #d9e4f2;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+.historyItemTop span:not(.status) {
+  color: #71869f;
+  font-size: 0.61rem;
+}
+.status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  border-radius: 99px;
+  padding: 0.22rem 0.38rem;
+  font-size: 0.54rem;
+  line-height: 1;
+  text-align: center;
+}
+.statusScheduled {
+  border: 1px solid #a2782e66;
+  color: #e9ca82;
+  background: #6d4d161c;
+}
+.statusDone {
+  border: 1px solid #23866a66;
+  color: #8cddc2;
+  background: #1660441c;
+}
+.statusCancelled {
+  border: 1px solid #8c4c5966;
+  color: #e7aab3;
+  background: #6f28371c;
+}
+.statusUnknown {
+  border: 1px solid #40516a66;
+  color: #aebdd0;
+  background: #26364b1c;
+}
+.historyReason {
+  margin: 0.55rem 0 0;
+  color: #afbdd0;
+  font-size: 0.67rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.65rem 0 0;
+  border-top: 1px solid #16243a;
+  padding-top: 0.55rem;
+}
+.detailGrid div {
+  min-width: 0;
+}
+.detailGrid dt {
+  color: #637790;
+  font-size: 0.55rem;
+}
+.detailGrid dd {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+  margin: 0.2rem 0 0;
+  color: #c2d0e1;
+  font-size: 0.61rem;
+  line-height: 1.35;
+}
+.detailGrid dd svg {
+  flex-shrink: 0;
+  color: #80a8cc;
+}
+.statusExplanation,
+.pendingNote {
+  margin: 0.55rem 0 0;
+  color: #7c91a9;
+  font-size: 0.59rem;
+  line-height: 1.45;
+}
+.pendingNote {
+  color: #c6a86c;
+}
+.cancelArea {
+  margin-top: 0.6rem;
+  border-top: 1px solid #17263b;
+  padding-top: 0.55rem;
+}
+.cancelButton,
+.quietButton,
+.dangerButton {
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+.cancelButton {
+  border: 1px solid #31465e;
+  color: #a9bbd0;
+  background: transparent;
+}
+.cancelButton:hover,
+.quietButton:hover {
+  border-color: #56718e;
+  color: #e0ebf8;
+}
+.cancelConfirmation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  color: #c5d3e3;
+  font-size: 0.61rem;
+}
+.dangerButton {
+  border: 1px solid #a24a5b;
+  color: #ffd6dc;
+  background: #722d3d66;
+}
+.dangerButton:hover {
+  background: #87384988;
+}
+.quietButton {
+  border: 1px solid #2b4058;
+  color: #a6b8ce;
+  background: transparent;
+}
+.emotionHistoryItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+.historyEmoji {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: #43276444;
+  font-size: 1.05rem;
+}
+.emotionHistoryText {
+  min-width: 0;
+  flex: 1;
+}
+.emotionHistoryTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.emotionHistoryTop strong {
+  color: #dfcef0;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+.emotionHistoryTop time {
+  flex-shrink: 0;
+  color: #6f829a;
+  font-size: 0.57rem;
+}
+.emotionHistoryText p {
+  margin: 0.25rem 0 0;
+  color: #a6b5c8;
+  font-size: 0.64rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.emptyHistory {
+  margin: 0;
+  border: 1px dashed #263951;
+  border-radius: 0.5rem;
+  padding: 0.8rem;
+  color: #7e8fa5;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  border-top: 1px solid #16243a;
+  padding-top: 0.6rem;
+}
+.pagination button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid #263a54;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.45rem;
+  color: #9db2cc;
+  background: transparent;
+  font-size: 0.58rem;
+  cursor: pointer;
+}
+.pagination button:hover:not(:disabled) {
+  border-color: #4c6d91;
+  color: #d8e7f7;
+}
+.pagination span {
+  color: #70849c;
+  font-size: 0.58rem;
+}
+
+@media (max-width: 760px) {
+  .formCards,
+  .historyGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .header {
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .refresh {
+    width: 100%;
+    justify-content: center;
+  }
+  .content {
+    padding: 0 0.8rem 0.8rem;
+  }
+  .privacy {
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+  .loadError {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-right: 0.8rem;
+    margin-left: 0.8rem;
+  }
+  .loadError button {
+    width: 100%;
+  }
+  .fieldGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .emotionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .detailGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .detailGrid div:last-child {
+    grid-column: 1 / -1;
+  }
+  .historyItemTop {
+    flex-direction: column;
+  }
+  .status {
+    align-self: flex-start;
+  }
+  .cancelConfirmation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .cancelConfirmation button {
+    width: 100%;
+  }
+}

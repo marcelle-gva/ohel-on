@@ -1,38 +1,7 @@
 {
   "routes": [
     {
-      "path": "/"
-    },
-    {
-      "path": "/api/membros/aprovar"
-    },
-    {
-      "path": "/area-membro",
-      "title": "Meu dashboard de membro"
-    },
-    {
-      "path": "/area-membro/cestas"
-    },
-    {
-      "path": "/auth/callback"
-    },
-    {
-      "path": "/auth/membro/callback"
-    },
-    {
-      "path": "/cadastro"
-    },
-    {
-      "path": "/checkin"
-    },
-    {
-      "path": "/configuracoes"
-    },
-    {
       "path": "/configuracoes/administradores"
-    },
-    {
-      "path": "/configuracoes/administradores/aceitar"
     },
     {
       "path": "/configuracoes/checkin"
@@ -47,6 +16,9 @@
       "path": "/configuracoes/grupos"
     },
     {
+      "path": "/configuracoes"
+    },
+    {
       "path": "/configuracoes/perfis"
     },
     {
@@ -59,13 +31,7 @@
       "path": "/dashboard"
     },
     {
-      "path": "/ensino"
-    },
-    {
       "path": "/ensino/certificados"
-    },
-    {
-      "path": "/ensino/classes"
     },
     {
       "path": "/ensino/classes/editar/:id"
@@ -74,16 +40,16 @@
       "path": "/ensino/classes/nova"
     },
     {
+      "path": "/ensino/classes"
+    },
+    {
       "path": "/ensino/diario"
     },
     {
       "path": "/ensino/matriculas"
     },
     {
-      "path": "/evento/:id"
-    },
-    {
-      "path": "/eventos"
+      "path": "/ensino"
     },
     {
       "path": "/eventos/:id/inscricoes"
@@ -95,13 +61,10 @@
       "path": "/eventos/novo"
     },
     {
-      "path": "/financeiro"
+      "path": "/eventos"
     },
     {
       "path": "/financeiro/caixas"
-    },
-    {
-      "path": "/financeiro/contas-pagar"
     },
     {
       "path": "/financeiro/contas-pagar/editar/:id"
@@ -110,10 +73,13 @@
       "path": "/financeiro/contas-pagar/nova"
     },
     {
-      "path": "/financeiro/fornecedores"
+      "path": "/financeiro/contas-pagar"
     },
     {
-      "path": "/financeiro/movimento"
+      "path": "/financeiro/departamentos"
+    },
+    {
+      "path": "/financeiro/fornecedores"
     },
     {
       "path": "/financeiro/movimento/importar"
@@ -122,28 +88,38 @@
       "path": "/financeiro/movimento/novo"
     },
     {
+      "path": "/financeiro/movimento"
+    },
+    {
+      "path": "/financeiro"
+    },
+    {
+      "path": "/financeiro/produtos"
+    },
+    {
       "path": "/financeiro/relatorios"
     },
     {
-      "path": "/gabinete"
-    },
-    {
-      "path": "/gabinete/atendimentos"
+      "path": "/gabinete/atendimentos/editar/:id",
+      "title": "Editar atendimento pastoral"
     },
     {
       "path": "/gabinete/atendimentos/novo"
     },
     {
-      "path": "/gabinete/comunicacoes"
+      "path": "/gabinete/atendimentos"
     },
     {
       "path": "/gabinete/comunicacoes/nova"
     },
     {
+      "path": "/gabinete/comunicacoes"
+    },
+    {
       "path": "/gabinete/emocional"
     },
     {
-      "path": "/gabinete/sermoes"
+      "path": "/gabinete"
     },
     {
       "path": "/gabinete/sermoes/editar/:id"
@@ -152,10 +128,207 @@
       "path": "/gabinete/sermoes/novo"
     },
     {
+      "path": "/gabinete/sermoes"
+    },
+    {
+      "path": "/monitor-midia/historico-cultos"
+    },
+    {
+      "path": "/monitor-midia/louvores/editar/:id"
+    },
+    {
+      "path": "/monitor-midia/louvores"
+    },
+    {
+      "path": "/monitor-midia/louvores/pendentes"
+    },
+    {
+      "path": "/monitor-midia"
+    },
+    {
+      "path": "/patrimonio/inventario"
+    },
+    {
+      "path": "/patrimonio/movimentar/:id"
+    },
+    {
+      "path": "/patrimonio/novo"
+    },
+    {
+      "path": "/patrimonio"
+    },
+    {
+      "path": "/secretaria/cartas/imprimir"
+    },
+    {
+      "path": "/secretaria/cartas/modelos/editar/:id"
+    },
+    {
+      "path": "/secretaria/cartas/modelos/novo"
+    },
+    {
+      "path": "/secretaria/cartas/modelos"
+    },
+    {
+      "path": "/secretaria/cartas"
+    },
+    {
+      "path": "/secretaria/certificados/modelos/editar/:id"
+    },
+    {
+      "path": "/secretaria/certificados/modelos/novo"
+    },
+    {
+      "path": "/secretaria/certificados/modelos"
+    },
+    {
+      "path": "/secretaria/certificados"
+    },
+    {
+      "path": "/secretaria/cestas"
+    },
+    {
+      "path": "/secretaria/congregacoes/editar/:id"
+    },
+    {
+      "path": "/secretaria/congregacoes/nova"
+    },
+    {
+      "path": "/secretaria/congregacoes"
+    },
+    {
+      "path": "/secretaria/congregados/editar/:id"
+    },
+    {
+      "path": "/secretaria/congregados/novo"
+    },
+    {
+      "path": "/secretaria/congregados"
+    },
+    {
+      "path": "/secretaria/credenciais/entrega"
+    },
+    {
+      "path": "/secretaria/credenciais"
+    },
+    {
+      "path": "/secretaria/escalas/nova"
+    },
+    {
+      "path": "/secretaria/escalas"
+    },
+    {
+      "path": "/secretaria/fichas/imprimir/:tipo"
+    },
+    {
+      "path": "/secretaria/fichas"
+    },
+    {
+      "path": "/secretaria/kids-teens"
+    },
+    {
+      "path": "/secretaria/membros/aprovacao"
+    },
+    {
+      "path": "/secretaria/membros/editar/:id"
+    },
+    {
+      "path": "/secretaria/membros/novo"
+    },
+    {
+      "path": "/secretaria/membros"
+    },
+    {
+      "path": "/secretaria/mural/editar/:id"
+    },
+    {
+      "path": "/secretaria/mural/novo"
+    },
+    {
+      "path": "/secretaria/mural"
+    },
+    {
+      "path": "/secretaria/oracoes/editar/:id"
+    },
+    {
+      "path": "/secretaria/oracoes/novo"
+    },
+    {
+      "path": "/secretaria/oracoes"
+    },
+    {
+      "path": "/secretaria/reunioes/editar/:id"
+    },
+    {
+      "path": "/secretaria/reunioes/novo"
+    },
+    {
+      "path": "/secretaria/reunioes"
+    },
+    {
+      "path": "/secretaria/visitantes/editar/:id"
+    },
+    {
+      "path": "/secretaria/visitantes/novo"
+    },
+    {
+      "path": "/secretaria/visitantes"
+    },
+    {
+      "path": "/secretaria/visitas/editar/:id"
+    },
+    {
+      "path": "/secretaria/visitas/novo"
+    },
+    {
+      "path": "/secretaria/visitas"
+    },
+    {
+      "path": "/sorteios/novo"
+    },
+    {
+      "path": "/sorteios"
+    },
+    {
+      "path": "/area-membro/cestas"
+    },
+    {
+      "path": "/area-membro",
+      "title": "Meu dashboard de membro"
+    },
+    {
+      "path": "/area-membro/perfil",
+      "title": "Meu perfil de membro"
+    },
+    {
+      "path": "/auth/callback"
+    },
+    {
+      "path": "/auth/membro/callback"
+    },
+    {
+      "path": "/cadastro"
+    },
+    {
+      "path": "/checkin"
+    },
+    {
+      "path": "/configuracoes/administradores/aceitar"
+    },
+    {
+      "path": "/evento/:id"
+    },
+    {
       "path": "/imprimir/ficha/membro"
     },
     {
       "path": "/imprimir/membro/:id"
+    },
+    {
+      "path": "/ipocloud/convites/aceitar"
+    },
+    {
+      "path": "/ipocloud"
     },
     {
       "path": "/login"
@@ -170,31 +343,10 @@
       "path": "/mfa"
     },
     {
-      "path": "/monitor-midia"
-    },
-    {
-      "path": "/monitor-midia/historico-cultos"
-    },
-    {
-      "path": "/monitor-midia/louvores"
-    },
-    {
-      "path": "/monitor-midia/louvores/editar/:id"
-    },
-    {
       "path": "/oracao/:id"
     },
     {
-      "path": "/patrimonio"
-    },
-    {
-      "path": "/patrimonio/inventario"
-    },
-    {
-      "path": "/patrimonio/movimentar/:id"
-    },
-    {
-      "path": "/patrimonio/novo"
+      "path": "/"
     },
     {
       "path": "/pre-cadastro"
@@ -212,158 +364,13 @@
       "path": "/redefinir-senha"
     },
     {
-      "path": "/secretaria/cartas"
-    },
-    {
-      "path": "/secretaria/cartas/imprimir"
-    },
-    {
-      "path": "/secretaria/cartas/modelos"
-    },
-    {
-      "path": "/secretaria/cartas/modelos/editar/:id"
-    },
-    {
-      "path": "/secretaria/cartas/modelos/novo"
-    },
-    {
-      "path": "/secretaria/certificados"
-    },
-    {
-      "path": "/secretaria/certificados/modelos"
-    },
-    {
-      "path": "/secretaria/certificados/modelos/editar/:id"
-    },
-    {
-      "path": "/secretaria/certificados/modelos/novo"
-    },
-    {
-      "path": "/secretaria/cestas"
-    },
-    {
-      "path": "/secretaria/congregacoes"
-    },
-    {
-      "path": "/secretaria/congregacoes/editar/:id"
-    },
-    {
-      "path": "/secretaria/congregacoes/nova"
-    },
-    {
-      "path": "/secretaria/congregados"
-    },
-    {
-      "path": "/secretaria/congregados/editar/:id"
-    },
-    {
-      "path": "/secretaria/congregados/novo"
-    },
-    {
-      "path": "/secretaria/credenciais"
-    },
-    {
-      "path": "/secretaria/credenciais/entrega"
-    },
-    {
-      "path": "/secretaria/escalas"
-    },
-    {
-      "path": "/secretaria/escalas/nova"
-    },
-    {
-      "path": "/secretaria/fichas"
-    },
-    {
-      "path": "/secretaria/fichas/imprimir/:tipo"
-    },
-    {
-      "path": "/secretaria/kids-teens"
-    },
-    {
-      "path": "/secretaria/membros"
-    },
-    {
-      "path": "/secretaria/membros/aprovacao"
-    },
-    {
-      "path": "/secretaria/membros/editar/:id"
-    },
-    {
-      "path": "/secretaria/membros/novo"
-    },
-    {
-      "path": "/secretaria/mural"
-    },
-    {
-      "path": "/secretaria/mural/editar/:id"
-    },
-    {
-      "path": "/secretaria/mural/novo"
-    },
-    {
-      "path": "/secretaria/oracoes"
-    },
-    {
-      "path": "/secretaria/oracoes/editar/:id"
-    },
-    {
-      "path": "/secretaria/oracoes/novo"
-    },
-    {
-      "path": "/secretaria/reunioes"
-    },
-    {
-      "path": "/secretaria/reunioes/editar/:id"
-    },
-    {
-      "path": "/secretaria/reunioes/novo"
-    },
-    {
-      "path": "/secretaria/visitantes"
-    },
-    {
-      "path": "/secretaria/visitantes/editar/:id"
-    },
-    {
-      "path": "/secretaria/visitantes/novo"
-    },
-    {
-      "path": "/secretaria/visitas"
-    },
-    {
-      "path": "/secretaria/visitas/editar/:id"
-    },
-    {
-      "path": "/secretaria/visitas/novo"
+      "path": "/sorteio/:id/acompanhar"
     },
     {
       "path": "/sorteio/:id"
     },
     {
-      "path": "/sorteio/:id/acompanhar"
-    },
-    {
-      "path": "/sorteios"
-    },
-    {
-      "path": "/sorteios/novo"
-    },
-    {
-      "path": "/financeiro/departamentos"
-    },
-    {
-      "path": "/financeiro/produtos"
-    },
-    {
-      "path": "/ipocloud"
-    },
-    {
-      "path": "/ipocloud/convites/aceitar"
-    },
-    {
-      "path": "/area-membro/perfil",
-      "title": "Meu perfil de membro"
+      "path": "/visitante/:igrejaId"
     }
   ]
 }

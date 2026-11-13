@@ -26,6 +26,7 @@ import type {
 } from "@/lib/member-dashboard";
 import { VisitorInviteCard } from "./VisitorInviteCard";
 import { NoticeDetails } from "./NoticeDetails";
+import { PastoralCareCard } from "./PastoralCareCard";
 import { VerseCallout } from "@/components/shared/VerseCallout";
 import styles from "@/app/area-membro/dashboard.module.css";
 
@@ -85,8 +86,10 @@ export function MemberDashboard() {
   const [avisosVisiveis, setAvisosVisiveis] = useState(4);
   const [louvoresVisiveis, setLouvoresVisiveis] = useState(3);
   const [slide, setSlide] = useState(0);
+  const [cuidadoRefreshKey, setCuidadoRefreshKey] = useState(0);
   const emAndamento = useRef<AbortController | null>(null);
   const recarregarPendente = useRef(false);
+  const carregarRef = useRef<(() => Promise<void>) | null>(null);
 
   const carregar = useCallback(async () => {
     if (emAndamento.current) {
@@ -139,9 +142,16 @@ export function MemberDashboard() {
       if (!controller.signal.aborted) setAtualizando(false);
       const repetir = recarregarPendente.current && !controller.signal.aborted;
       recarregarPendente.current = false;
-      if (repetir) window.setTimeout(() => void carregar(), 0);
+      if (repetir) window.setTimeout(() => void carregarRef.current?.(), 0);
     }
   }, []);
+
+  useEffect(() => {
+    carregarRef.current = carregar;
+    return () => {
+      if (carregarRef.current === carregar) carregarRef.current = null;
+    };
+  }, [carregar]);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -243,7 +253,10 @@ export function MemberDashboard() {
         </div>
         <button
           type="button"
-          onClick={() => void carregar()}
+          onClick={() => {
+            setCuidadoRefreshKey((valor) => valor + 1);
+            void carregar();
+          }}
           disabled={atualizando}
           className={styles.refresh}
         >
@@ -579,6 +592,7 @@ export function MemberDashboard() {
           </footer>
         </>
       )}
+      <PastoralCareCard refreshKey={cuidadoRefreshKey} />
       <NoticeDetails aviso={selecionado} onClose={() => setSelecionado(null)} />
     </div>
   );
