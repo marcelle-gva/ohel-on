@@ -30,6 +30,7 @@ import { PastoralCareCard } from "./PastoralCareCard";
 import { MemberRafflesCard } from "./MemberRafflesCard";
 import { PrayerNotifications } from "./PrayerNotifications";
 import { VerseCallout } from "@/components/shared/VerseCallout";
+import { CultoLarDashboardCard } from "@/components/culto-lar/CultoLarDashboardCard";
 import styles from "@/app/area-membro/dashboard.module.css";
 
 function urlSegura(url: string | null | undefined) {
@@ -301,6 +302,8 @@ export function MemberDashboard() {
         key={`sorteios-${contexto?.igrejaId}-${contexto?.membro?.id}`}
         refreshKey={sorteiosRefreshKey}
       />
+
+      <CultoLarDashboardCard />
 
       {erro && (
         <p role="alert" className={styles.error}>

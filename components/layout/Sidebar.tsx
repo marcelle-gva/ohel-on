@@ -49,6 +49,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false }: Sideb
         { name: "Escalas", href: "/secretaria/escalas", modulo: "escalas" },
         { name: "Reuniões", href: "/secretaria/reunioes", modulo: "reunioes" },
         { name: "Mural", href: "/secretaria/mural", modulo: "mural" },
+        { name: "Culto no Lar · revisão", href: "/secretaria/mural/culto-no-lar", modulo: "mural" },
         { name: "Pedidos de Oração", href: "/secretaria/oracoes", modulo: "oracoes" },
         { name: "Cartas", href: "/secretaria/cartas", modulo: "cartas" },
         { name: "Certificados", href: "/secretaria/certificados", modulo: "certificados" },
@@ -101,7 +102,7 @@ export function Sidebar({ isOpen, setIsOpen, permissoes, membro = false }: Sideb
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-1">
           {membro && <div className="mb-3 flex flex-col gap-1 border-b border-gray-800 pb-3">
-            {[{ name: "Meu dashboard", href: "/area-membro" }, { name: "Meu perfil", href: "/area-membro/perfil" }, { name: "Check-in", href: "/checkin" }, { name: "Cestas básicas", href: "/area-membro/cestas" }].map((item) => <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className={`rounded-lg px-3 py-2.5 text-sm ${pathname === item.href ? "bg-ohel-blue/10 text-ohel-blue" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>{item.name}</Link>)}
+            {[{ name: "Meu dashboard", href: "/area-membro" }, { name: "Meu perfil", href: "/area-membro/perfil" }, { name: "Culto no Lar", href: "/area-membro/culto-no-lar" }, { name: "Check-in", href: "/checkin" }, { name: "Cestas básicas", href: "/area-membro/cestas" }].map((item) => <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className={`rounded-lg px-3 py-2.5 text-sm ${pathname === item.href ? "bg-ohel-blue/10 text-ohel-blue" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>{item.name}</Link>)}
             {permissoes.length > 0 && <p className="mt-3 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Módulos autorizados</p>}
           </div>}
           {menusFiltrados.map((item) => {

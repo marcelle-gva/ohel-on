@@ -69,3 +69,13 @@ Cada sorteio mantém a compra pública atual e ganha gestão administrativa de v
 Campanhas de cestas incluem quantidade de cestas e totais de itens explicitamente calculados. Sugestões vêm da história da própria igreja e de opções básicas; edição preserva as reservas/doações e não permite diminuir a necessidade abaixo dos compromissos existentes. Migrações necessárias serão aditivas e compatíveis com campanhas legadas.
 
 Notificações pessoais de oração seguem os mesmos critérios de publicação e privacidade do mural. Um pedido pendente de outra pessoa não pode aparecer para o membro. Controlar IDs lidos por conta/membro/igreja, avisar aprovações posteriores e evitar notificações repetidas em foco/atualização. Novos blocos ficam em `components/member/`, estilos isolados e APIs privadas específicas; o pai integra os componentes no dashboard existente, sem alterar os recursos do culto e do cuidado pastoral.
+
+## Terceira rodada — programação e Culto no Lar
+
+No Histórico de Cultos, a programação fixa já cadastrada ganha edição de nome, tipo, dia e intervalo de horários, além das ações existentes de pausa/reativação. Alterações valem para ocorrências futuras e preservam os diários anteriores e a sessão em andamento. A programação anual terá espaço próprio no mesmo Histórico, com filtro por ano, data, título, tipo, horários e observações; poderá ser cadastrada e editada pela gestão autorizada, separada da recorrência semanal.
+
+Culto no Lar terá um mural próprio acessível pelo dashboard do membro. Um membro ativo poderá enviar identificação da casa/família (sem endereço pessoal obrigatório), data, Palavra ministrada e foto. O envio nasce pendente: somente o autor e a liderança autorizada da igreja o consultam. Após aprovação, texto e foto aparecem aos membros da mesma igreja, não ao público mundial. A liderança pode aprovar/rejeitar; mudanças do autor em conteúdo aprovado exigem nova revisão. Identidade e igreja são derivadas da sessão, sem permissões conferidas por cargo declarado.
+
+Reutilizar Next.js, Supabase e o design escuro do projeto. Fotos ficam em bucket privado e são entregues somente após autorização. APIs em `app/api/`, regras/DTOs em `lib/`, componentes em `components/culto-lar/`, integração pontual no dashboard e no Histórico, e migrações aditivas em `supabase/migrations/`. Manter a hospedagem original Vercel/IPOCLOUD e publicar via GitHub autorizado, sem outra implantação pública. Preservar finanças, sorteios, oração, cestas e atendimento pastoral.
+
+Usar limite conservador de 4 MiB por foto no formulário e no servidor, reservando margem para o restante do formulário multipart na implantação original. Manter JPEG, PNG e WebP e remover metadados da imagem antes de armazenar.

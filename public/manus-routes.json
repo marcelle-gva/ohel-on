@@ -11,6 +11,10 @@
       "path": "/area-membro/cestas"
     },
     {
+      "path": "/area-membro/culto-no-lar",
+      "title": "Culto no Lar — mural e meus envios"
+    },
+    {
       "path": "/area-membro/perfil",
       "title": "Meu perfil de membro"
     },
@@ -322,6 +326,10 @@
     },
     {
       "path": "/secretaria/mural"
+    },
+    {
+      "path": "/secretaria/mural/culto-no-lar",
+      "title": "Culto no Lar — revisão da liderança"
     },
     {
       "path": "/secretaria/mural/editar/:id"
